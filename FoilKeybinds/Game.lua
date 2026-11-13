@@ -39,7 +39,10 @@ function ns.Apply()
   local done = 0
   for key, setup in pairs(keys) do if next(setup.slots) then -- clicked but empty keys are skipped
     local name = "FKB " .. key
-    if upsertMacro(b, name, ns.MacroText(setup)) then
+    local text, n, trimmed = ns.FitMacro(setup)
+    for _, id in ipairs(trimmed) do setup.slots[id].mouseover = false end
+    if not text then ns.Say(L.SKIP_LONG:format(key, n, ns.MAX))
+    elseif upsertMacro(b, name, text) then
       keepBind(b, key)
       for _, m in ipairs(MODS) do keepBind(b, m .. key); SetBinding(m .. key) end
       local slot = ns.SlotOf(GetBindingAction(key))

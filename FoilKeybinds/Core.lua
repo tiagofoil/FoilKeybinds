@@ -28,6 +28,44 @@ function ns.MacroText(setup)
   return table.concat(lines, "\n")
 end
 
+ns.MAX = 255
+
+-- Macro text that fits in 255 chars. Over the limit: drop mouseover from the slot whose
+-- removal saves the most chars (ties: SLOTS order), repeat until it fits.
+-- Returns text, length, trimmed (slot ids that lost mouseover, apply them to saved data).
+-- Still over with no mouseover left: returns nil, length, trimmed, errSlot, where errSlot
+-- is the slot with the longest spell name (the one most worth changing).
+function ns.FitMacro(setup)
+  local slots = {}
+  for id, s in pairs(setup.slots) do slots[id] = { name = s.name, mouseover = s.mouseover, kind = s.kind } end
+  local copy = { slots = slots, targetEnemy = setup.targetEnemy, petAttack = setup.petAttack }
+  local trimmed, text = {}, ns.MacroText(copy)
+  while #text > ns.MAX do
+    local best, bestText
+    for _, id in ipairs(ns.SLOTS) do
+      local s = slots[id]
+      if s and s.mouseover and s.name then
+        s.mouseover = false
+        local t = ns.MacroText(copy)
+        s.mouseover = true
+        if t ~= text and (not bestText or #t < #bestText) then best, bestText = id, t end
+      end
+    end
+    if not best then
+      local errSlot
+      for _, id in ipairs(ns.SLOTS) do
+        local s = slots[id]
+        if s and s.name and (not errSlot or #s.name > #slots[errSlot].name) then errSlot = id end
+      end
+      return nil, #text, trimmed, errSlot
+    end
+    slots[best].mouseover = false
+    trimmed[#trimmed + 1] = best
+    text = bestText
+  end
+  return text, #text, trimmed
+end
+
 -- Binding command -> first action slot - 1 (native commands EllesmereUI bars use too).
 ns.BAR_BASE = { ACTIONBUTTON = 0, MULTIACTIONBAR3BUTTON = 24, MULTIACTIONBAR4BUTTON = 36,
   MULTIACTIONBAR2BUTTON = 48, MULTIACTIONBAR1BUTTON = 60, MULTIACTIONBAR5BUTTON = 144,

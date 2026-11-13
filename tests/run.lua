@@ -68,6 +68,33 @@ test("first empty slot skips used ones, bar by bar", function()
   eq(core.FirstEmptySlot(function() return true end), nil)
 end)
 
+local long = ("x"):rep(30)
+test("fitting setup is untouched", function()
+  local text, n, trimmed = core.FitMacro({ slots = { normal = sp("X", true) } })
+  eq(text, T .. "/cast [@mouseover,harm,nodead][] X"); eq(n, #text); eq(#trimmed, 0)
+end)
+
+test("over-limit setup drops mouseover, biggest saving first, until it fits", function()
+  -- 5 x 30-char names with mouseover is ~370 chars; altshift has the longest clause, so it goes first.
+  local setup = { slots = { normal = sp(long, true), shift = sp(long, true), alt = sp(long, true),
+    altshift = sp(long, true), ctrl = sp(long, true) } }
+  local text, n, trimmed = core.FitMacro(setup)
+  assert(text and n <= 255 and n == #text, "should fit, got " .. tostring(n))
+  eq(trimmed[1], "altshift")
+  eq(setup.slots.altshift.mouseover, true) -- input is not mutated, caller applies trimmed
+  local again = { slots = {} }
+  for id, s in pairs(setup.slots) do again.slots[id] = sp(s.name, s.mouseover) end
+  for _, id in ipairs(trimmed) do again.slots[id].mouseover = false end
+  eq(core.MacroText(again), text)
+end)
+
+test("impossible setup errors naming the slot with the longest name", function()
+  local setup = { slots = { normal = sp(long), shift = sp(long), alt = sp(long), altshift = sp(long),
+    ctrl = sp(("y"):rep(60), true) } }
+  local text, n, trimmed, errSlot = core.FitMacro(setup)
+  eq(text, nil); assert(n > 255); eq(trimmed[1], "ctrl"); eq(errSlot, "ctrl")
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

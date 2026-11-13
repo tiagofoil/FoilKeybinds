@@ -23,4 +23,7 @@ ns.L = {
   PET_ATTACK = "Pet attacks",
   CLEAR = "Clear slot",
   PICK_SPELL = "Pick a spell",
+  TOO_LONG = "Does not fit: %d/%d even without mouseover. Not saved. Try a shorter spell in the %s slot.",
+  TRIMMED = "Mouseover was turned off on some slots to fit 255.",
+  SKIP_LONG = "%s skipped: macro is %d/%d characters.",
 }

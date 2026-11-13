@@ -23,6 +23,22 @@ local function setupOf(key)
   return keys[key]
 end
 
+-- Runs after every card change: trims mouseover into saved data, or reverts the change
+-- with undo() when the macro cannot fit. Then redraws the card.
+local function commit(undo)
+  local setup = setupOf(current)
+  local text, n, trimmed, errSlot = ns.FitMacro(setup)
+  card.msg:SetText("")
+  if not text then
+    undo()
+    card.msg:SetText(L.TOO_LONG:format(n, ns.MAX, L["SLOT_" .. errSlot]))
+  else
+    for _, id in ipairs(trimmed) do setup.slots[id].mouseover = false end
+    if #trimmed > 0 then card.msg:SetText(L.TRIMMED) end
+  end
+  card:Refresh()
+end
+
 -- Key list. ponytail: fixed keys near WASD; ticket 05 replaces this with the canvas.
 local KEYS = { "1", "2", "3", "4", "5", "Q", "E", "R", "F", "T", "G", "Z", "X", "C", "V", "B" }
 local current, card, picker
@@ -30,7 +46,7 @@ for i, key in ipairs(KEYS) do
   local b = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
   b:SetSize(36, 24); b:SetPoint("TOPLEFT", 14 + ((i - 1) % 4) * 38, -32 - math.floor((i - 1) / 4) * 26)
   b:SetText(key)
-  b:SetScript("OnClick", function() current = key; picker:Hide(); card:Refresh() end)
+  b:SetScript("OnClick", function() current = key; picker:Hide(); card.msg:SetText(""); card:Refresh() end)
 end
 
 -- Key card: 5 slots, each with a mouseover checkbox, plus the two key toggles.
@@ -38,6 +54,10 @@ card = CreateFrame("Frame", nil, f)
 card:SetPoint("TOPLEFT", 180, -30); card:SetPoint("BOTTOMRIGHT", -14, 46)
 card.label = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 card.label:SetPoint("TOPLEFT")
+card.count = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+card.count:SetPoint("TOPRIGHT")
+card.msg = card:CreateFontString(nil, "OVERLAY", "GameFontRedSmall")
+card.msg:SetPoint("TOPLEFT", 0, -254); card.msg:SetPoint("RIGHT"); card.msg:SetJustifyH("LEFT")
 local rows = {}
 for i, id in ipairs(ns.SLOTS) do
   local r = {}
@@ -53,14 +73,22 @@ for i, id in ipairs(ns.SLOTS) do
   r.mo.text:SetText(L.MOUSEOVER)
   r.mo:SetScript("OnClick", function(self)
     local s = setupOf(current).slots[id]
-    if s then s.mouseover = self:GetChecked() and true or false end
+    if not s then return end
+    local old = s.mouseover
+    s.mouseover = self:GetChecked() and true or false
+    commit(function() s.mouseover = old end)
   end)
   rows[id] = r
 end
 local function toggle(field, text, y)
   local c = CreateFrame("CheckButton", nil, card, "UICheckButtonTemplate")
   c:SetPoint("TOPLEFT", 0, y); c.text:SetText(text)
-  c:SetScript("OnClick", function(self) setupOf(current)[field] = self:GetChecked() and true or false end)
+  c:SetScript("OnClick", function(self)
+    local setup = setupOf(current)
+    local old = setup[field]
+    setup[field] = self:GetChecked() and true or false
+    commit(function() setup[field] = old end)
+  end)
   return c
 end
 card.target = toggle("targetEnemy", L.TARGET_ENEMY, -200)
@@ -70,11 +98,14 @@ function card:Refresh()
   if not current then
     self.label:SetText(L.PICK_KEY)
     for _, r in pairs(rows) do r.btn:Hide(); r.mo:Hide(); r.mod:Hide() end
+    self.count:SetText("")
     self.target:Hide(); self.pet:Hide()
     return
   end
   local setup = setupOf(current)
   self.label:SetText(L.KEY:format(current))
+  local _, n = ns.FitMacro(setup)
+  self.count:SetText(n .. "/" .. ns.MAX)
   for id, r in pairs(rows) do
     local s = setup.slots[id]
     r.btn:Show(); r.mod:Show(); r.mo:Show()
@@ -132,15 +163,16 @@ function picker:Render()
   end
 end
 function picker:Choose(s)
-  local slots = setupOf(current).slots
+  local slots, slot = setupOf(current).slots, self.slot
+  local old = slots[slot]
   if s then
-    local old = slots[self.slot]
-    slots[self.slot] = { spellID = s.spellID, name = s.name, kind = ns.SpellKind(s.spellID),
+    slots[slot] = { spellID = s.spellID, name = s.name, kind = ns.SpellKind(s.spellID),
       mouseover = old and old.mouseover or false }
   else
-    slots[self.slot] = nil
+    slots[slot] = nil
   end
-  self:Hide(); card:Refresh()
+  self:Hide()
+  commit(function() slots[slot] = old end)
 end
 
 f:SetScript("OnShow", function() card:Refresh() end)
