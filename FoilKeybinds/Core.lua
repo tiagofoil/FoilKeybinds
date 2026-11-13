@@ -174,4 +174,62 @@ function ns.Repair(keys, lookup)
   return out, changes
 end
 
+-- GrimorioSetup import. data = GrimorioSetupData; lookup(name) -> spellID, kind (both may be nil).
+-- Returns keys (key -> setup) and lost = list of { key, text } (macro parts not kept),
+-- { key, skipped = true } (whole macro left out) or { key, jump = true } (Space with no normal slot).
+local MODSLOT = { [""] = "normal", Shift = "shift", Alt = "alt", ["Alt+Shift"] = "altshift" }
+function ns.ImportGrimorio(data, lookup)
+  local keys, lost = {}, {}
+  for _, m in ipairs(data) do
+    local key
+    for _, k in ipairs(m.keys) do
+      local base = k:match("[^-]+$")
+      if key and base ~= key then key = false; break end
+      key = key == nil and base or key
+    end
+    local pet = false
+    for line in m.body:gmatch("[^\n]+") do if line:find("^/pet") and not line:find("^/petattack") then pet = true end end
+    if not key or pet then lost[#lost + 1] = { key = m.name, skipped = true }
+    else
+      local setup, byName, items = { slots = {} }, {}, {}
+      for _, s in ipairs(m.spells) do
+        local slot = MODSLOT[s.mod]
+        if s.item then setup.slots[slot] = { item = s.item }; items[s.item] = true
+        else
+          local id, kind = lookup(s.name)
+          setup.slots[slot] = { spellID = id, name = s.name, kind = kind or "other", mouseover = false }
+          byName[s.name] = setup.slots[slot]
+        end
+      end
+      local function lose(t) lost[#lost + 1] = { key = key, text = t } end
+      for line in m.body:gmatch("[^\n]+") do
+        if line:find("^#showtooltip") then -- same tooltip either way
+        elseif line:find("^/targetenemy") then setup.targetEnemy = true
+        elseif line:find("^/petattack") then setup.petAttack = true
+        elseif line:find("^/use") then
+          for tok in line:gmatch("{(%u+)}") do if not items[tok] then lose(line); break end end
+        elseif line:find("^/cast") then
+          for seg in line:sub(6):gmatch("[^;]+") do
+            seg = seg:match("^%s*(.-)%s*$")
+            local name = seg:match("%]%s*([^%]]+)$") or seg
+            local bang = name:sub(1, 1) == "!"
+            if bang then name = name:sub(2) end
+            local s = byName[name]
+            if not s and not seg:find("%[") and not setup.slots.normal then -- bare fallback, e.g. R Shadow Bolt
+              local id, kind = lookup(name)
+              s = { spellID = id, name = name, kind = kind or "other", mouseover = false }
+              setup.slots.normal, byName[name] = s, s
+            end
+            if not s or bang or seg:find("@cursor") or seg:find("pet:") then lose(seg) end
+            if s and seg:find("@mouseover") then s.mouseover, s.kind = true, seg:find(",help") and "help" or "harm" end
+          end
+        else lose(line) end
+      end
+      if key == "SPACE" and not setup.slots.normal then lost[#lost + 1] = { key = key, jump = true } end
+      keys[key] = setup
+    end
+  end
+  return keys, lost
+end
+
 return ns

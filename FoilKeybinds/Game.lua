@@ -164,6 +164,7 @@ function ns.SpellKind(spellID)
 end
 
 function ns.SpellIcon(spellID)
+  if not spellID then return QUESTION end -- imported spell with unknown ID
   if C_Spell and C_Spell.GetSpellTexture then return C_Spell.GetSpellTexture(spellID) end
   if GetSpellTexture then return GetSpellTexture(spellID) end
 end
@@ -171,6 +172,7 @@ end
 -- Stored spells the character does not know (yet) are faded on the canvas.
 -- Unknown API answers true so nothing fades by mistake.
 function ns.IsKnown(spellID)
+  if not spellID then return false end
   if C_SpellBook and C_SpellBook.IsSpellKnown then return C_SpellBook.IsSpellKnown(spellID) end
   if IsPlayerSpell then return IsPlayerSpell(spellID) end
   if IsSpellKnown then return IsSpellKnown(spellID) end
@@ -309,12 +311,38 @@ function ns.UndoRepair()
   ns.Say(L.REPAIR_UNDONE)
 end
 
+-- One-time GrimorioSetup import: Warlock, GrimorioSetup loaded, no keys yet, never imported.
+local function spellOf(name)
+  local id
+  if C_Spell and C_Spell.GetSpellInfo then local info = C_Spell.GetSpellInfo(name); id = info and info.spellID
+  elseif GetSpellInfo then id = select(7, GetSpellInfo(name)) end
+  return id, id and ns.SpellKind(id) or nil
+end
+function ns.ImportOnLogin()
+  local db = FoilKeybindsDB
+  if not GrimorioSetupData or db.grimorioImported or next(db.keys) or select(2, UnitClass("player")) ~= "WARLOCK" then return end
+  db.grimorioImported = true
+  local keys, lost = ns.ImportGrimorio(GrimorioSetupData, spellOf)
+  db.keys = keys
+  local names = {}
+  for k in pairs(keys) do names[#names + 1] = k end
+  table.sort(names)
+  ns.Say(L.GRIM_IMPORTED:format(table.concat(names, ", ")))
+  for _, l in ipairs(lost) do
+    if l.skipped then ns.Say(L.GRIM_SKIPPED:format(l.key))
+    elseif l.jump then ns.Say(L.GRIM_JUMP)
+    else ns.Say(L.GRIM_LOST:format(l.key, l.text)) end
+  end
+  ns.Say(L.GRIM_NEXT)
+  if ns.Refresh then ns.Refresh() end
+end
+
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("PLAYER_LOGIN"); ev:RegisterEvent("PLAYER_LOGOUT"); ev:RegisterEvent("BAG_UPDATE_DELAYED"); ev:RegisterEvent("PLAYER_REGEN_ENABLED")
 local repairPending
 ev:SetScript("OnEvent", function(_, event)
   if event == "PLAYER_LOGOUT" then return ns.SaveIndex() end
-  if event == "PLAYER_LOGIN" then repairPending = true end
+  if event == "PLAYER_LOGIN" then repairPending = true; ns.ImportOnLogin() end
   ns.SwapItems()
   if repairPending and not InCombatLockdown() then repairPending = false; ns.RepairOnLogin() end
 end)

@@ -40,6 +40,11 @@ local en = {
   COPIED = "copied the setup of %s. Press Apply to use it, or Undo to get yours back.",
   COPY_UNDONE = "copy undone, your previous setup is back.",
   SKIP_LONG = "%s skipped: macro is %d/%d characters.",
+  GRIM_IMPORTED = "imported your GrimorioSetup layout: %s.",
+  GRIM_SKIPPED = "%s not imported: it does not fit Foil Keybinds (pet commands).",
+  GRIM_LOST = "%s: not kept: %s",
+  GRIM_JUMP = "Space: no normal slot, so after Apply a plain Space press no longer jumps. Clear the Space key in /fkb if you want Jump back.",
+  GRIM_NEXT = "open /fkb, check the keys and press Apply. Then disable GrimorioSetup.",
 }
 
 local ptBR = {
@@ -80,6 +85,11 @@ local ptBR = {
   COPIED = "configuração de %s copiada. Aperte Aplicar para usar, ou Desfazer para voltar a sua.",
   COPY_UNDONE = "cópia desfeita, sua configuração anterior voltou.",
   SKIP_LONG = "%s ignorada: a macro tem %d/%d caracteres.",
+  GRIM_IMPORTED = "seu layout do GrimorioSetup foi importado: %s.",
+  GRIM_SKIPPED = "%s não foi importada: não cabe no Foil Keybinds (comandos de pet).",
+  GRIM_LOST = "%s: ficou de fora: %s",
+  GRIM_JUMP = "Espaço: sem slot normal, então depois de Aplicar o Espaço sozinho não pula mais. Limpe a tecla Espaço em /fkb se quiser o pulo de volta.",
+  GRIM_NEXT = "abra /fkb, confira as teclas e aperte Aplicar. Depois desative o GrimorioSetup.",
 }
 -- Missing ptBR keys fall back to English.
 ns.L = GetLocale() == "ptBR" and setmetatable(ptBR, { __index = en }) or en

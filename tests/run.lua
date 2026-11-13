@@ -178,6 +178,55 @@ test("ptBR keys exist in English with the same placeholders", function()
   GetLocale = nil
 end)
 
+-- Fixture copied from GrimorioSetup Data.lua (Q, R, V, G, M3, Escape).
+local GRIM = {
+  { name = "Q Curses", keys = { "Q" }, body = [==[#showtooltip
+/cast [mod:alt,mod:shift,@mouseover,harm][mod:alt,mod:shift] Curse of Tongues; [mod:shift,@mouseover,harm][mod:shift] Curse of Recklessness; [mod:alt,@mouseover,harm][mod:alt] Curse of the Elements; [@mouseover,harm][] Curse of Weakness]==], spells = { { mod = "", name = "Curse of Weakness", lvl = 4 }, { mod = "Shift", name = "Curse of Recklessness", lvl = 14 }, { mod = "Alt", name = "Curse of the Elements", lvl = 20 }, { mod = "Alt+Shift", name = "Curse of Tongues", lvl = 26 } } },
+  { name = "R Dano", keys = { "R" }, body = [==[#showtooltip Shadow Bolt
+/cast [nomod] Eureka!
+/cast [mod:alt,mod:shift] Searing Pain; [mod:shift,@cursor] Rain of Fire; [mod:alt] Hellfire; Shadow Bolt]==], spells = { { mod = "Shift", name = "Rain of Fire", lvl = 20 }, { mod = "Alt", name = "Hellfire", lvl = 30 }, { mod = "Alt+Shift", name = "Searing Pain", lvl = 18 } } },
+  { name = "G Pet", keys = { "G" }, body = [==[#showtooltip
+/petfollow [nomod]
+/petmoveto [mod:alt,nomod:shift,@cursor]
+/petstay [mod:alt,mod:shift]
+/stopmacro [mod:alt]
+/cast [mod:shift,pet:Felhunter] Spell Lock; [mod:shift,pet:Succubus/Incubus] Seduction; [mod:shift,pet:Voidwalker] Sacrifice]==], spells = { { mod = "Shift", name = "Spell Lock", lvl = 10 } } },
+  { name = "V Cura", keys = { "V" }, body = [==[#showtooltip
+/cast [mod:alt,mod:shift,@mouseover,harm,nodead][mod:alt,mod:shift] Death Coil; [mod:shift] Life Tap; [mod:alt] Health Funnel
+/stopmacro [mod]
+/use [nocombat,@player] {BAND}
+/stopmacro [nocombat]
+/use {HS}
+/use {POT}]==], spells = { { mod = "", name = "Healthstone", lvl = 1, item = "HS" }, { mod = "Shift", name = "Life Tap", lvl = 6 }, { mod = "Alt", name = "Health Funnel", lvl = 12 }, { mod = "Alt+Shift", name = "Death Coil", lvl = 42 } } },
+  { name = "M3 DoT", keys = { "3" }, body = [==[#showtooltip
+/targetenemy [noharm][dead]
+/petattack [harm,nodead]
+/cast [mod:alt,mod:shift] Shadow Ward; [mod:shift] !Shoot; [mod:alt] Drain Life; [@mouseover,harm,nodead][] Corruption]==], spells = { { mod = "", name = "Corruption", lvl = 4 }, { mod = "Shift", name = "Shoot", lvl = 1 }, { mod = "Alt", name = "Drain Life", lvl = 14 }, { mod = "Alt+Shift", name = "Shadow Ward", lvl = 32 } } },
+  { name = "Escape", keys = { "SHIFT-SPACE", "ALT-SPACE" }, body = [==[#showtooltip
+/cast [mod:alt,@mouseover,harm,nodead][mod:alt] Curse of Exhaustion; Escape Artist]==], spells = { { mod = "Shift", name = "Escape Artist", lvl = 1 }, { mod = "Alt", name = "Curse of Exhaustion", lvl = 54 } } },
+}
+test("grimorio import maps spells, mouseover, extras, items and lists every loss", function()
+  local known = { ["Curse of Weakness"] = 702, ["Shadow Bolt"] = 686 }
+  local keys, lost = core.ImportGrimorio(GRIM, function(n) return known[n] end)
+  eq(keys.G, nil)
+  eq(core.MacroText(keys.Q), T .. "/cast [mod:alt,mod:shift,@mouseover,harm,nodead][mod:alt,mod:shift] Curse of Tongues; "
+    .. "[mod:shift,@mouseover,harm,nodead][mod:shift] Curse of Recklessness; [mod:alt,@mouseover,harm,nodead][mod:alt] Curse of the Elements; "
+    .. "[@mouseover,harm,nodead][] Curse of Weakness")
+  eq(keys.Q.slots.normal.spellID, 702); eq(keys.Q.slots.shift.spellID, nil) -- unknown id keeps the name
+  eq(core.MacroText(keys.R), T .. "/cast [mod:alt,mod:shift] Searing Pain; [mod:shift] Rain of Fire; [mod:alt] Hellfire; Shadow Bolt")
+  eq(core.MacroText(keys.V, {}), T .. "/use [nomod] Healthstone\n"
+    .. "/cast [mod:alt,mod:shift,@mouseover,harm,nodead][mod:alt,mod:shift] Death Coil; [mod:shift,nomod:alt,nomod:ctrl] Life Tap; [mod:alt,nomod:shift,nomod:ctrl] Health Funnel")
+  eq(core.MacroText(keys["3"]), T .. "/targetenemy [noharm][dead]\n/petattack [harm,nodead]\n"
+    .. "/cast [mod:alt,mod:shift] Shadow Ward; [mod:shift] Shoot; [mod:alt] Drain Life; [@mouseover,harm,nodead][] Corruption")
+  eq(core.MacroText(keys.SPACE), T .. "/cast [mod:shift] Escape Artist; [mod:alt,@mouseover,harm,nodead][mod:alt] Curse of Exhaustion")
+  for k, setup in pairs(keys) do assert(core.FitMacro(setup, {}), k .. " does not fit") end
+  local got = {}
+  for _, l in ipairs(lost) do got[#got + 1] = l.key .. ":" .. (l.skipped and "skipped" or l.jump and "jump" or l.text) end
+  eq(table.concat(got, "|"), table.concat({ "R:[nomod] Eureka!", "R:[mod:shift,@cursor] Rain of Fire", "G Pet:skipped",
+    "V:/stopmacro [mod]", "V:/use [nocombat,@player] {BAND}", "V:/stopmacro [nocombat]", "V:/use {POT}",
+    "3:[mod:shift] !Shoot", "SPACE:jump" }, "|"))
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))
