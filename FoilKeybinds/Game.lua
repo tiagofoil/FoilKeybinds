@@ -28,7 +28,7 @@ function ns.Apply()
   local keys = FoilKeybindsDB.keys
   if not next(keys) then return ns.Say(L.NOTHING) end
   local done = 0
-  for key, setup in pairs(keys) do
+  for key, setup in pairs(keys) do if next(setup.slots) then -- clicked but empty keys are skipped
     local name = "FKB " .. key
     if upsertMacro(name, ns.MacroText(setup)) then
       local slot = slotOf(GetBindingAction(key))
@@ -40,7 +40,50 @@ function ns.Apply()
       end
       done = done + 1
     end
-  end
+  end end
   SaveBindings(GetCurrentBindingSet())
   ns.Say(L.DONE:format(done))
+end
+
+-- Harmful/helpful decides the mouseover clause. ponytail: unverified on Forever, guarded to "other".
+function ns.SpellKind(spellID)
+  if not (C_Spell and C_Spell.IsSpellHarmful) then return "other" end
+  if C_Spell.IsSpellHarmful(spellID) then return "harm" end
+  if C_Spell.IsSpellHelpful and C_Spell.IsSpellHelpful(spellID) then return "help" end
+  return "other"
+end
+
+function ns.SpellIcon(spellID)
+  if C_Spell and C_Spell.GetSpellTexture then return C_Spell.GetSpellTexture(spellID) end
+  if GetSpellTexture then return GetSpellTexture(spellID) end
+end
+
+-- Learned, active (non passive, non future) spells from the player spellbook, sorted by name.
+function ns.LearnedSpells()
+  local list, seen = {}, {}
+  local function add(id, name)
+    if id and name and not seen[id] then seen[id] = true; list[#list + 1] = { spellID = id, name = name } end
+  end
+  if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then -- 11.0+ API
+    local bank = Enum.SpellBookSpellBank.Player
+    for t = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+      local line = C_SpellBook.GetSpellBookSkillLineInfo(t)
+      for i = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
+        local info = C_SpellBook.GetSpellBookItemInfo(i, bank)
+        if info and info.itemType == Enum.SpellBookItemType.Spell and not info.isPassive and not info.isOffSpec then
+          add(info.spellID, info.name)
+        end
+      end
+    end
+  else -- older API
+    for t = 1, GetNumSpellTabs() do
+      local _, _, offset, num = GetSpellTabInfo(t)
+      for i = offset + 1, offset + num do
+        local kind, id = GetSpellBookItemInfo(i, "spell")
+        if kind == "SPELL" and not IsPassiveSpell(i, "spell") then add(id, GetSpellBookItemName(i, "spell")) end
+      end
+    end
+  end
+  table.sort(list, function(a, b) return a.name < b.name end)
+  return list
 end
