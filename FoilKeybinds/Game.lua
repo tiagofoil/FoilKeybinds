@@ -30,8 +30,36 @@ local function place(b, name, slot)
   ClearCursor(); PickupMacro(name); PlaceAction(slot); ClearCursor()
 end
 
+-- Best item per category in the bags, refreshed by ScanBags (Apply, login, out-of-combat bag changes).
+ns.best = {}
+local itemName = C_Item and C_Item.GetItemNameByID or function(id) return (GetItemInfo(id)) end
+local usable = C_Item and C_Item.IsUsableItem or IsUsableItem
+function ns.ScanBags()
+  local owned = {}
+  for bag = 0, 5 do
+    for slot = 1, C_Container.GetContainerNumSlots(bag) or 0 do
+      local id = C_Container.GetContainerItemID(bag, slot)
+      local n = id and itemName(id)
+      if n then owned[n] = id end
+    end
+  end
+  ns.best = ns.BestItems(owned, usable and function(id) return (usable(id)) end)
+end
+
+function ns.ItemIcon(cat)
+  local b = ns.best[cat]
+  local icon = b and (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(b.id) or GetItemIcon and GetItemIcon(b.id))
+  return icon or QUESTION
+end
+
+function ns.ItemLabel(cat)
+  local b = ns.best[cat]
+  return L["ITEM_" .. cat] .. ": " .. (b and b.name or L.ITEM_NONE)
+end
+
 function ns.Apply()
   if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
+  ns.ScanBags()
   local keys = FoilKeybindsDB.keys
   if not next(keys) then return ns.Say(L.NOTHING) end
   FoilKeybindsDB.backup = FoilKeybindsDB.backup or { binds = {}, slots = {}, macros = {} }
@@ -39,7 +67,7 @@ function ns.Apply()
   local done = 0
   for key, setup in pairs(keys) do if next(setup.slots) then -- clicked but empty keys are skipped
     local name = "FKB " .. key
-    local text, n, trimmed = ns.FitMacro(setup)
+    local text, n, trimmed = ns.FitMacro(setup, ns.best)
     for _, id in ipairs(trimmed) do setup.slots[id].mouseover = false end
     if not text then ns.Say(L.SKIP_LONG:format(key, n, ns.MAX))
     elseif upsertMacro(b, name, text) then
@@ -148,3 +176,29 @@ function ns.LearnedSpells()
   table.sort(list, function(a, b) return a.name < b.name end)
   return list
 end
+
+-- Out of combat item swap: only macros of keys with an item slot, only when the text changed.
+-- ponytail: rewrites from saved setup, so unapplied card edits on item keys go live too.
+local function hasItem(setup)
+  for _, s in pairs(setup.slots) do if s.item then return true end end
+end
+function ns.SwapItems()
+  if InCombatLockdown() or not FoilKeybindsDB then return end -- macros are locked in combat
+  local old = ns.best
+  ns.ScanBags()
+  for key, setup in pairs(FoilKeybindsDB.keys) do
+    if hasItem(setup) then
+      local name = "FKB " .. key
+      local i, text = GetMacroIndexByName(name), ns.FitMacro(setup, ns.best)
+      if i > 0 and text and GetMacroBody(i) ~= text then EditMacro(i, name, nil, text) end
+    end
+  end
+  for cat, b in pairs(ns.best) do
+    if old[cat] and old[cat].id ~= b.id then ns.Say(L.ITEM_NOW:format(b.name)) end
+  end
+  if ns.Refresh then ns.Refresh() end
+end
+
+local ev = CreateFrame("Frame")
+ev:RegisterEvent("PLAYER_LOGIN"); ev:RegisterEvent("BAG_UPDATE_DELAYED"); ev:RegisterEvent("PLAYER_REGEN_ENABLED")
+ev:SetScript("OnEvent", function() ns.SwapItems() end)

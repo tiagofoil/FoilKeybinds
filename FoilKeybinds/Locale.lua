@@ -28,5 +28,8 @@ ns.L = {
   RESET_VIEW = "Reset view",
   NOT_KNOWN = "Not learned yet",
   KEY_SPACE = "Space", KEY_BUTTON3 = "Mouse 3", KEY_BUTTON4 = "Mouse 4", KEY_BUTTON5 = "Mouse 5",
+  ITEM_HS = "Healthstone", ITEM_POT = "Healing potion", ITEM_BAND = "Bandage", ITEM_BOMB = "Bomb",
+  ITEM_NONE = "none in bags",
+  ITEM_NOW = "now using %s.",
   SKIP_LONG = "%s skipped: macro is %d/%d characters.",
 }

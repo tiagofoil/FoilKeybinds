@@ -95,6 +95,40 @@ test("impossible setup errors naming the slot with the longest name", function()
   eq(text, nil); assert(n > 255); eq(trimmed[1], "ctrl"); eq(errSlot, "ctrl")
 end)
 
+local function it(cat) return { item = cat } end
+test("ranking picks the best usable item per category", function()
+  local owned = { ["Healthstone"] = 5511, ["Major Healthstone"] = 19013, ["Minor Healing Potion"] = 118,
+    ["Healing Potion"] = 929, ["Linen Bandage"] = 1251 }
+  local best = core.BestItems(owned, function(id) return id ~= 19013 end) -- Major not usable yet
+  eq(best.HS.id, 5511); eq(best.HS.name, "Healthstone")
+  eq(best.POT.id, 929); eq(best.BAND.id, 1251); eq(best.BOMB, nil)
+  eq(core.BestItems(owned).HS.id, 19013) -- no usable fn: rank order wins
+end)
+
+test("empty bags fall back to the default item name", function()
+  local best = core.BestItems({}, function() return true end)
+  eq(next(best), nil)
+  eq(core.MacroText({ slots = { normal = it("HS") } }, best), T .. "/use [nomod] Healthstone")
+end)
+
+test("item slot uses item:<id> of the best item", function()
+  eq(core.MacroText({ slots = { shift = it("POT") } }, { POT = { id = 929, name = "Healing Potion" } }),
+    T .. "/use [mod:shift,nomod:alt,nomod:ctrl] item:929")
+end)
+
+test("mixed spell and item key: exclusive conditions, no bare fallback", function()
+  local best = { HS = { id = 5511, name = "Healthstone" } }
+  eq(core.MacroText({ slots = { normal = sp("Fear", true), alt = it("BOMB"), shift = it("HS"),
+    altshift = sp("Banish") } }, best),
+    T .. "/use [mod:shift,nomod:alt,nomod:ctrl] item:5511; [mod:alt,nomod:shift,nomod:ctrl] Rough Copper Bomb\n"
+      .. "/cast [mod:alt,mod:shift] Banish; [nomod,@mouseover,harm,nodead][nomod] Fear")
+end)
+
+test("FitMacro keeps item slots and passes best through", function()
+  local text = core.FitMacro({ slots = { normal = it("BAND"), ctrl = sp("X") } }, { BAND = { id = 14530 } })
+  eq(text, T .. "/use [nomod] item:14530\n/cast [mod:ctrl,nomod:alt] X")
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

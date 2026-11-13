@@ -30,7 +30,7 @@ end
 -- just changed (nil for key toggles): the error names it, falling back to the core's pick.
 local function commit(undo, slot)
   local setup = setupOf(current)
-  local text, n, trimmed, errSlot = ns.FitMacro(setup)
+  local text, n, trimmed, errSlot = ns.FitMacro(setup, ns.best)
   card.msg:SetText("")
   if not text then
     undo()
@@ -137,8 +137,13 @@ local function refreshKeys()
       local s = setup and setup.slots[ic.slot]
       ic:SetShown(s ~= nil)
       if s then
-        ic.name, ic.known = s.name, ns.IsKnown(s.spellID)
-        ic.tex:SetTexture(ns.SpellIcon(s.spellID))
+        if s.item then
+          ic.name, ic.known = ns.ItemLabel(s.item), true
+          ic.tex:SetTexture(ns.ItemIcon(s.item))
+        else
+          ic.name, ic.known = s.name, ns.IsKnown(s.spellID)
+          ic.tex:SetTexture(ns.SpellIcon(s.spellID))
+        end
         ic.tex:SetDesaturated(not ic.known); ic:SetAlpha(ic.known and 1 or 0.4)
       end
     end
@@ -201,20 +206,21 @@ function card:Refresh()
   end
   local setup = setupOf(current)
   self.label:SetText(L.KEY:format(L["KEY_" .. current] or current))
-  local _, n = ns.FitMacro(setup)
+  local _, n = ns.FitMacro(setup, ns.best)
   self.count:SetText(n .. "/" .. ns.MAX)
   for id, r in pairs(rows) do
     local s = setup.slots[id]
     r.btn:Show(); r.mod:Show(); r.mo:Show()
-    r.btn:SetText(s and s.name or L.EMPTY)
-    r.icon:SetTexture(s and ns.SpellIcon(s.spellID) or nil)
-    r.mo:SetChecked(s and s.mouseover or false); r.mo:SetEnabled(s ~= nil)
+    local item = s and s.item
+    r.btn:SetText(item and ns.ItemLabel(item) or s and s.name or L.EMPTY)
+    r.icon:SetTexture(item and ns.ItemIcon(item) or s and ns.SpellIcon(s.spellID) or nil)
+    r.mo:SetChecked(s and s.mouseover or false); r.mo:SetEnabled(s ~= nil and not item) -- no mouseover on items
   end
   self.target:Show(); self.target:SetChecked(setup.targetEnemy or false)
   self.pet:Show(); self.pet:SetChecked(setup.petAttack or false)
 end
 
--- Spell picker: learned spells, filtered by the search box, plus Clear.
+-- Picker: the 4 item categories on top, then learned spells, filtered by the search box, plus Clear.
 local ROWS = 12
 picker = CreateFrame("Frame", "FoilKeybindsPicker", f, "BasicFrameTemplateWithInset")
 picker:SetSize(240, 380); picker:SetPoint("TOPLEFT", f, "TOPRIGHT", 4, 0); picker:Hide()
@@ -244,7 +250,10 @@ picker:SetScript("OnMouseWheel", function(self, d)
 end)
 
 function picker:Open(slot)
-  self.slot, self.offset, self.all = slot, 0, ns.LearnedSpells()
+  ns.ScanBags() -- read only, fine in combat; icons show what is in the bags now
+  self.slot, self.offset, self.all = slot, 0, {}
+  for _, cat in ipairs(ns.ITEMS) do self.all[#self.all + 1] = { item = cat, name = ns.ItemLabel(cat) } end
+  for _, s in ipairs(ns.LearnedSpells()) do self.all[#self.all + 1] = s end
   self.search:SetText(""); self:Show(); self:Render()
 end
 function picker:Render()
@@ -256,13 +265,15 @@ function picker:Render()
   for i, b in ipairs(self.rows) do
     local s = self.shown[self.offset + i]
     b.spell = s; b:SetShown(s ~= nil)
-    if s then b.text:SetText(s.name); b.icon:SetTexture(ns.SpellIcon(s.spellID)) end
+    if s then b.text:SetText(s.name); b.icon:SetTexture(s.item and ns.ItemIcon(s.item) or ns.SpellIcon(s.spellID)) end
   end
 end
 function picker:Choose(s)
   local slots, slot = setupOf(current).slots, self.slot
   local old = slots[slot]
-  if s then
+  if s and s.item then
+    slots[slot] = { item = s.item }
+  elseif s then
     slots[slot] = { spellID = s.spellID, name = s.name, kind = ns.SpellKind(s.spellID),
       mouseover = old and old.mouseover or false }
   else
@@ -272,7 +283,8 @@ function picker:Choose(s)
   commit(function() slots[slot] = old end, slot)
 end
 
-f:SetScript("OnShow", function() card:Refresh() end)
+f:SetScript("OnShow", function() ns.ScanBags(); card:Refresh() end)
+function ns.Refresh() if f:IsShown() then card:Refresh() end end
 
 function FoilKeybinds_Toggle() f:SetShown(not f:IsShown()) end
 

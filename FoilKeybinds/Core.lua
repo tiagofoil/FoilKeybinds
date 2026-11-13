@@ -6,25 +6,65 @@ local ns = select(2, ...) or {}
 ns.SLOTS = { "altshift", "ctrl", "shift", "alt", "normal" }
 local COND = { altshift = "mod:alt,mod:shift", ctrl = "mod:ctrl", shift = "mod:shift", alt = "mod:alt" }
 
--- setup = { slots = { normal = { spellID, name, mouseover, kind }, ... }, targetEnemy, petAttack }
-function ns.MacroText(setup)
-  local lines, parts = { "#showtooltip" }, {}
+-- Items, best first: the first one in the bags (and usable) wins. Same lists as GrimorioSetup.
+ns.ITEMS = { "HS", "POT", "BAND", "BOMB" }
+ns.RANKS = {
+  HS = { "Major Healthstone", "Greater Healthstone", "Healthstone", "Lesser Healthstone", "Minor Healthstone" },
+  POT = { "Major Healing Potion", "Superior Healing Potion", "Greater Healing Potion", "Healing Potion",
+    "Discolored Healing Potion", "Lesser Healing Potion", "Minor Healing Potion" },
+  BAND = { "Heavy Runecloth Bandage", "Runecloth Bandage", "Heavy Mageweave Bandage", "Mageweave Bandage",
+    "Heavy Silk Bandage", "Silk Bandage", "Heavy Wool Bandage", "Wool Bandage", "Heavy Linen Bandage", "Linen Bandage" },
+  BOMB = { "Dark Iron Bomb", "Thorium Grenade", "Hi-Explosive Bomb", "Mithril Frag Bomb", "Big Iron Bomb", "Iron Grenade",
+    "Big Bronze Bomb", "Small Bronze Bomb", "Large Copper Bomb", "Rough Copper Bomb" },
+}
+ns.ITEM_DEFAULT = { HS = "Healthstone", POT = "Healing Potion", BAND = "Linen Bandage", BOMB = "Rough Copper Bomb" }
+
+-- owned = bag contents name -> itemID, usable(id) -> bool (nil = all usable).
+-- Returns category -> { id, name } for categories with something in the bags.
+function ns.BestItems(owned, usable)
+  local best = {}
+  for cat, list in pairs(ns.RANKS) do
+    for _, n in ipairs(list) do
+      local id = owned[n]
+      if id and (not usable or usable(id)) then best[cat] = { id = id, name = n }; break end
+    end
+  end
+  return best
+end
+
+-- With an item on the key, /use and /cast both run on one press, so every clause gets a
+-- condition that excludes the other slots (and normal loses its bare fallback).
+local EXCL = { altshift = "mod:alt,mod:shift", ctrl = "mod:ctrl,nomod:alt", shift = "mod:shift,nomod:alt,nomod:ctrl",
+  alt = "mod:alt,nomod:shift,nomod:ctrl", normal = "nomod" }
+
+-- setup = { slots = { normal = { spellID, name, mouseover, kind } or { item = "HS" }, ... }, targetEnemy, petAttack }
+-- best = BestItems() output; an item missing from the bags falls back to its default name.
+function ns.MacroText(setup, best)
+  best = best or {}
+  local lines, casts, uses = { "#showtooltip" }, {}, {}
   if setup.targetEnemy then lines[#lines + 1] = "/targetenemy [noharm][dead]" end
   if setup.petAttack then lines[#lines + 1] = "/petattack [harm,nodead]" end
+  local hasItem = false
+  for _, s in pairs(setup.slots) do if s.item then hasItem = true end end
+  local conds = hasItem and EXCL or COND
   for _, id in ipairs(ns.SLOTS) do
     local s = setup.slots[id]
-    if s and s.name then
-      local cond = COND[id]
+    local cond = conds[id]
+    if s and s.item then
+      local b = best[s.item]
+      uses[#uses + 1] = "[" .. cond .. "] " .. (b and ("item:" .. b.id) or ns.ITEM_DEFAULT[s.item])
+    elseif s and s.name then
       local mo = s.mouseover and (s.kind == "harm" or s.kind == "help")
       local c
       if mo then
         c = "[" .. (cond and cond .. "," or "") .. "@mouseover," .. s.kind .. ",nodead][" .. (cond or "") .. "] "
       elseif cond then c = "[" .. cond .. "] "
       else c = "" end
-      parts[#parts + 1] = c .. s.name
+      casts[#casts + 1] = c .. s.name
     end
   end
-  lines[#lines + 1] = "/cast " .. table.concat(parts, "; ")
+  if #uses > 0 then lines[#lines + 1] = "/use " .. table.concat(uses, "; ") end
+  if #casts > 0 or #uses == 0 then lines[#lines + 1] = "/cast " .. table.concat(casts, "; ") end
   return table.concat(lines, "\n")
 end
 
@@ -34,19 +74,19 @@ ns.MAX = 255
 -- removal saves the most chars (ties: SLOTS order), repeat until it fits.
 -- Returns text, length, trimmed (slot ids that lost mouseover, apply them to saved data).
 -- Still over with no mouseover left: returns nil, length, trimmed, errSlot, where errSlot
--- is the slot with the longest spell name (the one most worth changing).
-function ns.FitMacro(setup)
+-- is the slot with the longest spell name (the one most worth changing; item slots never are).
+function ns.FitMacro(setup, best)
   local slots = {}
-  for id, s in pairs(setup.slots) do slots[id] = { name = s.name, mouseover = s.mouseover, kind = s.kind } end
+  for id, s in pairs(setup.slots) do slots[id] = { name = s.name, item = s.item, mouseover = s.mouseover, kind = s.kind } end
   local copy = { slots = slots, targetEnemy = setup.targetEnemy, petAttack = setup.petAttack }
-  local trimmed, text = {}, ns.MacroText(copy)
+  local trimmed, text = {}, ns.MacroText(copy, best)
   while #text > ns.MAX do
     local best, bestText
     for _, id in ipairs(ns.SLOTS) do
       local s = slots[id]
       if s and s.mouseover and s.name then
         s.mouseover = false
-        local t = ns.MacroText(copy)
+        local t = ns.MacroText(copy, best)
         s.mouseover = true
         if t ~= text and (not bestText or #t < #bestText) then best, bestText = id, t end
       end
