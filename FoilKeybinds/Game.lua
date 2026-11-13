@@ -6,6 +6,7 @@ local QUESTION = 134400 -- question mark icon; #showtooltip swaps it for the rea
 function ns.Say(msg) print("|cff93d35aFoil Keybinds:|r " .. msg) end
 
 local MODS = { "SHIFT-", "ALT-", "ALT-SHIFT-", "CTRL-" }
+local MODKEY = { shift = "SHIFT-", alt = "ALT-", altshift = "ALT-SHIFT-", ctrl = "CTRL-" }
 
 -- Backup grows per thing touched, first value wins, so Undo returns to the state before the first Apply.
 local function keepBind(b, key) if b.binds[key] == nil then b.binds[key] = GetBindingAction(key) or "" end end
@@ -20,9 +21,25 @@ local function upsertMacro(b, name, body)
   local i = GetMacroIndexByName(name)
   if b.macros[name] == nil then b.macros[name] = i > 0 and GetMacroBody(i) or false end
   if i > 0 then EditMacro(i, name, nil, body); return true end
-  local ok, err = pcall(CreateMacro, name, QUESTION, body, true)
-  if not ok then ns.Say(L.CREATE_FAILED:format(name, tostring(err))) end
-  return ok
+  local _, nChar = GetNumMacros()
+  if nChar >= (MAX_CHARACTER_MACROS or 18) then ns.Say(L.MACRO_LIMIT:format(name)); return false end
+  local ok, idx = pcall(CreateMacro, name, QUESTION, body, true)
+  if not ok or not idx or idx == 0 then ns.Say(L.CREATE_FAILED:format(name, tostring(idx))); return false end
+  return true
+end
+
+-- Puts back what a bar slot held before the first Apply (empty: lifts our macro off).
+local function restoreSlot(prev, slot)
+  ClearCursor()
+  if not prev then PickupAction(slot)
+  else
+    if prev.kind == "spell" then PickupSpell(prev.id)
+    elseif prev.kind == "item" then PickupItem(prev.id)
+    elseif prev.kind == "macro" then PickupMacro(prev.id)
+    end -- ponytail: other kinds (flyout, equipment set) stay as Apply left them
+    if GetCursorInfo() then PlaceAction(slot) end
+  end
+  ClearCursor()
 end
 
 local function place(b, name, slot)
@@ -40,7 +57,7 @@ function ns.ScanBags()
     for slot = 1, C_Container.GetContainerNumSlots(bag) or 0 do
       local id = C_Container.GetContainerItemID(bag, slot)
       local n = id and itemName(id)
-      if n then owned[n] = id end
+      if id then owned[id] = itemName(id) or "" end
     end
   end
   ns.best = ns.BestItems(owned, usable and function(id) return (usable(id)) end)
@@ -77,30 +94,54 @@ function ns.CopyFrom(name)
   ns.Say(L.COPIED:format(name))
 end
 
+-- Puts one key back as it was before the first Apply: bindings, bar slot, macro body (or no macro).
+local function unapply(b, key, snap)
+  for _, k in ipairs({ key, "SHIFT-" .. key, "ALT-" .. key, "ALT-SHIFT-" .. key, "CTRL-" .. key }) do
+    local action = b.binds[k]
+    if action == "" then SetBinding(k) elseif action then SetBinding(k, action) end
+  end
+  local name = "FKB " .. key
+  local i, body = GetMacroIndexByName(name), b.macros[name]
+  if body and i > 0 then EditMacro(i, name, nil, body) end
+  if snap.barSlot and b.slots[snap.barSlot] ~= nil then restoreSlot(b.slots[snap.barSlot], snap.barSlot) end
+  if body == false and i > 0 then DeleteMacro(i) end
+  FoilKeybindsDB.applied[key] = nil
+end
+
 function ns.Apply()
   if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
   ns.ScanBags()
   local keys = FoilKeybindsDB.keys
-  if not next(keys) then return ns.Say(L.NOTHING) end
+  if not next(keys) and not next(FoilKeybindsDB.applied or {}) then return ns.Say(L.NOTHING) end
   FoilKeybindsDB.backup = FoilKeybindsDB.backup or { binds = {}, slots = {}, macros = {} }
   local b = FoilKeybindsDB.backup
   FoilKeybindsDB.applied = FoilKeybindsDB.applied or {}
   local done = 0
+  for key, snap in pairs(FoilKeybindsDB.applied) do -- keys cleared since the last Apply go back
+    if not (keys[key] and next(keys[key].slots)) then unapply(b, key, snap) end
+  end
   for key, setup in pairs(keys) do if next(setup.slots) then -- clicked but empty keys are skipped
     local name = "FKB " .. key
+    local placed
     local text, n, trimmed = ns.FitMacro(setup, ns.best)
     for _, id in ipairs(trimmed) do setup.slots[id].mouseover = false end
     if not text then ns.Say(L.SKIP_LONG:format(key, n, ns.MAX))
     elseif upsertMacro(b, name, text) then
       keepBind(b, key)
       for _, m in ipairs(MODS) do keepBind(b, m .. key); SetBinding(m .. key) end
+      -- ponytail: two keys on the same bar command share one slot, the last key applied wins it
       local slot = ns.SlotOf(GetBindingAction(key))
-      if slot then place(b, name, slot)
+      if not setup.slots.normal then -- base key stays as it is (Jump on Space); modifiers go straight to the macro
+        local prev = FoilKeybindsDB.applied[key] -- an earlier Apply with a normal slot: put base key and slot back
+        if prev and prev.barSlot then restoreSlot(b.slots[prev.barSlot], prev.barSlot) end
+        if b.binds[key] == "" then SetBinding(key) else SetBinding(key, b.binds[key]) end
+        for id, m in pairs(MODKEY) do if setup.slots[id] then SetBindingMacro(m .. key, name) end end
+      elseif slot then place(b, name, slot); placed = slot
       else
         ns.Say(L.NO_SLOT:format(key))
         local free, cmd = ns.FirstEmptySlot(function(s, c) return HasAction(s) or GetBindingKey(c) ~= nil end)
         if free then
-          place(b, name, free); SetBinding(key, cmd)
+          place(b, name, free); SetBinding(key, cmd); placed = free
           ns.Say(L.PLACED:format(key, cmd, free))
         else
           SetBindingMacro(key, name)
@@ -108,6 +149,7 @@ function ns.Apply()
         end
       end
       FoilKeybindsDB.applied[key] = ns.Copy(setup) -- what the macro holds now; swaps and repair rebuild from this
+      FoilKeybindsDB.applied[key].barSlot = placed
       done = done + 1
     end
   end end
@@ -133,18 +175,7 @@ function ns.Undo()
     local i = GetMacroIndexByName(name)
     if body and i > 0 then EditMacro(i, name, nil, body) end
   end
-  for slot, prev in pairs(b.slots) do
-    ClearCursor()
-    if not prev then PickupAction(slot) -- slot was empty: lift our macro off
-    else
-      if prev.kind == "spell" then PickupSpell(prev.id)
-      elseif prev.kind == "item" then PickupItem(prev.id)
-      elseif prev.kind == "macro" then PickupMacro(prev.id)
-      end -- ponytail: other kinds (flyout, equipment set) stay as Apply left them
-      if GetCursorInfo() then PlaceAction(slot) end
-    end
-    ClearCursor()
-  end
+  for slot, prev in pairs(b.slots) do restoreSlot(prev, slot) end
   for name, body in pairs(b.macros) do -- delete last so macro indexes above stay valid
     local i = GetMacroIndexByName(name)
     if body == false and i > 0 then DeleteMacro(i) end
@@ -225,6 +256,9 @@ local function hasItem(setup)
 end
 function ns.SwapItems()
   if InCombatLockdown() or not FoilKeybindsDB then return end -- macros are locked in combat
+  local any
+  for _, setup in pairs(FoilKeybindsDB.applied or {}) do if hasItem(setup) then any = true; break end end
+  if not any then return end
   local old = ns.best
   ns.ScanBags()
   for key, setup in pairs(FoilKeybindsDB.applied or {}) do
@@ -330,7 +364,6 @@ function ns.ImportOnLogin()
   ns.Say(L.GRIM_IMPORTED:format(table.concat(names, ", ")))
   for _, l in ipairs(lost) do
     if l.skipped then ns.Say(L.GRIM_SKIPPED:format(l.key))
-    elseif l.jump then ns.Say(L.GRIM_JUMP)
     else ns.Say(L.GRIM_LOST:format(l.key, l.text)) end
   end
   ns.Say(L.GRIM_NEXT)

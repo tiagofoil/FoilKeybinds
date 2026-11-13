@@ -17,19 +17,41 @@ ns.RANKS = {
   BOMB = { "Dark Iron Bomb", "Thorium Grenade", "Hi-Explosive Bomb", "Mithril Frag Bomb", "Big Iron Bomb", "Iron Grenade",
     "Big Bronze Bomb", "Small Bronze Bomb", "Large Copper Bomb", "Rough Copper Bomb" },
 }
+-- Same order by itemID (Classic-era IDs; talented Healthstones above the plain one). Bags match by ID
+-- first, so non-English clients work; the names above stay as a fallback for IDs not listed here.
+ns.RANK_IDS = {
+  HS = { 19013, 19012, 9421, 19011, 19010, 5510, 19009, 19008, 5509, 19007, 19006, 5511, 19005, 19004, 5512 },
+  POT = { 13446, 3928, 1710, 929, 4596, 858, 118 },
+  BAND = { 14530, 14529, 8545, 8544, 6451, 6450, 3531, 3530, 2581, 1251 },
+  BOMB = { 16005, 15993, 10562, 10514, 4394, 4390, 4380, 4374, 4370, 4360 },
+}
+-- Shown with no item in the bags. ponytail: English names, so a non-English client gets a /use that fails until an item is in the bags.
 ns.ITEM_DEFAULT = { HS = "Healthstone", POT = "Healing Potion", BAND = "Linen Bandage", BOMB = "Rough Copper Bomb" }
 
--- owned = bag contents name -> itemID, usable(id) -> bool (nil = all usable).
+-- owned = bag contents itemID -> name ("" when not loaded), usable(id) -> bool (nil = all usable).
 -- Returns category -> { id, name } for categories with something in the bags.
 function ns.BestItems(owned, usable)
-  local best = {}
-  for cat, list in pairs(ns.RANKS) do
-    for _, n in ipairs(list) do
-      local id = owned[n]
-      if id and (not usable or usable(id)) then best[cat] = { id = id, name = n }; break end
+  local best, byName = {}, {}
+  for id, n in pairs(owned) do byName[n] = id end
+  local function ok(id) return id and owned[id] and (not usable or usable(id)) end
+  for cat, list in pairs(ns.RANK_IDS) do
+    for _, id in ipairs(list) do
+      if ok(id) then best[cat] = { id = id, name = owned[id] ~= "" and owned[id] or ns.ITEM_DEFAULT[cat] }; break end
+    end
+    if not best[cat] then
+      for _, n in ipairs(ns.RANKS[cat]) do
+        if ok(byName[n]) then best[cat] = { id = byName[n], name = n }; break end
+      end
     end
   end
   return best
+end
+
+-- New spell slot. Mouseover: kept from a replaced spell, on by default for harm/help when the slot was empty.
+function ns.NewSlot(spellID, name, kind, old)
+  local mo = kind == "harm" or kind == "help"
+  if old and old.name then mo = old.mouseover or false end
+  return { spellID = spellID, name = name, kind = kind, mouseover = mo }
 end
 
 -- With an item on the key, /use and /cast both run on one press, so every clause gets a
@@ -81,17 +103,17 @@ function ns.FitMacro(setup, best)
   local copy = { slots = slots, targetEnemy = setup.targetEnemy, petAttack = setup.petAttack }
   local trimmed, text = {}, ns.MacroText(copy, best)
   while #text > ns.MAX do
-    local best, bestText
+    local pick, pickText
     for _, id in ipairs(ns.SLOTS) do
       local s = slots[id]
       if s and s.mouseover and s.name then
         s.mouseover = false
         local t = ns.MacroText(copy, best)
         s.mouseover = true
-        if t ~= text and (not bestText or #t < #bestText) then best, bestText = id, t end
+        if t ~= text and (not pickText or #t < #pickText) then pick, pickText = id, t end
       end
     end
-    if not best then
+    if not pick then
       local errSlot
       for _, id in ipairs(ns.SLOTS) do
         local s = slots[id]
@@ -99,9 +121,9 @@ function ns.FitMacro(setup, best)
       end
       return nil, #text, trimmed, errSlot
     end
-    slots[best].mouseover = false
-    trimmed[#trimmed + 1] = best
-    text = bestText
+    slots[pick].mouseover = false
+    trimmed[#trimmed + 1] = pick
+    text = pickText
   end
   return text, #text, trimmed
 end
@@ -117,12 +139,6 @@ function ns.SlotOf(cmd)
   if not cmd then return end
   local bar, n = cmd:match("^(%u+%d*BUTTON)(%d+)$")
   if bar and ns.BAR_BASE[bar] then return ns.BAR_BASE[bar] + tonumber(n) end
-end
-
-function ns.CommandOf(slot)
-  for bar, base in pairs(ns.BAR_BASE) do
-    if slot > base and slot <= base + 12 then return bar .. (slot - base) end
-  end
 end
 
 -- First slot, bar by bar, for which used(slot, command) is false. Returns slot, command.
@@ -175,8 +191,8 @@ function ns.Repair(keys, lookup)
 end
 
 -- GrimorioSetup import. data = GrimorioSetupData; lookup(name) -> spellID, kind (both may be nil).
--- Returns keys (key -> setup) and lost = list of { key, text } (macro parts not kept),
--- { key, skipped = true } (whole macro left out) or { key, jump = true } (Space with no normal slot).
+-- Returns keys (key -> setup) and lost = list of { key, text } (macro parts not kept) or
+-- { key, skipped = true } (whole macro left out).
 local MODSLOT = { [""] = "normal", Shift = "shift", Alt = "alt", ["Alt+Shift"] = "altshift" }
 function ns.ImportGrimorio(data, lookup)
   local keys, lost = {}, {}
@@ -207,7 +223,10 @@ function ns.ImportGrimorio(data, lookup)
         elseif line:find("^/targetenemy") then setup.targetEnemy = true
         elseif line:find("^/petattack") then setup.petAttack = true
         elseif line:find("^/use") then
-          for tok in line:gmatch("{(%u+)}") do if not items[tok] then lose(line); break end end
+          -- kept only as the item slot itself: no token, unknown token or conditions are lost
+          local keep = line:find("{%u+}") and not line:find("%[")
+          for tok in line:gmatch("{(%u+)}") do if not items[tok] then keep = false end end
+          if not keep then lose(line) end
         elseif line:find("^/cast") then
           for seg in line:sub(6):gmatch("[^;]+") do
             seg = seg:match("^%s*(.-)%s*$")
@@ -225,7 +244,6 @@ function ns.ImportGrimorio(data, lookup)
           end
         else lose(line) end
       end
-      if key == "SPACE" and not setup.slots.normal then lost[#lost + 1] = { key = key, jump = true } end
       keys[key] = setup
     end
   end

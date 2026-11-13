@@ -45,7 +45,8 @@ local function commit(undo, slot)
   card.msg:SetText("")
   if not text then
     undo()
-    card.msg:SetText(L.TOO_LONG:format(n, ns.MAX, L["SLOT_" .. (slot or errSlot)]))
+    local where = slot or errSlot
+    card.msg:SetText(where and L.TOO_LONG:format(n, ns.MAX, L["SLOT_" .. where]) or L.TOO_LONG_ANY:format(n, ns.MAX))
   else
     for _, id in ipairs(trimmed) do setup.slots[id].mouseover = false end
     if #trimmed > 0 then card.msg:SetText(L.TRIMMED) end
@@ -285,8 +286,7 @@ function picker:Choose(s)
   if s and s.item then
     slots[slot] = { item = s.item }
   elseif s then
-    slots[slot] = { spellID = s.spellID, name = s.name, kind = ns.SpellKind(s.spellID),
-      mouseover = old and old.mouseover or false }
+    slots[slot] = ns.NewSlot(s.spellID, s.name, ns.SpellKind(s.spellID), old)
   else
     slots[slot] = nil
   end
@@ -318,7 +318,8 @@ SlashCmdList.FOILKEYBINDS = function(msg)
     key = key:upper()
     for _, s in ipairs(ns.LearnedSpells()) do
       if s.name:lower() == spell:lower() then
-        setupOf(key).slots.normal = { spellID = s.spellID, name = s.name, kind = ns.SpellKind(s.spellID), mouseover = false }
+        local slots = setupOf(key).slots
+        slots.normal = ns.NewSlot(s.spellID, s.name, ns.SpellKind(s.spellID), slots.normal)
         if f:IsShown() then card:Refresh() end
         return ns.Say(L.SET:format(key, s.name))
       end

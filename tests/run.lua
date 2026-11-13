@@ -53,11 +53,9 @@ test("empty slots are skipped", function()
   eq(core.MacroText({ slots = { normal = {}, shift = sp("S") } }), T .. "/cast [mod:shift] S")
 end)
 
-test("slot <-> command round trip", function()
+test("command -> slot", function()
   eq(core.SlotOf("ACTIONBUTTON1"), 1); eq(core.SlotOf("MULTIACTIONBAR1BUTTON12"), 72)
   eq(core.SlotOf("MULTIACTIONBAR7BUTTON3"), 171); eq(core.SlotOf("MOVEFORWARD"), nil); eq(core.SlotOf(nil), nil)
-  for bar, base in pairs(core.BAR_BASE) do for n = 1, 12 do eq(core.CommandOf(base + n), bar .. n) end end
-  eq(core.CommandOf(100), nil)
 end)
 
 test("first empty slot skips used ones, bar by bar", function()
@@ -69,6 +67,7 @@ test("first empty slot skips used ones, bar by bar", function()
 end)
 
 local long = ("x"):rep(30)
+local function it(cat) return { item = cat } end
 test("fitting setup is untouched", function()
   local text, n, trimmed = core.FitMacro({ slots = { normal = sp("X", true) } })
   eq(text, T .. "/cast [@mouseover,harm,nodead][] X"); eq(n, #text); eq(#trimmed, 0)
@@ -95,14 +94,44 @@ test("impossible setup errors naming the slot with the longest name", function()
   eq(text, nil); assert(n > 255); eq(trimmed[1], "ctrl"); eq(errSlot, "ctrl")
 end)
 
-local function it(cat) return { item = cat } end
 test("ranking picks the best usable item per category", function()
-  local owned = { ["Healthstone"] = 5511, ["Major Healthstone"] = 19013, ["Minor Healing Potion"] = 118,
-    ["Healing Potion"] = 929, ["Linen Bandage"] = 1251 }
+  local owned = { [5509] = "Healthstone", [19013] = "Major Healthstone", [118] = "Minor Healing Potion",
+    [929] = "Healing Potion", [1251] = "Linen Bandage" }
   local best = core.BestItems(owned, function(id) return id ~= 19013 end) -- Major not usable yet
-  eq(best.HS.id, 5511); eq(best.HS.name, "Healthstone")
+  eq(best.HS.id, 5509); eq(best.HS.name, "Healthstone")
   eq(best.POT.id, 929); eq(best.BAND.id, 1251); eq(best.BOMB, nil)
   eq(core.BestItems(owned).HS.id, 19013) -- no usable fn: rank order wins
+end)
+
+test("ranking matches by itemID on non-English clients, name as fallback", function()
+  local best = core.BestItems({ [929] = "Pocion de curacion", [118] = "Pocion menor", [5512] = "" })
+  eq(best.POT.id, 929); eq(best.POT.name, "Pocion de curacion"); eq(best.HS.name, "Healthstone")
+  eq(core.BestItems({ [99999] = "Wool Bandage" }).BAND.id, 99999) -- unknown Forever ID, English name
+end)
+
+test("new spell slot: mouseover on for harm/help into an empty slot, kept when replacing", function()
+  eq(core.NewSlot(1, "A", "harm").mouseover, true); eq(core.NewSlot(1, "A", "help").mouseover, true)
+  eq(core.NewSlot(1, "A", "other").mouseover, false)
+  eq(core.NewSlot(1, "A", "harm", sp("B", false)).mouseover, false)
+  eq(core.NewSlot(1, "A", "other", sp("B", true)).mouseover, true)
+  eq(core.NewSlot(1, "A", "harm", it("HS")).mouseover, true) -- item was there: no spell value to keep
+end)
+
+test("trimming keeps item:<id> of the best item", function()
+  local text = core.FitMacro({ slots = { normal = sp(long, true), shift = sp(long, true), alt = sp(long, true),
+    ctrl = it("POT") } }, { POT = { id = 929 } })
+  assert(text and text:find("item:929", 1, true), "lost item id: " .. tostring(text))
+end)
+
+test("grimorio /use with conditions on a kept item is reported lost", function()
+  local _, lost = core.ImportGrimorio({ { name = "V", keys = { "V" }, body = "#showtooltip\n/use [nocombat] {HS}",
+    spells = { { mod = "", name = "Healthstone", item = "HS" } } } }, function() end)
+  eq(#lost, 1); eq(lost[1].text, "/use [nocombat] {HS}")
+end)
+
+test("key with no normal slot has no bare fallback", function()
+  local text = core.MacroText({ slots = { shift = sp("S"), alt = sp("A", true) } })
+  eq(text, T .. "/cast [mod:shift] S; [mod:alt,@mouseover,harm,nodead][mod:alt] A")
 end)
 
 test("empty bags fall back to the default item name", function()
@@ -197,7 +226,8 @@ local GRIM = {
 /use [nocombat,@player] {BAND}
 /stopmacro [nocombat]
 /use {HS}
-/use {POT}]==], spells = { { mod = "", name = "Healthstone", lvl = 1, item = "HS" }, { mod = "Shift", name = "Life Tap", lvl = 6 }, { mod = "Alt", name = "Health Funnel", lvl = 12 }, { mod = "Alt+Shift", name = "Death Coil", lvl = 42 } } },
+/use {POT}
+/use Hearthstone]==], spells = { { mod = "", name = "Healthstone", lvl = 1, item = "HS" }, { mod = "Shift", name = "Life Tap", lvl = 6 }, { mod = "Alt", name = "Health Funnel", lvl = 12 }, { mod = "Alt+Shift", name = "Death Coil", lvl = 42 } } },
   { name = "M3 DoT", keys = { "3" }, body = [==[#showtooltip
 /targetenemy [noharm][dead]
 /petattack [harm,nodead]
@@ -221,10 +251,10 @@ test("grimorio import maps spells, mouseover, extras, items and lists every loss
   eq(core.MacroText(keys.SPACE), T .. "/cast [mod:shift] Escape Artist; [mod:alt,@mouseover,harm,nodead][mod:alt] Curse of Exhaustion")
   for k, setup in pairs(keys) do assert(core.FitMacro(setup, {}), k .. " does not fit") end
   local got = {}
-  for _, l in ipairs(lost) do got[#got + 1] = l.key .. ":" .. (l.skipped and "skipped" or l.jump and "jump" or l.text) end
+  for _, l in ipairs(lost) do got[#got + 1] = l.key .. ":" .. (l.skipped and "skipped" or l.text) end
   eq(table.concat(got, "|"), table.concat({ "R:[nomod] Eureka!", "R:[mod:shift,@cursor] Rain of Fire", "G Pet:skipped",
     "V:/stopmacro [mod]", "V:/use [nocombat,@player] {BAND}", "V:/stopmacro [nocombat]", "V:/use {POT}",
-    "3:[mod:shift] !Shoot", "SPACE:jump" }, "|"))
+    "V:/use Hearthstone", "3:[mod:shift] !Shoot" }, "|"))
 end)
 
 for _, t in ipairs(tests) do

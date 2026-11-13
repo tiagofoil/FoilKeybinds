@@ -7,6 +7,7 @@ local en = {
   SET = "%s normal slot: %s",
   UNKNOWN_SPELL = "%s is not a learned spell.",
   CREATE_FAILED = "could not create %s: %s",
+  MACRO_LIMIT = "could not create %s: character macro limit reached. Delete a character macro and Apply again.",
   NO_SLOT = "%s is not on a bar slot.",
   PLACED = "%s now presses %s (action slot %d), the macro is there.",
   BOUND_DIRECT = "%s: no empty bar slot, bound the key to the macro directly.",
@@ -24,6 +25,7 @@ local en = {
   CLEAR = "Clear slot",
   PICK_SPELL = "Pick a spell",
   TOO_LONG = "Does not fit: %d/%d even without mouseover. Not saved. Try a shorter spell in the %s slot.",
+  TOO_LONG_ANY = "Does not fit: %d/%d even without mouseover. Not saved.",
   TRIMMED = "Mouseover was turned off on some slots to fit 255.",
   RESET_VIEW = "Reset view",
   NOT_KNOWN = "Not learned yet",
@@ -43,7 +45,6 @@ local en = {
   GRIM_IMPORTED = "imported your GrimorioSetup layout: %s.",
   GRIM_SKIPPED = "%s not imported: it does not fit Foil Keybinds (pet commands).",
   GRIM_LOST = "%s: not kept: %s",
-  GRIM_JUMP = "Space: no normal slot, so after Apply a plain Space press no longer jumps. Clear the Space key in /fkb if you want Jump back.",
   GRIM_NEXT = "open /fkb, check the keys and press Apply. Then disable GrimorioSetup.",
 }
 
@@ -54,6 +55,7 @@ local ptBR = {
   SET = "%s slot normal: %s",
   UNKNOWN_SPELL = "%s não é um feitiço aprendido.",
   CREATE_FAILED = "não foi possível criar %s: %s",
+  MACRO_LIMIT = "não foi possível criar %s: limite de macros do personagem atingido. Apague uma macro do personagem e Aplique de novo.",
   NO_SLOT = "%s não está em um slot da barra.",
   PLACED = "%s agora aperta %s (slot de ação %d), a macro está lá.",
   BOUND_DIRECT = "%s: sem slot vazio na barra, a tecla foi ligada direto na macro.",
@@ -69,6 +71,7 @@ local ptBR = {
   CLEAR = "Limpar slot",
   PICK_SPELL = "Escolha um feitiço",
   TOO_LONG = "Não cabe: %d/%d mesmo sem mouseover. Não foi salvo. Tente um feitiço mais curto no slot %s.",
+  TOO_LONG_ANY = "Não cabe: %d/%d mesmo sem mouseover. Não foi salvo.",
   TRIMMED = "Mouseover foi desligado em alguns slots para caber em 255.",
   RESET_VIEW = "Resetar visão",
   NOT_KNOWN = "Ainda não aprendido",
@@ -88,7 +91,6 @@ local ptBR = {
   GRIM_IMPORTED = "seu layout do GrimorioSetup foi importado: %s.",
   GRIM_SKIPPED = "%s não foi importada: não cabe no Foil Keybinds (comandos de pet).",
   GRIM_LOST = "%s: ficou de fora: %s",
-  GRIM_JUMP = "Espaço: sem slot normal, então depois de Aplicar o Espaço sozinho não pula mais. Limpe a tecla Espaço em /fkb se quiser o pulo de volta.",
   GRIM_NEXT = "abra /fkb, confira as teclas e aperte Aplicar. Depois desative o GrimorioSetup.",
 }
 -- Missing ptBR keys fall back to English.
