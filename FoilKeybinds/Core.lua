@@ -28,4 +28,33 @@ function ns.MacroText(setup)
   return table.concat(lines, "\n")
 end
 
+-- Binding command -> first action slot - 1 (native commands EllesmereUI bars use too).
+ns.BAR_BASE = { ACTIONBUTTON = 0, MULTIACTIONBAR3BUTTON = 24, MULTIACTIONBAR4BUTTON = 36,
+  MULTIACTIONBAR2BUTTON = 48, MULTIACTIONBAR1BUTTON = 60, MULTIACTIONBAR5BUTTON = 144,
+  MULTIACTIONBAR6BUTTON = 156, MULTIACTIONBAR7BUTTON = 168 }
+local BAR_ORDER = { "ACTIONBUTTON", "MULTIACTIONBAR1BUTTON", "MULTIACTIONBAR2BUTTON", "MULTIACTIONBAR3BUTTON",
+  "MULTIACTIONBAR4BUTTON", "MULTIACTIONBAR5BUTTON", "MULTIACTIONBAR6BUTTON", "MULTIACTIONBAR7BUTTON" }
+
+function ns.SlotOf(cmd)
+  if not cmd then return end
+  local bar, n = cmd:match("^(%u+%d*BUTTON)(%d+)$")
+  if bar and ns.BAR_BASE[bar] then return ns.BAR_BASE[bar] + tonumber(n) end
+end
+
+function ns.CommandOf(slot)
+  for bar, base in pairs(ns.BAR_BASE) do
+    if slot > base and slot <= base + 12 then return bar .. (slot - base) end
+  end
+end
+
+-- First slot, bar by bar, for which used(slot, command) is false. Returns slot, command.
+function ns.FirstEmptySlot(used)
+  for _, bar in ipairs(BAR_ORDER) do
+    for n = 1, 12 do
+      local slot, cmd = ns.BAR_BASE[bar] + n, bar .. n
+      if not used(slot, cmd) then return slot, cmd end
+    end
+  end
+end
+
 return ns

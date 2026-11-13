@@ -53,6 +53,21 @@ test("empty slots are skipped", function()
   eq(core.MacroText({ slots = { normal = {}, shift = sp("S") } }), T .. "/cast [mod:shift] S")
 end)
 
+test("slot <-> command round trip", function()
+  eq(core.SlotOf("ACTIONBUTTON1"), 1); eq(core.SlotOf("MULTIACTIONBAR1BUTTON12"), 72)
+  eq(core.SlotOf("MULTIACTIONBAR7BUTTON3"), 171); eq(core.SlotOf("MOVEFORWARD"), nil); eq(core.SlotOf(nil), nil)
+  for bar, base in pairs(core.BAR_BASE) do for n = 1, 12 do eq(core.CommandOf(base + n), bar .. n) end end
+  eq(core.CommandOf(100), nil)
+end)
+
+test("first empty slot skips used ones, bar by bar", function()
+  local slot, cmd = core.FirstEmptySlot(function(s) return s < 3 end)
+  eq(slot, 3); eq(cmd, "ACTIONBUTTON3")
+  slot, cmd = core.FirstEmptySlot(function(s) return s <= 12 end) -- main bar full, bar 1 is next
+  eq(slot, 61); eq(cmd, "MULTIACTIONBAR1BUTTON1")
+  eq(core.FirstEmptySlot(function() return true end), nil)
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

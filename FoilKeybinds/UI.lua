@@ -13,6 +13,9 @@ f.title:SetPoint("TOP", 0, -6); f.title:SetText(L.TITLE)
 local applyBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 applyBtn:SetSize(140, 26); applyBtn:SetPoint("BOTTOMRIGHT", -16, 14); applyBtn:SetText(L.APPLY)
 applyBtn:SetScript("OnClick", function() ns.Apply() end)
+local undoBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+undoBtn:SetSize(100, 26); undoBtn:SetPoint("RIGHT", applyBtn, "LEFT", -8, 0); undoBtn:SetText(L.UNDO)
+undoBtn:SetScript("OnClick", function() ns.Undo() end)
 
 local function setupOf(key)
   local keys = FoilKeybindsDB.keys
@@ -169,5 +172,6 @@ SlashCmdList.FOILKEYBINDS = function(msg)
     end
     ns.Say(L.UNKNOWN_SPELL:format(spell))
   elseif msg == "apply" then ns.Apply()
+  elseif msg == "undo" then ns.Undo()
   else FoilKeybinds_Toggle() end
 end
