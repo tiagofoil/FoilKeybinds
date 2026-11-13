@@ -155,6 +155,13 @@ test("repair mixed: rename, removal and untouched slots across keys", function()
   eq(kinds.Qshift, "renamed"); eq(kinds.Ectrl, "removed")
 end)
 
+test("SameClass lists other characters of the class, sorted, without me", function()
+  local idx = { WARLOCK = { ["Me-R"] = {}, ["Zed-R"] = {}, ["Abe-R"] = {} }, MAGE = { ["Mia-R"] = {} } }
+  local l = core.SameClass(idx, "WARLOCK", "Me-R")
+  eq(#l, 2); eq(l[1], "Abe-R"); eq(l[2], "Zed-R")
+  eq(#core.SameClass(idx, "PRIEST", "Me-R"), 0)
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

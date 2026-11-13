@@ -57,6 +57,26 @@ function ns.ItemLabel(cat)
   return L["ITEM_" .. cat] .. ": " .. (b and b.name or L.ITEM_NONE)
 end
 
+-- Account index: class -> { "Name-Realm" = copy of keys }, for "copy from".
+function ns.Me() return UnitName("player") .. "-" .. GetRealmName(), select(2, UnitClass("player")) end
+function ns.SaveIndex()
+  if not FoilKeybindsDB then return end
+  local me, class = ns.Me()
+  FoilKeybindsAccount[class] = FoilKeybindsAccount[class] or {}
+  FoilKeybindsAccount[class][me] = ns.Copy(FoilKeybindsDB.keys)
+end
+
+-- Replaces this character's keys with another's. Not applied; Undo brings the old keys back.
+function ns.CopyFrom(name)
+  local me, class = ns.Me()
+  local src = FoilKeybindsAccount[class] and FoilKeybindsAccount[class][name]
+  if not src or name == me then return end
+  FoilKeybindsDB.copyUndo = ns.Copy(FoilKeybindsDB.keys)
+  FoilKeybindsDB.keys = ns.Copy(src)
+  if ns.Refresh then ns.Refresh() end
+  ns.Say(L.COPIED:format(name))
+end
+
 function ns.Apply()
   if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
   ns.ScanBags()
@@ -92,10 +112,17 @@ function ns.Apply()
     end
   end end
   SaveBindings(GetCurrentBindingSet())
+  FoilKeybindsDB.copyUndo = nil -- the copy is live now; Undo reverts the Apply instead
+  ns.SaveIndex()
   ns.Say(L.DONE:format(done))
 end
 
 function ns.Undo()
+  if FoilKeybindsDB.copyUndo then -- a pending copy is undone first, it touched nothing in game
+    FoilKeybindsDB.keys, FoilKeybindsDB.copyUndo = FoilKeybindsDB.copyUndo, nil
+    if ns.Refresh then ns.Refresh() end
+    return ns.Say(L.COPY_UNDONE)
+  end
   if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
   local b = FoilKeybindsDB.backup
   if not b then return ns.Say(L.NOTHING_TO_UNDO) end
@@ -283,9 +310,10 @@ function ns.UndoRepair()
 end
 
 local ev = CreateFrame("Frame")
-ev:RegisterEvent("PLAYER_LOGIN"); ev:RegisterEvent("BAG_UPDATE_DELAYED"); ev:RegisterEvent("PLAYER_REGEN_ENABLED")
+ev:RegisterEvent("PLAYER_LOGIN"); ev:RegisterEvent("PLAYER_LOGOUT"); ev:RegisterEvent("BAG_UPDATE_DELAYED"); ev:RegisterEvent("PLAYER_REGEN_ENABLED")
 local repairPending
 ev:SetScript("OnEvent", function(_, event)
+  if event == "PLAYER_LOGOUT" then return ns.SaveIndex() end
   if event == "PLAYER_LOGIN" then repairPending = true end
   ns.SwapItems()
   if repairPending and not InCombatLockdown() then repairPending = false; ns.RepairOnLogin() end

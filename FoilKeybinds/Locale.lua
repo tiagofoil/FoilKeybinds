@@ -35,5 +35,9 @@ ns.L = {
   REPAIR_RENAMED = "%s: %s is now called %s.",
   REPAIR_REMOVED = "%s: %s no longer exists, the slot is now empty.",
   REPAIR_UNDONE = "repair undone, setups and macros are back to how they were.",
+  COPY_FROM = "Copy from...",
+  COPY_NONE = "no other characters of this class yet. Log in on them once.",
+  COPIED = "copied the setup of %s. Press Apply to use it, or Undo to get yours back.",
+  COPY_UNDONE = "copy undone, your previous setup is back.",
   SKIP_LONG = "%s skipped: macro is %d/%d characters.",
 }

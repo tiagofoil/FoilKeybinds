@@ -4,6 +4,7 @@
 ## Author: Foil
 ## Version: 0.1.0
 ## SavedVariablesPerCharacter: FoilKeybindsDB
+## SavedVariables: FoilKeybindsAccount
 ## AddonCompartmentFunc: FoilKeybinds_Toggle
 
 Locale.lua

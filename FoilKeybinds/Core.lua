@@ -143,6 +143,14 @@ function ns.Copy(t)
   return c
 end
 
+-- index = class -> { "Name-Realm" = keys }. Other characters of that class, sorted, without me.
+function ns.SameClass(index, class, me)
+  local out = {}
+  for name in pairs(index[class] or {}) do if name ~= me then out[#out + 1] = name end end
+  table.sort(out)
+  return out
+end
+
 -- keys = key -> setup; lookup(spellID) -> current name or nil (nil = spell is gone).
 -- Returns a repaired copy and a change list { key, slot, kind = "renamed"|"removed", old, new }.
 -- Item slots are never touched.

@@ -17,6 +17,17 @@ local undoBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 undoBtn:SetSize(100, 26); undoBtn:SetPoint("RIGHT", applyBtn, "LEFT", -8, 0); undoBtn:SetText(L.UNDO)
 undoBtn:SetScript("OnClick", function() ns.Undo() end)
 
+local copyBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+copyBtn:SetSize(120, 26); copyBtn:SetPoint("RIGHT", undoBtn, "LEFT", -8, 0); copyBtn:SetText(L.COPY_FROM)
+copyBtn:SetScript("OnClick", function(self)
+  local me, class = ns.Me()
+  local list = ns.SameClass(FoilKeybindsAccount, class, me)
+  if #list == 0 then return ns.Say(L.COPY_NONE) end
+  MenuUtil.CreateContextMenu(self, function(_, root)
+    for _, name in ipairs(list) do root:CreateButton(name, function() ns.CopyFrom(name) end) end
+  end)
+end)
+
 local current, card, picker
 
 local function setupOf(key)
@@ -293,6 +304,7 @@ f:SetScript("OnEvent", function(_, _, name)
   if name ~= "FoilKeybinds" then return end
   FoilKeybindsDB = FoilKeybindsDB or {}
   FoilKeybindsDB.keys = FoilKeybindsDB.keys or {}
+  FoilKeybindsAccount = FoilKeybindsAccount or {}
   for key, setup in pairs(FoilKeybindsDB.keys) do -- ticket 01 stored { normal = "Name" }, drop it
     if not setup.slots then FoilKeybindsDB.keys[key] = { slots = {} } end
   end
