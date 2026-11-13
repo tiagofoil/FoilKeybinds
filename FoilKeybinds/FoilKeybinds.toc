@@ -1,0 +1,12 @@
+## Interface: 120000, 120001, 120005, 120007, 120100, 120105, 16001
+## Title: Foil Keybinds
+## Notes: One macro per key with Shift, Alt, Alt+Shift and Ctrl variants. /fkb
+## Author: Foil
+## Version: 0.1.0
+## SavedVariablesPerCharacter: FoilKeybindsDB
+## AddonCompartmentFunc: FoilKeybinds_Toggle
+
+Locale.lua
+Core.lua
+Game.lua
+UI.lua
