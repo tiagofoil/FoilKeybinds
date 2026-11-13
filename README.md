@@ -1,15 +1,39 @@
 # Foil Keybinds
 
-WoW addon: one macro per key with Shift, Alt, Alt+Shift and Ctrl variants, placed on the bar slot the key already presses.
+A WoW Forever addon that puts your whole layout on the keys near WASD. Each key gets one macro with five slots: normal, Shift, Alt, Alt+Shift and Ctrl. The modifiers live inside the macro, so one bar slot does it all.
 
-## Tests
+## What it does
 
-Needs LuaJIT (Lua 5.1): `winget install --id DEVCOM.LuaJIT -e`
+- One macro per key, with the Shift, Alt, Alt+Shift and Ctrl variants inside it.
+- Canvas editor: click a key, pick a learned spell or a consumable for each slot.
+- Items: potions, Healthstone, bombs and bandages use the best one in your bags.
+- Places each macro on the bar slot the key already presses and clears the modifier bindings that would block it.
+- Login repair: renamed or removed spells are fixed once on login, with a popup that lists the changes and can undo them.
+
+## How to use
+
+Type `/fkb` (or use the addon compartment button) to open the editor. Set your keys, then click Apply. Undo puts back what the first Apply changed.
+
+Commands: `/fkb`, `/fkb set Q Shadow Bolt`, `/fkb apply`, `/fkb undo`.
+
+## Limits
+
+- WoW Forever (retail) only.
+- A macro holds at most 255 characters, so very long spell names on all five slots may not fit.
+- Apply works out of combat only (WoW blocks macro and binding changes in combat).
+
+## Development
+
+Tests need LuaJIT (Lua 5.1): `winget install --id DEVCOM.LuaJIT -e`
 
     luajit tests/run.lua
 
-## Install for testing
+Install for in-game testing:
 
     sh install.sh
 
-In game: `/fkb` opens the window, `/fkb set Q Shadow Bolt` sets a key, Apply (or `/fkb apply`) creates the macros, Undo (or `/fkb undo`) puts back what the first Apply changed.
+Releases are built by `.github/workflows/release.yml` on a `v*` tag. See `docs/publishing.md`.
+
+## License
+
+MIT, see `LICENSE`.

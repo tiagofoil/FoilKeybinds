@@ -1,0 +1,11 @@
+package-as: FoilKeybinds
+
+move-folders:
+  FoilKeybinds/FoilKeybinds: FoilKeybinds
+
+ignore:
+  - docs
+  - tests
+  - .scratch
+  - .github
+  - install.sh
