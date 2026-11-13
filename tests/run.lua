@@ -129,6 +129,32 @@ test("FitMacro keeps item slots and passes best through", function()
   eq(text, T .. "/use [nomod] item:14530\n/cast [mod:ctrl,nomod:alt] X")
 end)
 
+local function names(t) return function(id) return t[id] end end
+local function ids(id, name) return { spellID = id, name = name, mouseover = true, kind = "harm" } end
+test("repair renames a spell by spellID and keeps the other fields", function()
+  local keys = { Q = { targetEnemy = true, slots = { normal = ids(1, "Old"), shift = it("HS") } } }
+  local out, ch = core.Repair(keys, names({ [1] = "New" }))
+  eq(out.Q.slots.normal.name, "New"); eq(out.Q.slots.normal.mouseover, true); eq(out.Q.targetEnemy, true)
+  eq(out.Q.slots.shift.item, "HS"); eq(keys.Q.slots.normal.name, "Old") -- input untouched
+  eq(#ch, 1); eq(ch[1].key, "Q"); eq(ch[1].slot, "normal"); eq(ch[1].kind, "renamed"); eq(ch[1].old, "Old"); eq(ch[1].new, "New")
+end)
+test("repair empties the slot of a removed spell", function()
+  local out, ch = core.Repair({ E = { slots = { alt = ids(2, "Gone") } } }, names({}))
+  eq(out.E.slots.alt, nil); eq(#ch, 1); eq(ch[1].kind, "removed"); eq(ch[1].old, "Gone"); eq(ch[1].new, nil)
+end)
+test("repair with nothing to change gives an empty list", function()
+  local _, ch = core.Repair({ Q = { slots = { normal = ids(1, "A"), alt = it("POT") } } }, names({ [1] = "A" }))
+  eq(#ch, 0)
+end)
+test("repair mixed: rename, removal and untouched slots across keys", function()
+  local keys = { Q = { slots = { normal = ids(1, "A"), shift = ids(2, "B") } }, E = { slots = { ctrl = ids(3, "C") } } }
+  local out, ch = core.Repair(keys, names({ [1] = "A", [2] = "B2" }))
+  eq(out.Q.slots.normal.name, "A"); eq(out.Q.slots.shift.name, "B2"); eq(out.E.slots.ctrl, nil); eq(#ch, 2)
+  local kinds = {}
+  for _, c in ipairs(ch) do kinds[c.key .. c.slot] = c.kind end
+  eq(kinds.Qshift, "renamed"); eq(kinds.Ectrl, "removed")
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

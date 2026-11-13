@@ -31,5 +31,9 @@ ns.L = {
   ITEM_HS = "Healthstone", ITEM_POT = "Healing potion", ITEM_BAND = "Bandage", ITEM_BOMB = "Bomb",
   ITEM_NONE = "none in bags",
   ITEM_NOW = "now using %s.",
+  REPAIR_TITLE = "Foil Keybinds: spells changed",
+  REPAIR_RENAMED = "%s: %s is now called %s.",
+  REPAIR_REMOVED = "%s: %s no longer exists, the slot is now empty.",
+  REPAIR_UNDONE = "repair undone, setups and macros are back to how they were.",
   SKIP_LONG = "%s skipped: macro is %d/%d characters.",
 }

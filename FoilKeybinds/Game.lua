@@ -64,6 +64,7 @@ function ns.Apply()
   if not next(keys) then return ns.Say(L.NOTHING) end
   FoilKeybindsDB.backup = FoilKeybindsDB.backup or { binds = {}, slots = {}, macros = {} }
   local b = FoilKeybindsDB.backup
+  FoilKeybindsDB.applied = FoilKeybindsDB.applied or {}
   local done = 0
   for key, setup in pairs(keys) do if next(setup.slots) then -- clicked but empty keys are skipped
     local name = "FKB " .. key
@@ -86,6 +87,7 @@ function ns.Apply()
           ns.Say(L.BOUND_DIRECT:format(key))
         end
       end
+      FoilKeybindsDB.applied[key] = ns.Copy(setup) -- what the macro holds now; swaps and repair rebuild from this
       done = done + 1
     end
   end end
@@ -122,6 +124,7 @@ function ns.Undo()
   end
   SaveBindings(GetCurrentBindingSet())
   FoilKeybindsDB.backup = nil
+  FoilKeybindsDB.applied = nil -- macros are back to their old bodies, nothing of ours is live
   ns.Say(L.UNDONE)
 end
 
@@ -177,8 +180,17 @@ function ns.LearnedSpells()
   return list
 end
 
--- Out of combat item swap: only macros of keys with an item slot, only when the text changed.
--- ponytail: rewrites from saved setup, so unapplied card edits on item keys go live too.
+-- Rewrites the macro of a key from its applied snapshot, only when the text changed.
+local function rebuild(key)
+  local setup = FoilKeybindsDB.applied and FoilKeybindsDB.applied[key]
+  local name = "FKB " .. key
+  local i = GetMacroIndexByName(name)
+  local text = setup and i > 0 and ns.FitMacro(setup, ns.best)
+  if text and GetMacroBody(i) ~= text then EditMacro(i, name, nil, text) end
+end
+
+-- Out of combat item swap: only macros of keys with an item slot. Uses the applied
+-- snapshot, so card edits not yet applied stay off the live macro.
 local function hasItem(setup)
   for _, s in pairs(setup.slots) do if s.item then return true end end
 end
@@ -186,12 +198,8 @@ function ns.SwapItems()
   if InCombatLockdown() or not FoilKeybindsDB then return end -- macros are locked in combat
   local old = ns.best
   ns.ScanBags()
-  for key, setup in pairs(FoilKeybindsDB.keys) do
-    if hasItem(setup) then
-      local name = "FKB " .. key
-      local i, text = GetMacroIndexByName(name), ns.FitMacro(setup, ns.best)
-      if i > 0 and text and GetMacroBody(i) ~= text then EditMacro(i, name, nil, text) end
-    end
+  for key, setup in pairs(FoilKeybindsDB.applied or {}) do
+    if hasItem(setup) then rebuild(key) end
   end
   for cat, b in pairs(ns.best) do
     if old[cat] and old[cat].id ~= b.id then ns.Say(L.ITEM_NOW:format(b.name)) end
@@ -199,6 +207,86 @@ function ns.SwapItems()
   if ns.Refresh then ns.Refresh() end
 end
 
+-- Current name of a spellID, nil when the client has no spell with that ID.
+-- Assumption: spell names for valid IDs are in the client data at login (modern clients
+-- ship the spell DB locally), so nil here means removed, not "not loaded yet".
+local function spellName(id)
+  if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(id) end
+  if C_Spell and C_Spell.GetSpellInfo then local info = C_Spell.GetSpellInfo(id); return info and info.name end
+  if GetSpellInfo then return (GetSpellInfo(id)) end
+end
+
+-- Repair popup: one line per change, OK closes, Undo puts the pre-repair setups back.
+local popup
+local function changeLine(c)
+  local where = ("%s %s"):format(c.key, L["SLOT_" .. c.slot])
+  if c.kind == "renamed" then return L.REPAIR_RENAMED:format(where, c.old, c.new) end
+  return L.REPAIR_REMOVED:format(where, c.old or "?")
+end
+local function showPopup(changes)
+  if not popup then
+    popup = CreateFrame("Frame", "FoilKeybindsRepair", UIParent, "BasicFrameTemplateWithInset")
+    popup:SetPoint("CENTER"); popup:SetFrameStrata("DIALOG")
+    popup:SetMovable(true); popup:EnableMouse(true); popup:RegisterForDrag("LeftButton")
+    popup:SetScript("OnDragStart", popup.StartMoving); popup:SetScript("OnDragStop", popup.StopMovingOrSizing)
+    popup.title = popup:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    popup.title:SetPoint("TOP", 0, -6); popup.title:SetText(L.REPAIR_TITLE)
+    popup.text = popup:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    popup.text:SetPoint("TOPLEFT", 16, -34); popup.text:SetWidth(388); popup.text:SetJustifyH("LEFT")
+    local ok = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
+    ok:SetSize(90, 24); ok:SetPoint("BOTTOMRIGHT", -14, 12); ok:SetText(OKAY or "OK")
+    ok:SetScript("OnClick", function() popup:Hide() end)
+    local undo = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
+    undo:SetSize(90, 24); undo:SetPoint("RIGHT", ok, "LEFT", -8, 0); undo:SetText(L.UNDO)
+    undo:SetScript("OnClick", function() ns.UndoRepair() end)
+  end
+  local lines = {}
+  for i, c in ipairs(changes) do lines[i] = changeLine(c) end
+  popup.text:SetText(table.concat(lines, "\n"))
+  popup:SetSize(420, popup.text:GetStringHeight() + 84)
+  popup:Show()
+end
+
+-- Once per login, out of combat. Fixes both the live setups and the applied snapshots,
+-- rebuilds the macros whose snapshot changed. Nothing changed: no popup, no macro edits.
+function ns.RepairOnLogin()
+  local db = FoilKeybindsDB
+  local keys, keyChanges = ns.Repair(db.keys, spellName)
+  local applied, appChanges = ns.Repair(db.applied or {}, spellName)
+  if #keyChanges == 0 and #appChanges == 0 then return end
+  db.repairUndo = { keys = ns.Copy(db.keys), applied = ns.Copy(db.applied) }
+  db.keys, db.applied = keys, db.applied and applied
+  local changes, seen, touched = {}, {}, {}
+  for _, list in ipairs({ keyChanges, appChanges }) do
+    for _, c in ipairs(list) do
+      local id = c.key .. c.slot .. c.kind
+      if not seen[id] then seen[id] = true; changes[#changes + 1] = c end
+    end
+  end
+  for _, c in ipairs(appChanges) do touched[c.key] = true end
+  db.repairUndo.touched = touched
+  for key in pairs(touched) do rebuild(key) end
+  if ns.Refresh then ns.Refresh() end
+  showPopup(changes)
+end
+
+function ns.UndoRepair()
+  if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end -- popup stays open to try again
+  if popup then popup:Hide() end
+  local u = FoilKeybindsDB.repairUndo
+  if not u then return end
+  FoilKeybindsDB.keys, FoilKeybindsDB.applied = u.keys, u.applied
+  for key in pairs(u.touched) do rebuild(key) end
+  FoilKeybindsDB.repairUndo = nil
+  if ns.Refresh then ns.Refresh() end
+  ns.Say(L.REPAIR_UNDONE)
+end
+
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("PLAYER_LOGIN"); ev:RegisterEvent("BAG_UPDATE_DELAYED"); ev:RegisterEvent("PLAYER_REGEN_ENABLED")
-ev:SetScript("OnEvent", function() ns.SwapItems() end)
+local repairPending
+ev:SetScript("OnEvent", function(_, event)
+  if event == "PLAYER_LOGIN" then repairPending = true end
+  ns.SwapItems()
+  if repairPending and not InCombatLockdown() then repairPending = false; ns.RepairOnLogin() end
+end)

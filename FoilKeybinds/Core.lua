@@ -135,4 +135,35 @@ function ns.FirstEmptySlot(used)
   end
 end
 
+-- Deep copy of plain tables (setups, snapshots).
+function ns.Copy(t)
+  if type(t) ~= "table" then return t end
+  local c = {}
+  for k, v in pairs(t) do c[k] = ns.Copy(v) end
+  return c
+end
+
+-- keys = key -> setup; lookup(spellID) -> current name or nil (nil = spell is gone).
+-- Returns a repaired copy and a change list { key, slot, kind = "renamed"|"removed", old, new }.
+-- Item slots are never touched.
+function ns.Repair(keys, lookup)
+  local out, changes = ns.Copy(keys), {}
+  for key, setup in pairs(out) do
+    for _, id in ipairs(ns.SLOTS) do
+      local s = setup.slots and setup.slots[id]
+      if s and s.spellID then
+        local now = lookup(s.spellID)
+        if not now then
+          setup.slots[id] = nil
+          changes[#changes + 1] = { key = key, slot = id, kind = "removed", old = s.name }
+        elseif now ~= s.name then
+          changes[#changes + 1] = { key = key, slot = id, kind = "renamed", old = s.name, new = now }
+          s.name = now
+        end
+      end
+    end
+  end
+  return out, changes
+end
+
 return ns
