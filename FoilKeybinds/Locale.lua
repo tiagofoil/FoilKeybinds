@@ -1,5 +1,5 @@
 local _, ns = ...
-ns.L = {
+local en = {
   TITLE = "Foil Keybinds",
   APPLY = "Apply",
   IN_COMBAT = "leave combat and try again.",
@@ -41,3 +41,45 @@ ns.L = {
   COPY_UNDONE = "copy undone, your previous setup is back.",
   SKIP_LONG = "%s skipped: macro is %d/%d characters.",
 }
+
+local ptBR = {
+  APPLY = "Aplicar",
+  IN_COMBAT = "saia do combate e tente de novo.",
+  NOTHING = "nenhuma tecla configurada ainda. Clique numa tecla em /fkb ou tente /fkb set Q Shadow Bolt",
+  SET = "%s slot normal: %s",
+  UNKNOWN_SPELL = "%s não é um feitiço aprendido.",
+  CREATE_FAILED = "não foi possível criar %s: %s",
+  NO_SLOT = "%s não está em um slot da barra.",
+  PLACED = "%s agora aperta %s (slot de ação %d), a macro está lá.",
+  BOUND_DIRECT = "%s: sem slot vazio na barra, a tecla foi ligada direto na macro.",
+  UNDO = "Desfazer",
+  NOTHING_TO_UNDO = "nada para desfazer.",
+  UNDONE = "atalhos, slots da barra e macros voltaram ao que eram.",
+  DONE = "pronto: %d macros colocadas.",
+  PICK_KEY = "Clique numa tecla para editar.",
+  KEY = "Tecla %s",
+  EMPTY = "(vazio)",
+  TARGET_ENEMY = "Mirar inimigo se não houver alvo",
+  PET_ATTACK = "Pet ataca",
+  CLEAR = "Limpar slot",
+  PICK_SPELL = "Escolha um feitiço",
+  TOO_LONG = "Não cabe: %d/%d mesmo sem mouseover. Não foi salvo. Tente um feitiço mais curto no slot %s.",
+  TRIMMED = "Mouseover foi desligado em alguns slots para caber em 255.",
+  RESET_VIEW = "Resetar visão",
+  NOT_KNOWN = "Ainda não aprendido",
+  KEY_SPACE = "Espaço",
+  ITEM_POT = "Poção de cura", ITEM_BAND = "Bandagem", ITEM_BOMB = "Bomba",
+  ITEM_NONE = "nenhum na bolsa",
+  ITEM_NOW = "agora usando %s.",
+  REPAIR_TITLE = "Foil Keybinds: feitiços mudaram",
+  REPAIR_RENAMED = "%s: %s agora se chama %s.",
+  REPAIR_REMOVED = "%s: %s não existe mais, o slot ficou vazio.",
+  REPAIR_UNDONE = "reparo desfeito, configurações e macros voltaram ao que eram.",
+  COPY_FROM = "Copiar de...",
+  COPY_NONE = "nenhum outro personagem dessa classe ainda. Entre com eles uma vez.",
+  COPIED = "configuração de %s copiada. Aperte Aplicar para usar, ou Desfazer para voltar a sua.",
+  COPY_UNDONE = "cópia desfeita, sua configuração anterior voltou.",
+  SKIP_LONG = "%s ignorada: a macro tem %d/%d caracteres.",
+}
+-- Missing ptBR keys fall back to English.
+ns.L = GetLocale() == "ptBR" and setmetatable(ptBR, { __index = en }) or en

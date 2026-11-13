@@ -162,6 +162,22 @@ test("SameClass lists other characters of the class, sorted, without me", functi
   eq(#core.SameClass(idx, "PRIEST", "Me-R"), 0)
 end)
 
+test("ptBR keys exist in English with the same placeholders", function()
+  local function load(loc)
+    GetLocale = function() return loc end
+    local ns = {}; assert(loadfile("FoilKeybinds/Locale.lua"))(nil, ns); return ns.L
+  end
+  local en, pt = load("enUS"), load("ptBR")
+  eq(pt.TITLE, en.TITLE)
+  local function ph(s) local t = {}; for p in s:gmatch("%%[sd]") do t[#t + 1] = p end; return table.concat(t) end
+  for k, v in pairs(pt) do
+    assert(en[k], "ptBR key missing in English: " .. k)
+    eq(ph(v), ph(en[k]))
+  end
+  assert(pt.APPLY ~= en.APPLY)
+  GetLocale = nil
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))
