@@ -2,7 +2,7 @@ local _, ns = ...
 local L = ns.L
 
 local f = CreateFrame("Frame", "FoilKeybindsFrame", UIParent, "BasicFrameTemplateWithInset")
-f:SetSize(520, 360); f:SetPoint("CENTER")
+f:SetSize(940, 560); f:SetPoint("CENTER")
 f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
 f:Hide()
@@ -17,6 +17,8 @@ local undoBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 undoBtn:SetSize(100, 26); undoBtn:SetPoint("RIGHT", applyBtn, "LEFT", -8, 0); undoBtn:SetText(L.UNDO)
 undoBtn:SetScript("OnClick", function() ns.Undo() end)
 
+local current, card, picker
+
 local function setupOf(key)
   local keys = FoilKeybindsDB.keys
   keys[key] = keys[key] or { slots = {} }
@@ -24,14 +26,15 @@ local function setupOf(key)
 end
 
 -- Runs after every card change: trims mouseover into saved data, or reverts the change
--- with undo() when the macro cannot fit. Then redraws the card.
-local function commit(undo)
+-- with undo() when the macro cannot fit. Then redraws the card. slot = the slot the player
+-- just changed (nil for key toggles): the error names it, falling back to the core's pick.
+local function commit(undo, slot)
   local setup = setupOf(current)
   local text, n, trimmed, errSlot = ns.FitMacro(setup)
   card.msg:SetText("")
   if not text then
     undo()
-    card.msg:SetText(L.TOO_LONG:format(n, ns.MAX, L["SLOT_" .. errSlot]))
+    card.msg:SetText(L.TOO_LONG:format(n, ns.MAX, L["SLOT_" .. (slot or errSlot)]))
   else
     for _, id in ipairs(trimmed) do setup.slots[id].mouseover = false end
     if #trimmed > 0 then card.msg:SetText(L.TRIMMED) end
@@ -39,19 +42,112 @@ local function commit(undo)
   card:Refresh()
 end
 
--- Key list. ponytail: fixed keys near WASD; ticket 05 replaces this with the canvas.
-local KEYS = { "1", "2", "3", "4", "5", "Q", "E", "R", "F", "T", "G", "Z", "X", "C", "V", "B" }
-local current, card, picker
-for i, key in ipairs(KEYS) do
-  local b = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-  b:SetSize(36, 24); b:SetPoint("TOPLEFT", 14 + ((i - 1) % 4) * 38, -32 - math.floor((i - 1) / 4) * 26)
-  b:SetText(key)
-  b:SetScript("OnClick", function() current = key; picker:Hide(); card.msg:SetText(""); card:Refresh() end)
+local function selectKey(key) current = key; picker:Hide(); card.msg:SetText(""); card:Refresh() end
+
+-- Canvas: keys near WASD plus the mouse on a board inside a clipping view.
+-- Drag empty space to pan, wheel to zoom. Board offset is kept in view units.
+local view = CreateFrame("Frame", nil, f, "BackdropTemplate")
+view:SetPoint("TOPLEFT", 12, -30); view:SetPoint("BOTTOMRIGHT", f, "BOTTOMLEFT", 572, 46)
+view:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+view:SetBackdropColor(0.06, 0.04, 0.08, 1); view:SetBackdropBorderColor(0.3, 0.22, 0.38, 1)
+view:SetClipsChildren(true); view:EnableMouse(true); view:EnableMouseWheel(true)
+local board = CreateFrame("Frame", nil, view)
+board:SetSize(640, 360)
+local DEFAULT_ZOOM, DEFAULT_X, DEFAULT_Y = 0.85, 10, -12
+local zoom, ox, oy = DEFAULT_ZOOM, DEFAULT_X, DEFAULT_Y
+local function place()
+  board:SetScale(zoom); board:ClearAllPoints(); board:SetPoint("TOPLEFT", view, "TOPLEFT", ox / zoom, oy / zoom)
+end
+place()
+view:SetScript("OnMouseWheel", function(_, d) zoom = math.max(0.5, math.min(2, zoom + d * 0.1)); place() end)
+view:SetScript("OnMouseDown", function(self)
+  local x, y = GetCursorPosition(); local sc = self:GetEffectiveScale()
+  local sx, sy, bx, by = x / sc, y / sc, ox, oy
+  self:SetScript("OnUpdate", function()
+    local cx, cy = GetCursorPosition()
+    ox, oy = bx + cx / sc - sx, by + cy / sc - sy; place()
+  end)
+end)
+view:SetScript("OnMouseUp", function(self) self:SetScript("OnUpdate", nil) end)
+view:SetScript("OnHide", function(self) self:SetScript("OnUpdate", nil) end)
+local resetBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+resetBtn:SetSize(110, 26); resetBtn:SetPoint("BOTTOMLEFT", 12, 14); resetBtn:SetText(L.RESET_VIEW)
+resetBtn:SetScript("OnClick", function() zoom, ox, oy = DEFAULT_ZOOM, DEFAULT_X, DEFAULT_Y; place() end)
+
+local K, U = 64, 70 -- key size and grid step
+-- { binding key, column, row [, width in units] }. move = shown but not editable (movement keys).
+local LAYOUT = {
+  { "1", 0, 0 }, { "2", 1, 0 }, { "3", 2, 0 }, { "4", 3, 0 }, { "5", 4, 0 },
+  { "Q", 0.5, 1 }, { "W", 1.5, 1, move = true }, { "E", 2.5, 1 }, { "R", 3.5, 1 }, { "T", 4.5, 1 },
+  { "A", 0.75, 2, move = true }, { "S", 1.75, 2, move = true }, { "D", 2.75, 2, move = true },
+  { "F", 3.75, 2 }, { "G", 4.75, 2 },
+  { "Z", 1.25, 3 }, { "X", 2.25, 3 }, { "C", 3.25, 3 }, { "V", 4.25, 3 },
+  { "SPACE", 2, 4, 4 },
+  -- mouse buttons (left/right click stay with the game)
+  { "BUTTON3", 7.4, 0.6 }, { "BUTTON4", 6.6, 2.1 }, { "BUTTON5", 6.6, 3.1 },
+}
+local mouse = CreateFrame("Frame", nil, board, "BackdropTemplate")
+mouse:SetSize(2 * U + 10, 4 * U); mouse:SetPoint("TOPLEFT", 6.85 * U, -0.2 * U)
+mouse:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 2 })
+mouse:SetBackdropColor(0.1, 0.07, 0.13, 1); mouse:SetBackdropBorderColor(0.3, 0.22, 0.38, 1)
+mouse:SetFrameLevel(board:GetFrameLevel())
+
+local keyButtons = {}
+for _, k in ipairs(LAYOUT) do
+  local key = k[1]
+  local b = CreateFrame("Button", nil, board, "BackdropTemplate")
+  b:SetSize(K + ((k[4] or 1) - 1) * U, K)
+  b:SetPoint("TOPLEFT", k[2] * U, -k[3] * U); b:SetFrameLevel(mouse:GetFrameLevel() + 2)
+  b:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+  b.label = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  b.label:SetPoint("TOP", 0, -8); b.label:SetText(L["KEY_" .. key] or key)
+  if k.move then
+    b:SetBackdropColor(0.09, 0.13, 0.11, 1); b:SetBackdropBorderColor(0.2, 0.3, 0.24, 1)
+    b.label:SetTextColor(0.45, 0.6, 0.48); b:EnableMouse(false)
+  else
+    b:SetScript("OnClick", function() selectKey(key) end)
+    b.icons = {}
+    for i, id in ipairs(ns.SLOTS) do
+      local ic = CreateFrame("Frame", nil, b)
+      ic:SetSize(11, 11); ic:SetPoint("BOTTOMLEFT", 2 + (i - 1) * 12, 4); ic:EnableMouse(true)
+      ic.tex = ic:CreateTexture(nil, "ARTWORK"); ic.tex:SetAllPoints()
+      ic:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L["SLOT_" .. id] .. ": " .. self.name)
+        if not self.known then GameTooltip:AddLine(L.NOT_KNOWN, 0.6, 0.6, 0.6) end
+        GameTooltip:Show()
+      end)
+      ic:SetScript("OnLeave", GameTooltip_Hide)
+      ic:SetScript("OnMouseUp", function() selectKey(key) end) -- icon eats the click, forward it
+      ic.slot = id; b.icons[i] = ic
+    end
+    keyButtons[key] = b
+  end
+end
+
+-- Redraws every key: filled slots as icons (left to right, card order), selected key outlined.
+local function refreshKeys()
+  for key, b in pairs(keyButtons) do
+    local setup = FoilKeybindsDB.keys[key]
+    local filled = setup and next(setup.slots)
+    b:SetBackdropColor(filled and 0.16 or 0.11, filled and 0.11 or 0.08, filled and 0.21 or 0.14, 1)
+    if key == current then b:SetBackdropBorderColor(0.85, 0.68, 0.35, 1)
+    else b:SetBackdropBorderColor(0.3, 0.22, 0.38, 1) end
+    for _, ic in ipairs(b.icons) do -- fixed position per slot, same order as the card
+      local s = setup and setup.slots[ic.slot]
+      ic:SetShown(s ~= nil)
+      if s then
+        ic.name, ic.known = s.name, ns.IsKnown(s.spellID)
+        ic.tex:SetTexture(ns.SpellIcon(s.spellID))
+        ic.tex:SetDesaturated(not ic.known); ic:SetAlpha(ic.known and 1 or 0.4)
+      end
+    end
+  end
 end
 
 -- Key card: 5 slots, each with a mouseover checkbox, plus the two key toggles.
 card = CreateFrame("Frame", nil, f)
-card:SetPoint("TOPLEFT", 180, -30); card:SetPoint("BOTTOMRIGHT", -14, 46)
+card:SetPoint("TOPLEFT", 588, -30); card:SetPoint("BOTTOMRIGHT", -14, 46)
 card.label = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 card.label:SetPoint("TOPLEFT")
 card.count = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -76,7 +172,7 @@ for i, id in ipairs(ns.SLOTS) do
     if not s then return end
     local old = s.mouseover
     s.mouseover = self:GetChecked() and true or false
-    commit(function() s.mouseover = old end)
+    commit(function() s.mouseover = old end, id)
   end)
   rows[id] = r
 end
@@ -95,6 +191,7 @@ card.target = toggle("targetEnemy", L.TARGET_ENEMY, -200)
 card.pet = toggle("petAttack", L.PET_ATTACK, -226)
 
 function card:Refresh()
+  refreshKeys()
   if not current then
     self.label:SetText(L.PICK_KEY)
     for _, r in pairs(rows) do r.btn:Hide(); r.mo:Hide(); r.mod:Hide() end
@@ -103,7 +200,7 @@ function card:Refresh()
     return
   end
   local setup = setupOf(current)
-  self.label:SetText(L.KEY:format(current))
+  self.label:SetText(L.KEY:format(L["KEY_" .. current] or current))
   local _, n = ns.FitMacro(setup)
   self.count:SetText(n .. "/" .. ns.MAX)
   for id, r in pairs(rows) do
@@ -172,7 +269,7 @@ function picker:Choose(s)
     slots[slot] = nil
   end
   self:Hide()
-  commit(function() slots[slot] = old end)
+  commit(function() slots[slot] = old end, slot)
 end
 
 f:SetScript("OnShow", function() card:Refresh() end)

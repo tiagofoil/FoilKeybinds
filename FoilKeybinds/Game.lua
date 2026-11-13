@@ -110,6 +110,15 @@ function ns.SpellIcon(spellID)
   if GetSpellTexture then return GetSpellTexture(spellID) end
 end
 
+-- Stored spells the character does not know (yet) are faded on the canvas.
+-- Unknown API answers true so nothing fades by mistake.
+function ns.IsKnown(spellID)
+  if C_SpellBook and C_SpellBook.IsSpellKnown then return C_SpellBook.IsSpellKnown(spellID) end
+  if IsPlayerSpell then return IsPlayerSpell(spellID) end
+  if IsSpellKnown then return IsSpellKnown(spellID) end
+  return true
+end
+
 -- Learned, active (non passive, non future) spells from the player spellbook, sorted by name.
 function ns.LearnedSpells()
   local list, seen = {}, {}
