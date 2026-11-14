@@ -384,6 +384,7 @@ test("settings merge: defaults for missing keys, saved values kept, unknown keys
   s = core.MergeSettings({ scale = 1.2, cheatLayout = "keyboard", chat = false, oldKey = 5 })
   eq(s.scale, 1.2); eq(s.cheatLayout, "keyboard"); eq(s.chat, false); eq(s.oldKey, nil)
   eq(s.cheatIcon, 24) -- added later: gets its default
+  eq(core.MergeSettings({ cheatLayout = "cols" }).cheatLayout, "cols")
 end)
 
 test("settings merge: clamp, snap to step, wrong type and unknown choice fall back", function()

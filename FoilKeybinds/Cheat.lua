@@ -1,5 +1,5 @@
--- Cheat sheet: a small floating view of what is live in game (FoilKeybindsDB.applied). Two layouts:
--- "rows" (one row per key, one column per modifier) and "keyboard" (keys placed like the canvas, big
+-- Cheat sheet: a small floating view of what is live in game (FoilKeybindsDB.applied). Layouts:
+-- "rows" (one row per key, one column per modifier), "cols" (the same turned sideways) and "keyboard" (keys placed like the canvas, big
 -- normal icon plus 4 small modifier icons). What the held modifier fires lights up. Only textures and
 -- font strings, nothing protected, so it shows, hides and locks fine in combat.
 -- Saved: position and shown per character (FoilKeybindsDB.cheat); scale, lock and look account-wide
@@ -190,6 +190,40 @@ local function layoutRows(list, applied, top, cols)
   return PAD * 2 + keyw + #cols * colw, y0 + #list * rowh + 6
 end
 
+-- Horizontal: one row per modifier (label on the left), one column per key (short key name on top).
+local function layoutCols(list, applied, top, cols)
+  local s = ns.S
+  local icon, labw, keyw = s.cheatIcon, 0, 0
+  for _, id in ipairs(cols) do labw = math.max(labw, heads[id]:GetStringWidth()) end
+  labw = labw + 10
+  if s.cheatLabels then
+    for i, key in ipairs(list) do
+      local r = row(i)
+      r.key:SetText(ns.ShortKey(key)); keyw = math.max(keyw, r.key:GetStringWidth())
+    end
+  end
+  local colw, rowh = math.max(icon + 8, keyw + 8), icon + 6
+  local y0 = top + (s.cheatLabels and HEAD or 0)
+  for c, id in ipairs(cols) do
+    local cy = -(y0 + (c - 0.5) * rowh)
+    heads[id]:ClearAllPoints(); heads[id]:SetPoint("LEFT", p, "TOPLEFT", PAD + 2, cy); heads[id]:SetShown(#list > 0)
+    stripes[id]:ClearAllPoints()
+    stripes[id]:SetPoint("TOPLEFT", p, "TOPLEFT", 6, cy + rowh / 2 - 1)
+    stripes[id]:SetPoint("TOPRIGHT", p, "TOPRIGHT", -6, cy + rowh / 2 - 1)
+    stripes[id]:SetHeight(rowh - 2)
+  end
+  for i, key in ipairs(list) do
+    local r, cx = row(i), PAD + labw + (i - 0.5) * colw
+    r.key:ClearAllPoints(); r.key:SetPoint("CENTER", p, "TOPLEFT", cx, -(top + HEAD / 2)); r.key:SetShown(s.cheatLabels)
+    for c, id in ipairs(cols) do
+      local cell = r.cells[id]
+      cell:SetSize(icon, icon); at(cell, p, "CENTER", cx, -(y0 + (c - 0.5) * rowh))
+      fill(cell, applied[key].slots[id])
+    end
+  end
+  return PAD * 2 + labw + #list * colw, y0 + #cols * rowh + 6
+end
+
 -- Keyboard: keys where the canvas has them (ns.LAYOUT from UI.lua), trimmed to the used area.
 -- Keys outside the canvas set (bound with /fkb set) go on a row below.
 local where
@@ -272,14 +306,15 @@ local function refresh()
   live = {}
   rowsMode = s.cheatLayout ~= "keyboard"
   local w, h
-  if rowsMode then w, h = layoutRows(list, applied, top, cols)
+  if s.cheatLayout == "cols" then w, h = layoutCols(list, applied, top, cols)
+  elseif rowsMode then w, h = layoutRows(list, applied, top, cols)
   else w, h = layoutKeyboard(list, applied, top, shown) end
   empty:SetShown(used == 0)
   if used == 0 then
     empty:ClearAllPoints(); empty:SetPoint("TOPLEFT", PAD + 2, -(top + 4))
     w, h = 242, top + empty:GetStringHeight() + 16
   end
-  p:SetSize(w, h)
+  p:SetSize(bare and w or math.max(w, 220), h) -- room for the title, lock box and x
   applyLock(); paint()
 end
 

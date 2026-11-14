@@ -124,6 +124,7 @@ ns.MAX = 255
 
 -- Name of the macro Apply writes for a key. Key first: macro window and bars show ~4 chars.
 local SHORT = { SPACE = "Spc", BUTTON3 = "M3", BUTTON4 = "M4", BUTTON5 = "M5" }
+function ns.ShortKey(key) return SHORT[key] or key end
 function ns.MacroName(key) return (SHORT[key] or key) .. " FK" end
 function ns.OldMacroName(key) return "FKB " .. key end
 
@@ -240,7 +241,7 @@ ns.SETTING_RANGES = {
   scale = { 0.7, 1.5, 0.05 }, keyIcon = { 18, 34, 2 },
   cheatScale = { 0.6, 1.6, 0.05 }, cheatIcon = { 16, 40, 2 }, cheatBg = { 0, 100, 5 },
 }
-ns.SETTING_CHOICES = { textSize = { "small", "normal", "large" }, cheatLayout = { "rows", "keyboard" } }
+ns.SETTING_CHOICES = { textSize = { "small", "normal", "large" }, cheatLayout = { "rows", "cols", "keyboard" } }
 
 -- Clamps a number into r = { min, max, step } and snaps it to the step without float noise
 -- (1.1 stays 1.1, never 1.1000000001).
