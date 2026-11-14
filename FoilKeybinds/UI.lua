@@ -229,12 +229,14 @@ card.pet = toggle("petAttack", L.PET_ATTACK, -226)
 
 -- Macro preview: side panel on the window's left edge (the picker uses the right one).
 local preview = CreateFrame("Frame", nil, f, "BasicFrameTemplateWithInset")
-preview:SetSize(300, 260); preview:SetPoint("TOPRIGHT", f, "TOPLEFT", -4, 0); preview:Hide()
+preview:SetSize(340, 380); preview:SetPoint("TOPRIGHT", f, "TOPLEFT", -4, 0); preview:Hide()
 preview.title = preview:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 preview.title:SetPoint("TOP", 0, -6); preview.title:SetText(L.SHOW_MACRO)
 preview.text = preview:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
-preview.text:SetPoint("TOPLEFT", 14, -32); preview.text:SetWidth(272)
+preview.text:SetPoint("TOPLEFT", 14, -32); preview.text:SetPoint("BOTTOMRIGHT", -14, 32)
 preview.text:SetJustifyH("LEFT"); preview.text:SetJustifyV("TOP")
+-- Conditions have no spaces, so without non-space wrap the line is cut to "[mo...".
+preview.text:SetWordWrap(true); preview.text:SetNonSpaceWrap(true)
 preview.warn = preview:CreateFontString(nil, "OVERLAY", "GameFontRedSmall")
 preview.warn:SetPoint("BOTTOMLEFT", 14, 12); preview.warn:SetPoint("RIGHT", -14, 0); preview.warn:SetJustifyH("LEFT")
 card.show = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
@@ -268,7 +270,8 @@ function card:Refresh()
   self.pet:Show(); self.pet:SetChecked(setup.petAttack or false)
   self.show:Show(); self.show:SetText(preview:IsShown() and L.HIDE_MACRO or L.SHOW_MACRO)
   if preview:IsShown() then
-    preview.text:SetText(text and ns.ColorMacro(text) or "")
+    -- One clause per line for reading; the real macro keeps "; " on one line.
+    preview.text:SetText(text and ns.ColorMacro((text:gsub("; ", ";\n    "))) or "")
     local i = GetMacroIndexByName(name)
     preview.warn:SetText(text and i > 0 and GetMacroBody(i) ~= text and L.MACRO_DIFFERS or "")
   end
