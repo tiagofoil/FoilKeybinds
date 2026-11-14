@@ -378,6 +378,27 @@ test("SameMacro ignores line endings and trailing whitespace only", function()
   eq(core.SameMacro(nil, ""), true)
 end)
 
+test("settings merge: defaults for missing keys, saved values kept, unknown keys dropped", function()
+  local s = core.MergeSettings(nil)
+  for k, v in pairs(core.SETTING_DEFAULTS) do eq(s[k], v) end
+  s = core.MergeSettings({ scale = 1.2, cheatLayout = "keyboard", chat = false, oldKey = 5 })
+  eq(s.scale, 1.2); eq(s.cheatLayout, "keyboard"); eq(s.chat, false); eq(s.oldKey, nil)
+  eq(s.cheatIcon, 24) -- added later: gets its default
+end)
+
+test("settings merge: clamp, snap to step, wrong type and unknown choice fall back", function()
+  local s = core.MergeSettings({ scale = 9, cheatScale = 0.1, keyIcon = 27, cheatBg = 42,
+    cheatLock = "yes", textSize = "huge", cheatIcon = "big" })
+  eq(s.scale, 1.5); eq(s.cheatScale, 0.6); eq(s.keyIcon, 28); eq(s.cheatBg, 40)
+  eq(s.cheatLock, false); eq(s.textSize, "normal"); eq(s.cheatIcon, 24)
+end)
+
+test("Snap gives clean step values for slider text", function()
+  local r = core.SETTING_RANGES.scale
+  eq(core.Snap(1.1000000001, r), 1.1); eq(core.Snap(0.7 + 0.05 * 8, r), 1.1); eq(core.Snap(1.124, r), 1.1)
+  eq(("%.2fx"):format(core.Snap(1.126, r)), "1.15x")
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

@@ -20,17 +20,30 @@ local FILES = {
   display = DIR .. "GrenzeGotisch-Bold.ttf", body = DIR .. "AlegreyaSans-Medium.ttf",
   bold = DIR .. "AlegreyaSans-Bold.ttf", mono = DIR .. "JetBrainsMono-Bold.ttf",
 }
-local fonts = {}
+local fonts, offset = {}, 0
+local function setFont(o, kind, size)
+  local ok = o:SetFont(FILES[kind], size + offset, "")
+  if ok == false or not o:GetFont() then o:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", size + offset, "") end
+end
 -- ns.Font("mono", 11) -> a shared Font object. Falls back to the game font if the file fails.
 function ns.Font(kind, size)
   local id = kind .. size
-  if fonts[id] then return fonts[id] end
+  if fonts[id] then return fonts[id].o end
   local o = CreateFont("FoilKeybindsFont_" .. id)
-  local ok = o:SetFont(FILES[kind], size, "")
-  if ok == false or not o:GetFont() then o:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", size, "") end
+  setFont(o, kind, size)
   o:SetTextColor(unpack(T.ink))
-  fonts[id] = o
+  fonts[id] = { o = o, kind = kind, size = size }
   return o
+end
+
+-- Text size setting: every font of the addon grows or shrinks by the same points, live (font
+-- strings follow their Font object). Widths measured at build time (chips, check labels) stay.
+ns.TEXT_OFFSET = { small = -2, normal = 0, large = 2 }
+function ns.SetTextSize(choice)
+  local o = ns.TEXT_OFFSET[choice] or 0
+  if o == offset then return end
+  offset = o
+  for _, f in pairs(fonts) do setFont(f.o, f.kind, f.size) end
 end
 
 function ns.Text(parent, kind, size, color, layer)
@@ -63,6 +76,7 @@ function ns.Panel(name, parent, title)
   bar:SetPoint("TOPLEFT", 1, -1); bar:SetPoint("TOPRIGHT", -1, -1); bar:SetHeight(26)
   local rule = p:CreateTexture(nil, "BORDER", nil, 2); rule:SetColorTexture(T.brass[1], T.brass[2], T.brass[3], 0.35)
   rule:SetPoint("TOPLEFT", bar, "BOTTOMLEFT"); rule:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT"); rule:SetHeight(1)
+  p.wash, p.bar, p.rule = wash, bar, rule -- the cheat sheet fades these with its background opacity
   p.title = ns.Text(p, "display", 17, T.brass)
   p.title:SetPoint("LEFT", bar, "LEFT", 10, 0); p.title:SetText(title or "")
   local x = CreateFrame("Button", nil, p)
@@ -126,4 +140,55 @@ function ns.IconFrame(parent, sz)
   f.tex = f:CreateTexture(nil, "ARTWORK"); f.tex:SetPoint("TOPLEFT", 1, -1); f.tex:SetPoint("BOTTOMRIGHT", -1, 1)
   f.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- crop the baked-in icon border
   return f
+end
+
+-- Labeled slider: label left, value text right (fmt(v)), flat track with a fel fill and a brass thumb.
+-- Values snap to r = { min, max, step }. f:Set(v) moves it without calling f.onChange (no write back).
+function ns.Slider(parent, w, label, r, fmt)
+  local f = CreateFrame("Frame", nil, parent)
+  f:SetSize(w, 34)
+  f.label = ns.Text(f, "body", 13); f.label:SetPoint("TOPLEFT"); f.label:SetText(label)
+  f.value = ns.Text(f, "mono", 11, T.brass); f.value:SetPoint("TOPRIGHT")
+  local s = CreateFrame("Slider", nil, f, "BackdropTemplate")
+  s:SetPoint("BOTTOMLEFT", 0, 2); s:SetPoint("BOTTOMRIGHT", 0, 2); s:SetHeight(10)
+  ns.Skin(s, T.well, T.line)
+  s:SetOrientation("HORIZONTAL"); s:SetMinMaxValues(r[1], r[2]); s:SetValueStep(r[3]); s:SetObeyStepOnDrag(true)
+  local thumb = s:CreateTexture(nil, "OVERLAY"); thumb:SetColorTexture(unpack(T.brass)); thumb:SetSize(8, 16)
+  s:SetThumbTexture(thumb)
+  local fill = s:CreateTexture(nil, "ARTWORK"); fill:SetColorTexture(T.fel[1], T.fel[2], T.fel[3], 0.45)
+  fill:SetPoint("TOPLEFT", 1, -1); fill:SetPoint("BOTTOMLEFT", 1, 1); fill:SetPoint("RIGHT", thumb, "CENTER")
+  s:SetHitRectInsets(0, 0, -6, -6)
+  s:EnableMouseWheel(true)
+  s:SetScript("OnMouseWheel", function(self, d) self:SetValue(self:GetValue() + d * r[3]) end)
+  s:SetScript("OnValueChanged", function(_, v)
+    v = ns.Snap(v, r); f.value:SetText(fmt(v))
+    if not f.quiet and f.onChange and v ~= f.last then f.last = v; f.onChange(v) end
+  end)
+  s:HookScript("OnEnter", function(self) self:SetBackdropBorderColor(unpack(T.brass)) end)
+  s:HookScript("OnLeave", function(self) self:SetBackdropBorderColor(unpack(T.line)) end)
+  function f:Set(v) self.quiet, self.last = true, v; s:SetValue(v); self.value:SetText(fmt(v)); self.quiet = false end
+  return f
+end
+
+-- Dropdown: a flat button showing the current choice; click opens the game menu with radio rows.
+-- choices = { { value, label }, ... }. b:Set(v) shows v; picking a row calls b.onChange(value).
+function ns.Dropdown(parent, w, choices)
+  local b = ns.Button(parent, w, 22)
+  b:GetFontString():ClearAllPoints(); b:GetFontString():SetPoint("LEFT", 8, 0)
+  local arrow = b:CreateTexture(nil, "OVERLAY"); arrow:SetSize(12, 12); arrow:SetPoint("RIGHT", -6, 0)
+  arrow:SetTexture("Interface\\Buttons\\Arrow-Down-Up"); arrow:SetVertexColor(unpack(T.muted))
+  function b:Set(v)
+    self.current = v
+    for _, c in ipairs(choices) do if c[1] == v then self:SetText(c[2]) end end
+  end
+  b:SetScript("OnClick", function(self)
+    MenuUtil.CreateContextMenu(self, function(_, root)
+      for _, c in ipairs(choices) do
+        local function pick() if self.onChange then self.onChange(c[1]) end end
+        if root.CreateRadio then root:CreateRadio(c[2], function() return self.current == c[1] end, pick)
+        else root:CreateButton(c[2], pick) end
+      end
+    end)
+  end)
+  return b
 end

@@ -228,6 +228,47 @@ function ns.FirstEmptySlot(used)
   end
 end
 
+-- Account-wide settings (FoilKeybindsAccount.settings). Numbers have a range { min, max, step },
+-- strings a list of choices. Defaults match the look before settings existed.
+ns.SETTING_DEFAULTS = {
+  scale = 1, textSize = "normal", keyIcon = 26,
+  cheatLayout = "rows", cheatScale = 1, cheatIcon = 24, cheatBg = 100, cheatBorder = true,
+  cheatLabels = true, cheatHideEmpty = false, cheatHighlight = true, cheatLock = false,
+  compartment = true, chat = true,
+}
+ns.SETTING_RANGES = {
+  scale = { 0.7, 1.5, 0.05 }, keyIcon = { 18, 34, 2 },
+  cheatScale = { 0.6, 1.6, 0.05 }, cheatIcon = { 16, 40, 2 }, cheatBg = { 0, 100, 5 },
+}
+ns.SETTING_CHOICES = { textSize = { "small", "normal", "large" }, cheatLayout = { "rows", "keyboard" } }
+
+-- Clamps a number into r = { min, max, step } and snaps it to the step without float noise
+-- (1.1 stays 1.1, never 1.1000000001).
+function ns.Snap(v, r)
+  local lo, hi, step = r[1], r[2], r[3]
+  v = lo + math.floor((v - lo) / step + 0.5) * step
+  return tonumber(("%.4f"):format(math.max(lo, math.min(hi, v))))
+end
+
+-- One setting checked against its default: wrong type or unknown choice gives the default.
+function ns.CheckSetting(key, v)
+  local d = ns.SETTING_DEFAULTS[key]
+  if type(v) ~= type(d) then return d end
+  if ns.SETTING_RANGES[key] then return ns.Snap(v, ns.SETTING_RANGES[key]) end
+  if ns.SETTING_CHOICES[key] then
+    for _, c in ipairs(ns.SETTING_CHOICES[key]) do if c == v then return v end end
+    return d
+  end
+  return v
+end
+
+-- New table with every known key: saved values kept (checked), new keys get defaults, unknown keys dropped.
+function ns.MergeSettings(saved)
+  local out = {}
+  for k in pairs(ns.SETTING_DEFAULTS) do out[k] = ns.CheckSetting(k, (saved or {})[k]) end
+  return out
+end
+
 -- Deep copy of plain tables (setups, snapshots).
 function ns.Copy(t)
   if type(t) ~= "table" then return t end

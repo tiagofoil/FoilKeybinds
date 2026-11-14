@@ -9,14 +9,17 @@ A WoW Forever addon that puts your whole layout on the keys near WASD. Each key 
 - Items: potions, Healthstone, bombs and bandages use the best one in your bags.
 - Places each macro on the bar slot the key already presses and clears the modifier bindings that would block it.
 - Future spells: with [What's Training](https://github.com/fusionpit/WhatsTraining) installed, the picker also lists spells you have not learned yet, with the level you get them.
-- Cheat sheet: a small floating grid of what is live (one row per applied key, one column per modifier). The column of the modifier you hold lights up. Drag it, scroll to resize, lock it to make it click-through in combat.
+- Cheat sheet: a small floating view of what is live, as rows (one row per applied key, one column per modifier) or as a mini keyboard (keys where the canvas has them, the normal icon large and the 4 modifier icons small). What the modifier you hold fires lights up. Drag it, scroll to resize, lock it to make it click-through in combat.
+- Settings: window scale, text size, key icon size; cheat sheet layout, scale, icon size, background opacity (0% leaves only the icons), border, key labels, hide empty columns, modifier highlight, lock; addon compartment entry, chat messages, reset to defaults, reset the cheat sheet position. Every change shows right away.
 - Login repair: renamed or removed spells are fixed once on login, with a popup that lists the changes and can undo them.
 
 ## How to use
 
-Type `/fkb` (or use the addon compartment button) to open the editor. Set your keys, then click Apply. Undo puts back what the first Apply changed.
+Type `/fkb` (or left click the addon compartment entry) to open the editor. Set your keys, then click Apply. Undo puts back what the first Apply changed.
 
-Commands: `/fkb`, `/fkb set Q Shadow Bolt`, `/fkb apply`, `/fkb undo`, `/fkb cheat` (or `/fkb cola`) to show or hide the cheat sheet.
+Commands: `/fkb`, `/fkb set Q Shadow Bolt`, `/fkb apply`, `/fkb undo`, `/fkb cheat` (or `/fkb cola`) to show or hide the cheat sheet, `/fkb config` (or `/fkb settings`, `/fkb opcoes`) for the settings.
+
+Settings also open from the gear in the editor's title bar, a right click on the compartment entry, and Options > AddOns > Foil Keybinds. They are account-wide; the cheat sheet position and whether it is shown stay per character.
 
 ## Limits
 

@@ -4,6 +4,8 @@ local L = ns.L
 local QUESTION = 134400 -- question mark icon; #showtooltip swaps it for the real spell
 
 function ns.Say(msg) print("|cff93d35aFoil Keybinds:|r " .. msg) end
+-- Info lines (Apply summary, placements, item swaps) obey the chat setting; errors use ns.Say.
+function ns.Info(msg) if not ns.S or ns.S.chat then ns.Say(msg) end end
 
 local MODS = { "SHIFT-", "ALT-", "ALT-SHIFT-", "CTRL-" }
 local MODKEY = { shift = "SHIFT-", alt = "ALT-", altshift = "ALT-SHIFT-", ctrl = "CTRL-" }
@@ -191,10 +193,10 @@ function ns.Apply()
           local cmd = ns.CommandOf(free)
           place(b, name, free); placed, modSlot = free, true
           for id, m in pairs(MODKEY) do if setup.slots[id] then SetBinding(m .. key, cmd) end end
-          ns.Say(L.MODS_PLACED:format(key, cmd, free))
+          ns.Info(L.MODS_PLACED:format(key, cmd, free))
         else -- no free slot: modifiers go straight to the macro (no cooldown on a bar)
           for id, m in pairs(MODKEY) do if setup.slots[id] then SetBindingMacro(m .. key, name) end end
-          ns.Say(L.BOUND_DIRECT:format(key))
+          ns.Info(L.BOUND_DIRECT:format(key))
         end
       elseif slot then place(b, name, slot); placed = slot
       else
@@ -202,10 +204,10 @@ function ns.Apply()
         local free, cmd = ns.FirstEmptySlot(function(s, c) return HasAction(s) or GetBindingKey(c) ~= nil end)
         if free then
           place(b, name, free); SetBinding(key, cmd); placed = free
-          ns.Say(L.PLACED:format(key, cmd, free))
+          ns.Info(L.PLACED:format(key, cmd, free))
         else
           SetBindingMacro(key, name)
-          ns.Say(L.BOUND_DIRECT:format(key))
+          ns.Info(L.BOUND_DIRECT:format(key))
         end
       end
       -- the slot an earlier Apply used is no longer ours: put back what it held
@@ -221,7 +223,7 @@ function ns.Apply()
   SaveBindings(GetCurrentBindingSet())
   FoilKeybindsDB.copyUndo = nil -- the copy is live now; Undo reverts the Apply instead
   ns.SaveIndex()
-  ns.Say(L.DONE:format(done))
+  ns.Info(L.DONE:format(done))
   if ns.Refresh then ns.Refresh() end
 end
 
@@ -367,7 +369,7 @@ function ns.SwapItems()
     if hasItem(setup) then rebuild(key) end
   end
   for cat, b in pairs(ns.best) do
-    if old[cat] and old[cat].id ~= b.id then ns.Say(L.ITEM_NOW:format(b.name)) end
+    if old[cat] and old[cat].id ~= b.id then ns.Info(L.ITEM_NOW:format(b.name)) end
   end
   if ns.Refresh then ns.Refresh() end
 end

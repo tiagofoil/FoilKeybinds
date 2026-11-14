@@ -8,6 +8,24 @@ f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
 f:Hide()
 tinsert(UISpecialFrames, "FoilKeybindsFrame") -- Esc closes it
+function ns.SetMainScale(v) f:SetScale(v) end
+
+-- Gear in the title bar, left of the close button: opens the settings window.
+do
+  local gear = CreateFrame("Button", nil, f)
+  gear:SetSize(26, 26); gear:SetPoint("RIGHT", f.close, "LEFT", 0, 0)
+  local tex = gear:CreateTexture(nil, "ARTWORK"); tex:SetSize(16, 16); tex:SetPoint("CENTER")
+  local atlas = C_Texture and C_Texture.GetAtlasInfo and (C_Texture.GetAtlasInfo("QuestLog-icon-setting") and "QuestLog-icon-setting"
+    or C_Texture.GetAtlasInfo("GM-icon-settings") and "GM-icon-settings")
+  if atlas then tex:SetAtlas(atlas) else tex:SetTexture("Interface\\Buttons\\UI-OptionsButton") end
+  tex:SetDesaturated(true); tex:SetVertexColor(unpack(T.muted))
+  gear:SetScript("OnEnter", function(self)
+    tex:SetVertexColor(unpack(T.brass))
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:SetText(L.SETTINGS); GameTooltip:Show()
+  end)
+  gear:SetScript("OnLeave", function() tex:SetVertexColor(unpack(T.muted)); GameTooltip:Hide() end)
+  gear:SetScript("OnClick", function() ns.OpenSettings() end)
+end
 
 local applyBtn = ns.Button(f, 140, 26, L.APPLY, T.fel)
 applyBtn:SetPoint("BOTTOMRIGHT", -16, 14)
@@ -105,6 +123,7 @@ local LAYOUT = {
   -- mouse buttons (left/right click stay with the game)
   { "BUTTON3", 7.4, 0.6 }, { "BUTTON4", 6.6, 2.1 }, { "BUTTON5", 6.6, 3.1 },
 }
+ns.LAYOUT = LAYOUT -- the cheat sheet's mini keyboard uses the same places
 local mouse = CreateFrame("Frame", nil, board, "BackdropTemplate")
 mouse:SetSize(2 * U + 10, 4 * U); mouse:SetPoint("TOPLEFT", 6.85 * U, -0.2 * U)
 ns.Skin(mouse, T.keyTop, T.line, 2)
@@ -155,7 +174,7 @@ for _, k in ipairs(LAYOUT) do
     for i, id in ipairs(ns.SLOTS) do
       local ic
       if id == "normal" then -- the plain press gets the big icon in the middle
-        ic = ns.IconFrame(b, 26); ic:SetPoint("CENTER", 0, 1)
+        ic = ns.IconFrame(b, 26); ic:SetPoint("CENTER", 0, 1); b.big = ic
       else -- modifier slots: small icons along the bottom, card order
         j = j + 1
         ic = CreateFrame("Frame", nil, b); ic:SetSize(11, 11); ic:SetPoint("BOTTOM", (j - 2.5) * 12, 6)
@@ -178,6 +197,8 @@ for _, k in ipairs(LAYOUT) do
     keyButtons[key] = b
   end
 end
+
+function ns.SetKeyIconSize(n) for _, b in pairs(keyButtons) do b.big:SetSize(n, n) end end
 
 -- Redraws every key: filled slots as icons (fixed spot per slot), selected key glows in brass.
 refreshKeys = function()
@@ -476,12 +497,20 @@ f:SetScript("OnEvent", function(_, _, name)
   for key, setup in pairs(FoilKeybindsDB.keys) do -- ticket 01 stored { normal = "Name" }, drop it
     if not setup.slots then FoilKeybindsDB.keys[key] = { slots = {} } end
   end
+  -- Account-wide settings. First run keeps this character's cheat sheet scale and lock.
+  local c = FoilKeybindsDB.cheat or {}
+  ns.S = ns.MergeSettings(FoilKeybindsAccount.settings or { cheatScale = c.scale, cheatLock = c.locked })
+  FoilKeybindsAccount.settings = ns.S
+  ns.ApplySettings()
 end)
 
 -- /fkb toggles the window. /fkb set <KEY> <Spell> fills a key's normal slot from the spellbook.
 SLASH_FOILKEYBINDS1 = "/fkb"
+local CONFIG = { config = true, settings = true, opcoes = true, ["opções"] = true }
 SlashCmdList.FOILKEYBINDS = function(msg)
-  local key, spell = (msg or ""):match("^set%s+(%S+)%s+(.+)$")
+  msg = strtrim(msg or "")
+  local key, spell = msg:match("^set%s+(%S+)%s+(.+)$")
+  local word = msg:lower()
   if key then
     key = key:upper()
     for _, s in ipairs(ns.LearnedSpells()) do
@@ -493,8 +522,9 @@ SlashCmdList.FOILKEYBINDS = function(msg)
       end
     end
     ns.Say(L.UNKNOWN_SPELL:format(spell))
-  elseif msg == "apply" then ns.Apply()
-  elseif msg == "undo" then ns.Undo()
-  elseif msg == "cheat" or msg == "cola" then ns.ToggleCheat()
+  elseif word == "apply" then ns.Apply()
+  elseif word == "undo" then ns.Undo()
+  elseif word == "cheat" or word == "cola" then ns.ToggleCheat()
+  elseif CONFIG[word] then ns.OpenSettings(true)
   else FoilKeybinds_Toggle() end
 end
