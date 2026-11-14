@@ -108,7 +108,11 @@ function ns.MigrateNames()
     for _, n in ipairs({ ns.OldMacroName(key), ns.MacroName(key) }) do exists[n] = GetMacroIndexByName(n) > 0 end
   end
   local renames, deletes, macros = ns.RenamePlan(list, exists, db.backup and db.backup.macros)
-  for _, r in ipairs(renames) do EditMacro(GetMacroIndexByName(r.from), r.to) end
+  for _, r in ipairs(renames) do
+    local i = GetMacroIndexByName(r.from)
+    local _, icon, body = GetMacroInfo(i)
+    EditMacro(i, r.to, icon, body) -- pass icon and body: some clients wipe nil fields
+  end
   for _, n in ipairs(deletes) do DeleteMacro(GetMacroIndexByName(n)) end
   if db.backup then db.backup.macros = macros end
   if #renames + #deletes == 0 then return end
