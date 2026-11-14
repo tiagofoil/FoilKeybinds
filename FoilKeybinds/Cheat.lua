@@ -46,9 +46,22 @@ p:SetScript("OnMouseWheel", wheel)
 local lock = ns.Check(p, L.CHEAT_LOCK)
 lock:SetPoint("RIGHT", p.close, "LEFT", -(lock.text:GetStringWidth() + 10), 0)
 
+-- Title bar (title, lock box, x): always on when unlocked; when locked only while the mouse is
+-- over the sheet. Called from the enter/leave of the sheet and of its two buttons, so no polling.
+local function chrome()
+  local s = ns.S
+  local on = s.cheatBg > 0 and (not s.cheatLock or p:IsMouseOver())
+  p.title:SetShown(on); lock:SetShown(on); p.close:SetShown(on); p.bar:SetShown(on); p.rule:SetShown(on)
+end
+p:SetScript("OnEnter", chrome); p:SetScript("OnLeave", chrome)
+lock:HookScript("OnLeave", chrome); p.close:HookScript("OnLeave", chrome)
+
+-- Labels sit on the game world when the background is faint: a shadow keeps them readable.
+local function shade(fs) fs:SetShadowColor(0, 0, 0, 1); fs:SetShadowOffset(1, -1); return fs end
+
 local heads, stripes = {}, {}
 for _, id in ipairs(COLS) do
-  heads[id] = ns.Text(p, "mono", 10, T.muted)
+  heads[id] = shade(ns.Text(p, "mono", 10, T.muted))
   heads[id]:SetText(L["CHEAT_COL_" .. id])
   stripes[id] = p:CreateTexture(nil, "BORDER", nil, 3)
   stripes[id]:SetColorTexture(T.void[1], T.void[2], T.void[3], 0.16)
@@ -83,7 +96,7 @@ local rows, caps = {}, {}
 local function row(i)
   if rows[i] then return rows[i] end
   local r = { cells = {} }
-  r.key = ns.Text(p, "mono", 11); r.key:SetJustifyH("LEFT"); r.key:SetWordWrap(false)
+  r.key = shade(ns.Text(p, "mono", 11)); r.key:SetJustifyH("LEFT"); r.key:SetWordWrap(false)
   for _, id in ipairs(COLS) do r.cells[id] = newCell(p, id) end
   rows[i] = r
   return r
@@ -93,20 +106,22 @@ local function cap(key) -- one keyboard key: a key-cap frame holding its 5 cells
   local k = { cells = {} }
   k.frame = CreateFrame("Frame", nil, p, "BackdropTemplate")
   ns.Skin(k.frame, T.keyBot, T.line)
-  k.label = ns.Text(k.frame, "mono", 9, T.muted); k.label:SetPoint("TOPLEFT", 4, -3)
+  k.label = shade(ns.Text(k.frame, "mono", 9, T.muted)); k.label:SetPoint("TOPLEFT", 4, -3)
   for _, id in ipairs(COLS) do k.cells[id] = newCell(k.frame, id) end
   caps[key] = k
   return k
 end
 
--- Locked: click-through everywhere except the lock box, so it never eats a click in combat.
+-- Locked: clicks and wheel pass through, so it never eats a click in combat. The sheet still
+-- sees the mouse move over it, to show the title bar on hover.
 local function applyLock()
   local on = not ns.S.cheatLock
   lock:SetChecked(not on)
-  p:EnableMouse(on); p:EnableMouseWheel(on); p.close:SetShown(on and ns.S.cheatBg > 0)
+  p:EnableMouse(true); p:SetMouseClickEnabled(on); p:EnableMouseWheel(on)
   for _, cell in ipairs(cells) do cell:EnableMouse(on); cell:EnableMouseWheel(on) end
   local owner = GameTooltip:GetOwner()
   if not on and owner and owner.cheat then GameTooltip:Hide() end
+  chrome()
 end
 
 -- Lights up what the held modifiers fire (same order as the macro), dims the rest.
@@ -143,10 +158,10 @@ local function at(region, parent, point, x, y)
 end
 
 -- Rows: key label column (width of the longest label), then the visible modifier columns.
-local function layoutRows(list, applied, top, cols, bare)
+local function layoutRows(list, applied, top, cols)
   local s = ns.S
-  local icon, head = s.cheatIcon, not bare
-  local colw, rowh, keyw = math.max(icon + 8, head and 34 or 0), icon + 6, 0
+  local icon = s.cheatIcon
+  local colw, rowh, keyw = math.max(icon + 8, 34), icon + 6, 0
   if s.cheatLabels then
     for i, key in ipairs(list) do
       local r = row(i)
@@ -154,10 +169,10 @@ local function layoutRows(list, applied, top, cols, bare)
     end
     keyw = keyw + 10
   end
-  local y0 = top + (head and HEAD or 0)
+  local y0 = top + HEAD
   for c, id in ipairs(cols) do
     local cx = PAD + keyw + (c - 0.5) * colw
-    at(heads[id], p, "CENTER", cx, -(top + HEAD / 2)); heads[id]:SetShown(head and #list > 0)
+    at(heads[id], p, "CENTER", cx, -(top + HEAD / 2)); heads[id]:SetShown(#list > 0)
     stripes[id]:ClearAllPoints()
     stripes[id]:SetPoint("TOPLEFT", p, "TOPLEFT", cx - colw / 2 + 1, -top)
     stripes[id]:SetPoint("BOTTOMLEFT", p, "BOTTOMLEFT", cx - colw / 2 + 1, 6)
@@ -235,12 +250,11 @@ local function refresh()
   for _, k in ipairs(extra) do list[#list + 1] = k end
   used = #list
 
-  -- Chrome: background opacity fades the body, wash and title bar; 0 leaves only the icons.
+  -- Chrome: background opacity fades the body, wash and title bar; 0 leaves only icons and labels.
   local a, bare = s.cheatBg / 100, s.cheatBg == 0
   p:SetBackdropColor(T.bg[1], T.bg[2], T.bg[3], a)
   p:SetBackdropBorderColor(T.line[1], T.line[2], T.line[3], s.cheatBorder and 1 or 0)
   p.wash:SetAlpha(a); p.bar:SetAlpha(a); p.rule:SetAlpha(a)
-  p.title:SetShown(not bare); lock:SetShown(not bare)
   local top = bare and PAD or TOP
 
   local cols, shown = {}, {}
@@ -258,7 +272,7 @@ local function refresh()
   live = {}
   rowsMode = s.cheatLayout ~= "keyboard"
   local w, h
-  if rowsMode then w, h = layoutRows(list, applied, top, cols, bare)
+  if rowsMode then w, h = layoutRows(list, applied, top, cols)
   else w, h = layoutKeyboard(list, applied, top, shown) end
   empty:SetShown(used == 0)
   if used == 0 then
