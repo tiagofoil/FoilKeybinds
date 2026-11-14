@@ -95,6 +95,32 @@ function ns.CopyFrom(name)
 end
 
 -- Puts one key back as it was before the first Apply: bindings, bar slot, macro body (or no macro).
+-- Moves macros from the old "FKB <key>" names to the new ones. Same macro index, so bar slots keep it.
+-- Out of combat only (macro API is locked in combat).
+function ns.MigrateNames()
+  local db = FoilKeybindsDB
+  if InCombatLockdown() or not db then return end
+  local list, seen, exists = {}, {}, {}
+  for _, t in ipairs({ db.keys or {}, db.applied or {} }) do
+    for key in pairs(t) do if not seen[key] then seen[key] = true; list[#list + 1] = key end end
+  end
+  for _, key in ipairs(list) do
+    for _, n in ipairs({ ns.OldMacroName(key), ns.MacroName(key) }) do exists[n] = GetMacroIndexByName(n) > 0 end
+  end
+  local renames, deletes, macros = ns.RenamePlan(list, exists, db.backup and db.backup.macros)
+  for _, r in ipairs(renames) do EditMacro(GetMacroIndexByName(r.from), r.to) end
+  for _, n in ipairs(deletes) do DeleteMacro(GetMacroIndexByName(n)) end
+  if db.backup then db.backup.macros = macros end
+  if #renames + #deletes == 0 then return end
+  for _, key in ipairs(list) do -- modifier binds point at the macro by name
+    local old = "MACRO " .. ns.OldMacroName(key)
+    for _, m in ipairs({ "", "SHIFT-", "ALT-", "ALT-SHIFT-", "CTRL-" }) do
+      if GetBindingAction(m .. key) == old then SetBindingMacro(m .. key, ns.MacroName(key)) end
+    end
+  end
+  SaveBindings(GetCurrentBindingSet())
+end
+
 local function unapply(b, key, snap)
   for _, k in ipairs({ key, "SHIFT-" .. key, "ALT-" .. key, "ALT-SHIFT-" .. key, "CTRL-" .. key }) do
     local action = b.binds[k]
@@ -110,6 +136,7 @@ end
 
 function ns.Apply()
   if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
+  ns.MigrateNames()
   ns.ScanBags()
   local keys = FoilKeybindsDB.keys
   if not next(keys) and not next(FoilKeybindsDB.applied or {}) then return ns.Say(L.NOTHING) end
@@ -412,5 +439,5 @@ ev:SetScript("OnEvent", function(_, event)
   if event == "PLAYER_LOGOUT" then return ns.SaveIndex() end
   if event == "PLAYER_LOGIN" then repairPending = true; ns.ImportOnLogin() end
   ns.SwapItems()
-  if repairPending and not InCombatLockdown() then repairPending = false; ns.RepairOnLogin() end
+  if repairPending and not InCombatLockdown() then repairPending = false; ns.MigrateNames(); ns.RepairOnLogin() end
 end)

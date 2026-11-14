@@ -92,8 +92,27 @@ end
 
 ns.MAX = 255
 
--- Name of the macro Apply writes for a key.
-function ns.MacroName(key) return "FKB " .. key end
+-- Name of the macro Apply writes for a key. Key first: macro window and bars show ~4 chars.
+local SHORT = { SPACE = "Spc", BUTTON3 = "M3", BUTTON4 = "M4", BUTTON5 = "M5" }
+function ns.MacroName(key) return (SHORT[key] or key) .. " FK" end
+function ns.OldMacroName(key) return "FKB " .. key end
+
+-- Plan to move macros from old names to new ones. keys: list of keys; exists: set of macro
+-- names in game; macros: backup.macros. Returns renames {from,to}, old names to delete, new backup map.
+function ns.RenamePlan(keys, exists, macros)
+  local renames, deletes, out = {}, {}, ns.Copy(macros or {})
+  for _, key in ipairs(keys) do
+    local old, new = ns.OldMacroName(key), ns.MacroName(key)
+    if exists[old] and not exists[new] then renames[#renames + 1] = { from = old, to = new }
+    elseif exists[old] and out[old] == false then deletes[#deletes + 1] = old end
+    local keepOld = exists[old] and exists[new] and out[old] ~= false -- player's own macro stays
+    if out[old] ~= nil and not keepOld then
+      if out[new] == nil then out[new] = out[old] end
+      out[old] = nil
+    end
+  end
+  return renames, deletes, out
+end
 
 -- Light color for the macro preview: command words gold, [conditions] blue, the rest as is.
 function ns.ColorMacro(text)

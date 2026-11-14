@@ -295,9 +295,20 @@ test("repair keeps a future (unlearned) spell whose ID still has a name", functi
 end)
 
 test("macro name and colorized preview", function()
-  eq(core.MacroName("Q"), "FKB Q")
+  eq(core.MacroName("Q"), "Q FK"); eq(core.MacroName("SPACE"), "Spc FK"); eq(core.MacroName("BUTTON4"), "M4 FK")
+  eq(core.OldMacroName("Q"), "FKB Q")
   eq(core.ColorMacro("#showtooltip\n/cast [mod:shift] Wrack; Siphon Life"),
     "|cffffd100#showtooltip|r\n|cffffd100/cast|r |cff7fb8ff[mod:shift]|r Wrack; Siphon Life")
+end)
+
+test("rename plan: rename, keep new and drop our old, keep player's old, move backup keys", function()
+  local exists = { ["FKB Q"] = true, ["FKB E"] = true, ["E FK"] = true, ["FKB R"] = true, ["R FK"] = true }
+  local r, d, m = core.RenamePlan({ "Q", "E", "R", "SPACE" }, exists,
+    { ["FKB Q"] = false, ["FKB E"] = false, ["FKB R"] = "old body", other = "x" })
+  eq(#r, 1); eq(r[1].from, "FKB Q"); eq(r[1].to, "Q FK")
+  eq(#d, 1); eq(d[1], "FKB E")
+  eq(m["Q FK"], false); eq(m["E FK"], false); eq(m["R FK"], nil); eq(m["FKB R"], "old body"); eq(m.other, "x")
+  eq(m["FKB Q"], nil); eq(m["FKB E"], nil)
 end)
 
 for _, t in ipairs(tests) do
