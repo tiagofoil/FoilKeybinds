@@ -348,7 +348,7 @@ local function rebuild(key)
   local name = ns.MacroName(key)
   local i = GetMacroIndexByName(name)
   local text = setup and i > 0 and ns.FitMacro(setup, ns.best)
-  if text and GetMacroBody(i) ~= text then EditMacro(i, name, nil, text) end
+  if text and not ns.SameMacro(GetMacroBody(i), text) then EditMacro(i, name, nil, text) end
 end
 
 -- Out of combat item swap: only macros of keys with an item slot. Uses the applied

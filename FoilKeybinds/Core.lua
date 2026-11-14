@@ -127,6 +127,11 @@ local SHORT = { SPACE = "Spc", BUTTON3 = "M3", BUTTON4 = "M4", BUTTON5 = "M5" }
 function ns.MacroName(key) return (SHORT[key] or key) .. " FK" end
 function ns.OldMacroName(key) return "FKB " .. key end
 
+-- The game hands macro bodies back with its own line endings and trailing whitespace,
+-- so a plain ~= reports a change that is not there.
+local function norm(s) return ((s or ""):gsub("\r\n?", "\n"):gsub("[ \t]+\n", "\n"):gsub("%s+$", "")) end
+function ns.SameMacro(a, b) return norm(a) == norm(b) end
+
 -- Plan to move macros from old names to new ones. keys: list of keys; exists: set of macro
 -- names in game; macros: backup.macros. Returns renames {from,to}, old names to delete, new backup map.
 function ns.RenamePlan(keys, exists, macros)

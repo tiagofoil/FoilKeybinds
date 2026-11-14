@@ -110,10 +110,10 @@ mouse:SetSize(2 * U + 10, 4 * U); mouse:SetPoint("TOPLEFT", 6.85 * U, -0.2 * U)
 ns.Skin(mouse, T.keyTop, T.line, 2)
 mouse:SetFrameLevel(board:GetFrameLevel())
 
--- Link from the selected key toward the card: lives on the board under the keys, so the
--- view clips it at its right edge and it never crosses the panel chrome.
+-- Link from the selected key toward the card. Drawn above the keys and the mouse so nothing
+-- hides it; the view still clips it at its right edge, so it never crosses the panel chrome.
 local links = CreateFrame("Frame", nil, board)
-links:SetAllPoints(); links:SetFrameLevel(mouse:GetFrameLevel() + 1)
+links:SetAllPoints(); links:SetFrameLevel(mouse:GetFrameLevel() + 6)
 local linkGlow, linkCore = links:CreateLine(nil, "ARTWORK"), links:CreateLine(nil, "OVERLAY")
 linkGlow:SetThickness(9); linkGlow:SetColorTexture(T.brass[1], T.brass[2], T.brass[3], 0.12)
 linkCore:SetThickness(2); linkCore:SetColorTexture(T.brass[1], T.brass[2], T.brass[3], 0.8)
@@ -353,7 +353,7 @@ function card:Refresh()
     -- One clause per line for reading; the real macro keeps "; " on one line.
     preview.text:SetText(text and ns.ColorMacro((text:gsub(";%s*", ";\n    "))) or "")
     local i = GetMacroIndexByName(name)
-    preview.warn:SetText(text and i > 0 and GetMacroBody(i) ~= text and L.MACRO_DIFFERS or "")
+    preview.warn:SetText(text and i > 0 and not ns.SameMacro(GetMacroBody(i), text) and L.MACRO_DIFFERS or "")
   end
 end
 

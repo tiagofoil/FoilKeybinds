@@ -370,6 +370,14 @@ test("cheat sheet column follows the macro clause order for all 8 modifier combo
   eq(core.ModColumn(nil, nil, nil), "normal") -- IsShiftKeyDown() and friends return nil when up
 end)
 
+test("SameMacro ignores line endings and trailing whitespace only", function()
+  local m = "#showtooltip\n/cast Fear"
+  eq(core.SameMacro(m, "#showtooltip\r\n/cast Fear\n"), true)
+  eq(core.SameMacro(m, "#showtooltip \n/cast Fear  "), true)
+  eq(core.SameMacro(m, "#showtooltip\n/cast Banish"), false)
+  eq(core.SameMacro(nil, ""), true)
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))
