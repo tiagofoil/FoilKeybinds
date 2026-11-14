@@ -96,9 +96,8 @@ local function build(parent, x, y)
     place(c, 24); controls[#controls + 1] = { c, key, get }
   end
   local function dropdown(key, label, list)
-    local t = ns.Text(page, "body", 13); t:SetText(label); t:SetPoint("TOPLEFT", page, "TOPLEFT", cx, -(cy + 4))
-    local d = ns.Dropdown(page, 150, list)
-    d:SetPoint("TOPRIGHT", page, "TOPLEFT", cx + COLW, -cy); cy = cy + 32
+    local t = ns.Text(page, "body", 13); t:SetText(label); place(t, 18)
+    local d = ns.Dropdown(page, COLW, list); place(d, 30)
     d.onChange = function(v) ns.SetSetting(key, v) end
     controls[#controls + 1] = { d, key }
   end

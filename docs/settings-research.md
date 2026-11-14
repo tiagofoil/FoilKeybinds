@@ -3,13 +3,15 @@
 Short survey before building the Foil Keybinds settings. Code read from GitHub raw files and from
 addons installed on this WoW Forever client (real code that runs on the same API).
 
-## Two families
+## Three families
 
 | Approach | Who | How |
 |---|---|---|
-| Ace3 AceConfig | Bartender4, OmniCC, BigWigs, Plater, WeakAuras (partly) | Options as a declarative table, `AceConfig-3.0:RegisterOptionsTable`, `AceConfigDialog:Open` for a standalone window and `AddToBlizOptions` for the game list. Profiles come free from `AceDBOptions-3.0`. |
-| Own framework window | Details! (DetailsFramework `BuildMenu`), ElvUI, EllesmereUI | A themed window that matches the addon. The game's AddOns list holds only a small canvas page with an "Open" button. |
+| Ace3 AceConfig | Bartender4, OmniCC, ElvUI (AceConfig tables through its own helper, shown in a skinned dialog) | Options as a declarative table, `AceConfig-3.0:RegisterOptionsTable`, `AceConfigDialog:Open` for a standalone window and `AddToBlizOptions` for the game list. Profiles come free from `AceDBOptions-3.0`. |
+| Own framework window | Details! and Plater (both DetailsFramework `BuildMenu`), EllesmereUI | A themed window that matches the addon. EllesmereUI keeps only a small canvas page with an "Open" button in the game's AddOns list. |
 | Native Blizzard Settings | Small modern addons (CozyFire, Shortest Path Forever, ForeverCore) | `Settings.RegisterVerticalLayoutCategory` + `RegisterAddOnSetting` / `RegisterProxySetting` + `CreateCheckbox`, `CreateSliderInitializer`, `CreateDropdownInitializer`. |
+
+WeakAuras and BigWigs were not checked.
 
 ## Findings
 
@@ -51,6 +53,8 @@ Profiles are out of scope (settings are account-wide, layouts are per character 
 - OmniCC config: https://raw.githubusercontent.com/tullamods/OmniCC/main/OmniCC_Config/options.lua
 - OmniCC preview: https://raw.githubusercontent.com/tullamods/OmniCC/main/OmniCC_Config/preview.lua
 - Details! options: https://raw.githubusercontent.com/Tercioo/Details-Damage-Meter/master/frames/window_options2.lua
+- Plater options: https://raw.githubusercontent.com/Tercioo/Plater-Nameplates/master/Plater_OptionsPanel.lua
+- ElvUI options (AceConfig helper, `E.Libs.ACH`): https://raw.githubusercontent.com/tukui-org/ElvUI/main/ElvUI_Options/Game/Shared/ActionBars.lua
 - Installed on this client (Interface\AddOns): EllesmereUI/EllesmereUI.lua (canvas launcher),
   CozyFire/Options.lua (vertical layout, proxy settings, slider formatter),
   ShortestPathForever/UI/Settings.lua (sliders, dropdowns, buttons, Forever opener note),
