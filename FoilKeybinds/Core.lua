@@ -92,6 +92,20 @@ end
 
 ns.MAX = 255
 
+-- Name of the macro Apply writes for a key.
+function ns.MacroName(key) return "FKB " .. key end
+
+-- Light color for the macro preview: command words gold, [conditions] blue, the rest as is.
+function ns.ColorMacro(text)
+  local out = {}
+  for line in (text .. "\n"):gmatch("(.-)\n") do
+    local cmd, rest = line:match("^([/#]%S+)(.*)$")
+    rest = (rest or line):gsub("%[[^%]]*%]", "|cff7fb8ff%0|r")
+    out[#out + 1] = (cmd and ("|cffffd100" .. cmd .. "|r") or "") .. rest
+  end
+  return table.concat(out, "\n")
+end
+
 -- Macro text that fits in 255 chars. Over the limit: drop mouseover from the slot whose
 -- removal saves the most chars (ties: SLOTS order), repeat until it fits.
 -- Returns text, length, trimmed (slot ids that lost mouseover, apply them to saved data).

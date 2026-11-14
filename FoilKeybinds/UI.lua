@@ -181,11 +181,11 @@ for i, id in ipairs(ns.SLOTS) do
   r.mod = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   r.mod:SetPoint("TOPLEFT", 0, y - 8); r.mod:SetText(L["SLOT_" .. id])
   r.btn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-  r.btn:SetSize(170, 26); r.btn:SetPoint("TOPLEFT", 62, y)
+  r.btn:SetSize(150, 26); r.btn:SetPoint("TOPLEFT", 62, y)
   r.btn:SetScript("OnClick", function() picker:Open(id) end)
   r.icon = r.btn:CreateTexture(nil, "OVERLAY"); r.icon:SetSize(20, 20); r.icon:SetPoint("LEFT", 4, 0)
   r.mo = CreateFrame("CheckButton", nil, card, "UICheckButtonTemplate")
-  r.mo:SetPoint("LEFT", r.btn, "RIGHT", 4, 0)
+  r.mo:SetPoint("LEFT", r.btn, "RIGHT", 2, 0) -- label ends ~70px later, trash sits at the far right
   r.mo.text:SetText(L.MOUSEOVER)
   r.mo:SetScript("OnClick", function(self)
     local s = setupOf(current).slots[id]
@@ -227,18 +227,33 @@ end
 card.target = toggle("targetEnemy", L.TARGET_ENEMY, -200)
 card.pet = toggle("petAttack", L.PET_ATTACK, -226)
 
+-- Macro preview: side panel on the window's left edge (the picker uses the right one).
+local preview = CreateFrame("Frame", nil, f, "BasicFrameTemplateWithInset")
+preview:SetSize(300, 260); preview:SetPoint("TOPRIGHT", f, "TOPLEFT", -4, 0); preview:Hide()
+preview.title = preview:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+preview.title:SetPoint("TOP", 0, -6); preview.title:SetText(L.SHOW_MACRO)
+preview.text = preview:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+preview.text:SetPoint("TOPLEFT", 14, -32); preview.text:SetWidth(272)
+preview.text:SetJustifyH("LEFT"); preview.text:SetJustifyV("TOP")
+preview.warn = preview:CreateFontString(nil, "OVERLAY", "GameFontRedSmall")
+preview.warn:SetPoint("BOTTOMLEFT", 14, 12); preview.warn:SetPoint("RIGHT", -14, 0); preview.warn:SetJustifyH("LEFT")
+card.show = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
+card.show:SetSize(130, 24); card.show:SetPoint("TOPLEFT", 0, -280)
+card.show:SetScript("OnClick", function() preview:SetShown(not preview:IsShown()); card:Refresh() end)
+
 function card:Refresh()
   refreshKeys()
   if not current then
     self.label:SetText(L.PICK_KEY)
     for _, r in pairs(rows) do r.btn:Hide(); r.mo:Hide(); r.mod:Hide(); r.del:Hide() end
     self.count:SetText("")
-    self.target:Hide(); self.pet:Hide()
+    self.target:Hide(); self.pet:Hide(); self.show:Hide(); preview:Hide()
     return
   end
   local setup = setupOf(current)
-  self.label:SetText(L.KEY:format(L["KEY_" .. current] or current))
-  local _, n = ns.FitMacro(setup, ns.best)
+  local name = ns.MacroName(current)
+  self.label:SetText(L.KEY:format(L["KEY_" .. current] or current) .. "   |cffb0b0b0" .. L.MACRO:format(name) .. "|r")
+  local text, n = ns.FitMacro(setup, ns.best)
   self.count:SetText(n .. "/" .. ns.MAX)
   for id, r in pairs(rows) do
     local s = setup.slots[id]
@@ -251,6 +266,12 @@ function card:Refresh()
   end
   self.target:Show(); self.target:SetChecked(setup.targetEnemy or false)
   self.pet:Show(); self.pet:SetChecked(setup.petAttack or false)
+  self.show:Show(); self.show:SetText(preview:IsShown() and L.HIDE_MACRO or L.SHOW_MACRO)
+  if preview:IsShown() then
+    preview.text:SetText(text and ns.ColorMacro(text) or "")
+    local i = GetMacroIndexByName(name)
+    preview.warn:SetText(text and i > 0 and GetMacroBody(i) ~= text and L.MACRO_DIFFERS or "")
+  end
 end
 
 -- Picker: the 4 item categories on top, then learned spells, filtered by the search box, plus Clear.

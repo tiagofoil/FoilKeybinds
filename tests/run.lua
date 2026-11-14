@@ -294,6 +294,12 @@ test("repair keeps a future (unlearned) spell whose ID still has a name", functi
   eq(#ch, 0)
 end)
 
+test("macro name and colorized preview", function()
+  eq(core.MacroName("Q"), "FKB Q")
+  eq(core.ColorMacro("#showtooltip\n/cast [mod:shift] Wrack; Siphon Life"),
+    "|cffffd100#showtooltip|r\n|cffffd100/cast|r |cff7fb8ff[mod:shift]|r Wrack; Siphon Life")
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

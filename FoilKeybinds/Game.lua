@@ -100,7 +100,7 @@ local function unapply(b, key, snap)
     local action = b.binds[k]
     if action == "" then SetBinding(k) elseif action then SetBinding(k, action) end
   end
-  local name = "FKB " .. key
+  local name = ns.MacroName(key)
   local i, body = GetMacroIndexByName(name), b.macros[name]
   if body and i > 0 then EditMacro(i, name, nil, body) end
   if snap.barSlot and b.slots[snap.barSlot] ~= nil then restoreSlot(b.slots[snap.barSlot], snap.barSlot) end
@@ -121,7 +121,7 @@ function ns.Apply()
     if not (keys[key] and next(keys[key].slots)) then unapply(b, key, snap) end
   end
   for key, setup in pairs(keys) do if next(setup.slots) then -- clicked but empty keys are skipped
-    local name = "FKB " .. key
+    local name = ns.MacroName(key)
     local placed
     local text, n, trimmed = ns.FitMacro(setup, ns.best)
     for _, id in ipairs(trimmed) do setup.slots[id].mouseover = false end
@@ -278,7 +278,7 @@ end
 -- Rewrites the macro of a key from its applied snapshot, only when the text changed.
 local function rebuild(key)
   local setup = FoilKeybindsDB.applied and FoilKeybindsDB.applied[key]
-  local name = "FKB " .. key
+  local name = ns.MacroName(key)
   local i = GetMacroIndexByName(name)
   local text = setup and i > 0 and ns.FitMacro(setup, ns.best)
   if text and GetMacroBody(i) ~= text then EditMacro(i, name, nil, text) end
