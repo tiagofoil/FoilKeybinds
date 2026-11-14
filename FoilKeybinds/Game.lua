@@ -388,25 +388,23 @@ local function changeLine(c)
 end
 local function showPopup(changes)
   if not popup then
-    popup = CreateFrame("Frame", "FoilKeybindsRepair", UIParent, "BasicFrameTemplateWithInset")
+    popup = ns.Panel("FoilKeybindsRepair", UIParent, L.REPAIR_TITLE)
     popup:SetPoint("CENTER"); popup:SetFrameStrata("DIALOG")
     popup:SetMovable(true); popup:EnableMouse(true); popup:RegisterForDrag("LeftButton")
     popup:SetScript("OnDragStart", popup.StartMoving); popup:SetScript("OnDragStop", popup.StopMovingOrSizing)
-    popup.title = popup:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    popup.title:SetPoint("TOP", 0, -6); popup.title:SetText(L.REPAIR_TITLE)
-    popup.text = popup:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    popup.text:SetPoint("TOPLEFT", 16, -34); popup.text:SetWidth(388); popup.text:SetJustifyH("LEFT")
-    local ok = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
-    ok:SetSize(90, 24); ok:SetPoint("BOTTOMRIGHT", -14, 12); ok:SetText(OKAY or "OK")
+    popup.text = ns.Text(popup, "body", 13)
+    popup.text:SetPoint("TOPLEFT", 16, -38); popup.text:SetWidth(388); popup.text:SetJustifyH("LEFT"); popup.text:SetSpacing(2)
+    local ok = ns.Button(popup, 90, 24, OKAY or "OK", ns.T.fel)
+    ok:SetPoint("BOTTOMRIGHT", -14, 12)
     ok:SetScript("OnClick", function() popup:Hide() end)
-    local undo = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
-    undo:SetSize(90, 24); undo:SetPoint("RIGHT", ok, "LEFT", -8, 0); undo:SetText(L.UNDO)
+    local undo = ns.Button(popup, 90, 24, L.UNDO)
+    undo:SetPoint("RIGHT", ok, "LEFT", -8, 0)
     undo:SetScript("OnClick", function() ns.UndoRepair() end)
   end
   local lines = {}
   for i, c in ipairs(changes) do lines[i] = changeLine(c) end
   popup.text:SetText(table.concat(lines, "\n"))
-  popup:SetSize(420, popup.text:GetStringHeight() + 84)
+  popup:SetSize(420, popup.text:GetStringHeight() + 90)
   popup:Show()
 end
 

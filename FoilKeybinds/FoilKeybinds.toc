@@ -9,6 +9,7 @@
 ## AddonCompartmentFunc: FoilKeybinds_Toggle
 
 Locale.lua
+Theme.lua
 Core.lua
 Game.lua
 UI.lua
