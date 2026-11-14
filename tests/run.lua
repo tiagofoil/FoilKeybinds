@@ -58,6 +58,11 @@ test("command -> slot", function()
   eq(core.SlotOf("MULTIACTIONBAR7BUTTON3"), 171); eq(core.SlotOf("MOVEFORWARD"), nil); eq(core.SlotOf(nil), nil)
 end)
 
+test("command of slot inverts SlotOf", function()
+  eq(core.CommandOf(1), "ACTIONBUTTON1"); eq(core.CommandOf(72), "MULTIACTIONBAR1BUTTON12")
+  eq(core.CommandOf(171), "MULTIACTIONBAR7BUTTON3"); eq(core.CommandOf(100), nil)
+end)
+
 test("first empty slot skips used ones, bar by bar", function()
   local slot, cmd = core.FirstEmptySlot(function(s) return s < 3 end)
   eq(slot, 3); eq(cmd, "ACTIONBUTTON3")

@@ -162,11 +162,22 @@ function ns.Apply()
       for _, m in ipairs(MODS) do keepBind(b, m .. key); SetBinding(m .. key) end
       -- ponytail: two keys on the same bar command share one slot, the last key applied wins it
       local slot = ns.SlotOf(GetBindingAction(key))
-      if not setup.slots.normal then -- base key stays as it is (Jump on Space); modifiers go straight to the macro
-        local prev = FoilKeybindsDB.applied[key] -- an earlier Apply with a normal slot: put base key and slot back
-        if prev and prev.barSlot then restoreSlot(b.slots[prev.barSlot], prev.barSlot) end
+      local prev = FoilKeybindsDB.applied[key]
+      local modSlot
+      if not setup.slots.normal then -- base key stays as it is (Jump on Space); modifiers press a bar slot with the macro
         if b.binds[key] == "" then SetBinding(key) else SetBinding(key, b.binds[key]) end
-        for id, m in pairs(MODKEY) do if setup.slots[id] then SetBindingMacro(m .. key, name) end end
+        local free = prev and prev.modSlot and prev.barSlot
+        if free and GetActionText(free) ~= name then free = nil end -- reuse our old slot while it still holds the macro
+        if not free then free = ns.FirstEmptySlot(function(s, c) return HasAction(s) or GetBindingKey(c) ~= nil end) end
+        if free then
+          local cmd = ns.CommandOf(free)
+          place(b, name, free); placed, modSlot = free, true
+          for id, m in pairs(MODKEY) do if setup.slots[id] then SetBinding(m .. key, cmd) end end
+          ns.Say(L.MODS_PLACED:format(key, cmd, free))
+        else -- no free slot: modifiers go straight to the macro (no cooldown on a bar)
+          for id, m in pairs(MODKEY) do if setup.slots[id] then SetBindingMacro(m .. key, name) end end
+          ns.Say(L.BOUND_DIRECT:format(key))
+        end
       elseif slot then place(b, name, slot); placed = slot
       else
         ns.Say(L.NO_SLOT:format(key))
@@ -179,8 +190,13 @@ function ns.Apply()
           ns.Say(L.BOUND_DIRECT:format(key))
         end
       end
+      -- the slot an earlier Apply used is no longer ours: put back what it held
+      if prev and prev.barSlot and prev.barSlot ~= placed and b.slots[prev.barSlot] ~= nil then
+        restoreSlot(b.slots[prev.barSlot], prev.barSlot)
+      end
       FoilKeybindsDB.applied[key] = ns.Copy(setup) -- what the macro holds now; swaps and repair rebuild from this
       FoilKeybindsDB.applied[key].barSlot = placed
+      FoilKeybindsDB.applied[key].modSlot = modSlot
       done = done + 1
     end
   end end

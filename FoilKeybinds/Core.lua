@@ -174,6 +174,13 @@ function ns.SlotOf(cmd)
   if bar and ns.BAR_BASE[bar] then return ns.BAR_BASE[bar] + tonumber(n) end
 end
 
+-- Action slot -> binding command (inverse of SlotOf), nil for slots off the known bars.
+function ns.CommandOf(slot)
+  for bar, base in pairs(ns.BAR_BASE) do
+    if slot > base and slot <= base + 12 then return bar .. (slot - base) end
+  end
+end
+
 -- First slot, bar by bar, for which used(slot, command) is false. Returns slot, command.
 function ns.FirstEmptySlot(used)
   for _, bar in ipairs(BAR_ORDER) do

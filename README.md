@@ -24,7 +24,7 @@ Commands: `/fkb`, `/fkb set Q Shadow Bolt`, `/fkb apply`, `/fkb undo`.
 - Apply works out of combat only (WoW blocks macro and binding changes in combat).
 - Bindings follow the game's binding mode (account-wide or per character), whichever is active when you Apply.
 - Bar slots are found from the main bar page; stance and bonus bar paging (forms, stealth) is not followed.
-- A key with no normal slot keeps its own binding (Space still jumps); only its Shift/Alt/Alt+Shift/Ctrl variants are bound to the macro.
+- A key with no normal slot keeps its own binding (Space still jumps). The macro goes on a free bar slot (empty, no key bound) so its cooldown shows, and the used Shift/Alt/Alt+Shift/Ctrl variants press that slot. With no free slot, they are bound to the macro directly (no cooldown on a bar).
 - Items are matched by item ID. With none in your bags the macro falls back to the English item name, which only works on English clients.
 - Characters have a limited number of macro slots (about 18); keys that do not fit are skipped with a chat message.
 
