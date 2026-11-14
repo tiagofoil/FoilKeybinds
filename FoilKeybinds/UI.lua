@@ -194,6 +194,23 @@ for i, id in ipairs(ns.SLOTS) do
     s.mouseover = self:GetChecked() and true or false
     commit(function() s.mouseover = old end, id)
   end)
+  -- Trash button: same path as the picker's Clear slot.
+  r.del = CreateFrame("Button", nil, card)
+  r.del:SetSize(20, 20); r.del:SetPoint("TOPRIGHT", 0, y - 3)
+  -- SetNormalAtlas does not error on a missing atlas, so check it exists first.
+  if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("common-icon-delete") then
+    r.del:SetNormalAtlas("common-icon-delete")
+  else
+    r.del:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+  end
+  r.del:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+  r.del:SetScript("OnClick", function() picker.slot = id; picker:Choose(nil) end)
+  r.del:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(L.CLEAR); GameTooltip:AddLine(L.CLEAR_HINT, 0.8, 0.8, 0.8)
+    GameTooltip:Show()
+  end)
+  r.del:SetScript("OnLeave", GameTooltip_Hide)
   rows[id] = r
 end
 local function toggle(field, text, y)
@@ -214,7 +231,7 @@ function card:Refresh()
   refreshKeys()
   if not current then
     self.label:SetText(L.PICK_KEY)
-    for _, r in pairs(rows) do r.btn:Hide(); r.mo:Hide(); r.mod:Hide() end
+    for _, r in pairs(rows) do r.btn:Hide(); r.mo:Hide(); r.mod:Hide(); r.del:Hide() end
     self.count:SetText("")
     self.target:Hide(); self.pet:Hide()
     return
@@ -226,6 +243,7 @@ function card:Refresh()
   for id, r in pairs(rows) do
     local s = setup.slots[id]
     r.btn:Show(); r.mod:Show(); r.mo:Show()
+    r.del:SetShown(s ~= nil)
     local item = s and s.item
     r.btn:SetText(item and ns.ItemLabel(item) or s and s.name or L.EMPTY)
     r.icon:SetTexture(item and ns.ItemIcon(item) or s and ns.SpellIcon(s.spellID) or nil)
