@@ -59,34 +59,55 @@ end
 local EXCL = { altshift = "mod:alt,mod:shift", ctrl = "mod:ctrl,nomod:alt", shift = "mod:shift,nomod:alt,nomod:ctrl",
   alt = "mod:alt,nomod:shift,nomod:ctrl", normal = "nomod" }
 
+-- Pet command slots: { pet = "follow" } -> "/petfollow [cond]". moveto always goes to the cursor.
+ns.PET_CMDS = { "follow", "moveto", "stay", "attack", "passive", "defensive" }
+-- Pet special ability slot ({ petSpecial = true }): one /cast clause per pet, by class.
+-- ponytail: no Felguard entry, its Intercept is not in Classic Era or retail; add a pair if a version has it.
+ns.PET_SPECIAL = {
+  WARLOCK = { { "Felhunter", "Spell Lock" }, { "Succubus/Incubus", "Seduction" }, { "Voidwalker", "Sacrifice" } },
+}
+
 -- setup = { slots = { normal = { spellID, name, mouseover, kind } or { item = "HS" }, ... }, targetEnemy, petAttack }
 -- best = BestItems() output; an item missing from the bags falls back to its default name.
-function ns.MacroText(setup, best)
+-- class picks the PET_SPECIAL table (default ns.playerClass, set in game).
+function ns.MacroText(setup, best, class)
   best = best or {}
-  local lines, casts, uses = { "#showtooltip" }, {}, {}
+  local special = ns.PET_SPECIAL[class or ns.playerClass] or {}
+  local lines, casts, uses, pets = { "#showtooltip" }, {}, {}, {}
   if setup.targetEnemy then lines[#lines + 1] = "/targetenemy [noharm][dead]" end
   if setup.petAttack then lines[#lines + 1] = "/petattack [harm,nodead]" end
   local hasItem = false
-  for _, s in pairs(setup.slots) do if s.item then hasItem = true end end
+  for _, s in pairs(setup.slots) do if s.item or s.pet or s.petSpecial then hasItem = true end end
   local conds = hasItem and EXCL or COND
+  local sl, sep, sp = setup.slots, "; ", " "
+  if setup.compact then sep, sp = ";", "" end
   for _, id in ipairs(ns.SLOTS) do
     local s = setup.slots[id]
     local cond = conds[id]
-    if s and s.item then
+    if setup.compact and hasItem and cond then -- drop exclusions no filled slot needs
+      if not sl.ctrl then cond = cond:gsub(",nomod:ctrl", "") end
+      if not sl.altshift then cond = cond:gsub(",nomod:shift", ""):gsub(",nomod:alt", "") end
+    end
+    if s and s.pet then
+      pets[#pets + 1] = "/pet" .. s.pet .. " [" .. cond .. (s.pet == "moveto" and ",@cursor" or "") .. "]"
+    elseif s and s.petSpecial then
+      for _, p in ipairs(special) do casts[#casts + 1] = "[" .. cond .. ",pet:" .. p[1] .. "]" .. sp .. p[2] end
+    elseif s and s.item then
       local b = best[s.item]
-      uses[#uses + 1] = "[" .. cond .. "] " .. (b and ("item:" .. b.id) or ns.ITEM_DEFAULT[s.item])
+      uses[#uses + 1] = "[" .. cond .. "]" .. sp .. (b and ("item:" .. b.id) or ns.ITEM_DEFAULT[s.item])
     elseif s and s.name then
       local mo = s.mouseover and (s.kind == "harm" or s.kind == "help")
       local c
       if mo then
-        c = "[" .. (cond and cond .. "," or "") .. "@mouseover," .. s.kind .. ",nodead][" .. (cond or "") .. "] "
-      elseif cond then c = "[" .. cond .. "] "
+        c = "[" .. (cond and cond .. "," or "") .. "@mouseover," .. s.kind .. ",nodead][" .. (cond or "") .. "]" .. sp
+      elseif cond then c = "[" .. cond .. "]" .. sp
       else c = "" end
       casts[#casts + 1] = c .. s.name
     end
   end
-  if #uses > 0 then lines[#lines + 1] = "/use " .. table.concat(uses, "; ") end
-  if #casts > 0 or #uses == 0 then lines[#lines + 1] = "/cast " .. table.concat(casts, "; ") end
+  for _, l in ipairs(pets) do lines[#lines + 1] = l end
+  if #uses > 0 then lines[#lines + 1] = "/use " .. table.concat(uses, sep) end
+  if #casts > 0 or (#uses == 0 and #pets == 0) then lines[#lines + 1] = "/cast " .. table.concat(casts, sep) end
   return table.concat(lines, "\n")
 end
 
@@ -125,23 +146,25 @@ function ns.ColorMacro(text)
   return table.concat(out, "\n")
 end
 
--- Macro text that fits in 255 chars. Over the limit: drop mouseover from the slot whose
+-- Macro text that fits in 255 chars. Over the limit: first the compact form (no spaces
+-- after ";" and "]", exclusions only for filled slots; ponytail: spacing trick unverified in game), then drop mouseover from the slot whose
 -- removal saves the most chars (ties: SLOTS order), repeat until it fits.
 -- Returns text, length, trimmed (slot ids that lost mouseover, apply them to saved data).
 -- Still over with no mouseover left: returns nil, length, trimmed, errSlot, where errSlot
 -- is the slot with the longest spell name (the one most worth changing; item slots never are).
-function ns.FitMacro(setup, best)
+function ns.FitMacro(setup, best, class)
   local slots = {}
-  for id, s in pairs(setup.slots) do slots[id] = { name = s.name, item = s.item, mouseover = s.mouseover, kind = s.kind } end
+  for id, s in pairs(setup.slots) do slots[id] = ns.Copy(s) end
   local copy = { slots = slots, targetEnemy = setup.targetEnemy, petAttack = setup.petAttack }
-  local trimmed, text = {}, ns.MacroText(copy, best)
+  local trimmed, text = {}, ns.MacroText(copy, best, class)
+  if #text > ns.MAX then copy.compact = true; text = ns.MacroText(copy, best, class) end
   while #text > ns.MAX do
     local pick, pickText
     for _, id in ipairs(ns.SLOTS) do
       local s = slots[id]
       if s and s.mouseover and s.name then
         s.mouseover = false
-        local t = ns.MacroText(copy, best)
+        local t = ns.MacroText(copy, best, class)
         s.mouseover = true
         if t ~= text and (not pickText or #t < #pickText) then pick, pickText = id, t end
       end

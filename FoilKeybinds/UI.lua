@@ -152,7 +152,10 @@ local function refreshKeys()
       local s = setup and setup.slots[ic.slot]
       ic:SetShown(s ~= nil)
       if s then
-        if s.item then
+        if ns.IsPetSlot(s) then
+          ic.name, ic.known, ic.spellID = ns.PetLabel(s), true, nil
+          ic.tex:SetTexture(ns.PetIcon(s))
+        elseif s.item then
           ic.name, ic.known, ic.spellID = ns.ItemLabel(s.item), true, nil
           ic.tex:SetTexture(ns.ItemIcon(s.item))
         else
@@ -261,23 +264,23 @@ function card:Refresh()
     local s = setup.slots[id]
     r.btn:Show(); r.mod:Show(); r.mo:Show()
     r.del:SetShown(s ~= nil)
-    local item = s and s.item
-    r.btn:SetText(item and ns.ItemLabel(item) or s and s.name or L.EMPTY)
-    r.icon:SetTexture(item and ns.ItemIcon(item) or s and ns.SpellIcon(s.spellID) or nil)
-    r.mo:SetChecked(s and s.mouseover or false); r.mo:SetEnabled(s ~= nil and not item) -- no mouseover on items
+    local item, pet = s and s.item, ns.IsPetSlot(s)
+    r.btn:SetText(pet and ns.PetLabel(s) or item and ns.ItemLabel(item) or s and s.name or L.EMPTY)
+    r.icon:SetTexture(pet and ns.PetIcon(s) or item and ns.ItemIcon(item) or s and ns.SpellIcon(s.spellID) or nil)
+    r.mo:SetChecked(s and s.mouseover or false); r.mo:SetEnabled(s ~= nil and not item and not pet) -- no mouseover on items/pet
   end
   self.target:Show(); self.target:SetChecked(setup.targetEnemy or false)
   self.pet:Show(); self.pet:SetChecked(setup.petAttack or false)
   self.show:Show(); self.show:SetText(preview:IsShown() and L.HIDE_MACRO or L.SHOW_MACRO)
   if preview:IsShown() then
     -- One clause per line for reading; the real macro keeps "; " on one line.
-    preview.text:SetText(text and ns.ColorMacro((text:gsub("; ", ";\n    "))) or "")
+    preview.text:SetText(text and ns.ColorMacro((text:gsub(";%s*", ";\n    "))) or "")
     local i = GetMacroIndexByName(name)
     preview.warn:SetText(text and i > 0 and GetMacroBody(i) ~= text and L.MACRO_DIFFERS or "")
   end
 end
 
--- Picker: the 4 item categories on top, then learned spells, filtered by the search box, plus Clear.
+-- Picker: the 4 item categories on top, then pet commands, then learned spells, filtered by the search box, plus Clear.
 local ROWS = 12
 picker = CreateFrame("Frame", "FoilKeybindsPicker", f, "BasicFrameTemplateWithInset")
 picker:SetSize(240, 380); picker:SetPoint("TOPLEFT", f, "TOPRIGHT", 4, 0); picker:Hide()
@@ -310,6 +313,9 @@ function picker:Open(slot)
   ns.ScanBags() -- read only, fine in combat; icons show what is in the bags now
   self.slot, self.offset, self.all = slot, 0, {}
   for _, cat in ipairs(ns.ITEMS) do self.all[#self.all + 1] = { item = cat, name = ns.ItemLabel(cat) } end
+  self.all[#self.all + 1] = { header = true, fixed = true, name = L.PET_HEADER }
+  for _, p in ipairs(ns.PET_CMDS) do self.all[#self.all + 1] = { pet = p, name = ns.PetLabel({ pet = p }) } end
+  if ns.PET_SPECIAL[ns.playerClass] then self.all[#self.all + 1] = { petSpecial = true, name = L.PET_SPECIAL } end
   for _, s in ipairs(ns.LearnedSpells()) do self.all[#self.all + 1] = s end
   self:AddFuture()
   self.search:SetText(""); self:Show(); self:Render()
@@ -324,7 +330,7 @@ function picker:AddFuture()
 end
 function ns.RefreshPicker()
   if not picker:IsShown() then return end
-  for i = #picker.all, 1, -1 do if picker.all[i].header or picker.all[i].future then table.remove(picker.all, i) end end
+  for i = #picker.all, 1, -1 do if (picker.all[i].header and not picker.all[i].fixed) or picker.all[i].future then table.remove(picker.all, i) end end
   picker:AddFuture(); picker:Render()
 end
 function picker:Render()
@@ -339,7 +345,7 @@ function picker:Render()
     if s then
       local extra = s.future and L.LEVEL:format(s.level) or s.sub
       b.text:SetText(s.header and ("|cff808080" .. s.name .. "|r") or extra and (s.name .. "  |cff808080" .. extra .. "|r") or s.name)
-      if s.header then b.icon:SetTexture(nil) else b.icon:SetTexture(s.item and ns.ItemIcon(s.item) or ns.SpellIcon(s.spellID)) end
+      if s.header then b.icon:SetTexture(nil) else b.icon:SetTexture(ns.IsPetSlot(s) and ns.PetIcon(s) or s.item and ns.ItemIcon(s.item) or ns.SpellIcon(s.spellID)) end
       b.icon:SetDesaturated(s.future or false)
     end
   end
@@ -347,7 +353,9 @@ end
 function picker:Choose(s)
   local slots, slot = setupOf(current).slots, self.slot
   local old = slots[slot]
-  if s and s.item then
+  if s and (s.pet or s.petSpecial) then
+    slots[slot] = { pet = s.pet, petSpecial = s.petSpecial }
+  elseif s and s.item then
     slots[slot] = { item = s.item }
   elseif s then
     slots[slot] = ns.NewSlot(s.spellID, s.name, ns.SpellKind(s.spellID), old)

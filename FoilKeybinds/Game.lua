@@ -74,6 +74,24 @@ function ns.ItemLabel(cat)
   return L["ITEM_" .. cat] .. ": " .. (b and b.name or L.ITEM_NONE)
 end
 
+-- Pet slots: built-in pet action textures (FrameXML globals), Interface\Icons fallbacks.
+ns.playerClass = select(2, UnitClass("player"))
+local PET_ICON = {
+  follow = PET_FOLLOW_TEXTURE or "Interface\\Icons\\Ability_Tracking",
+  moveto = PET_MOVE_TO_TEXTURE or "Interface\\Icons\\Ability_Hunter_Pet_Goto",
+  stay = PET_WAIT_TEXTURE or "Interface\\Icons\\Spell_Nature_TimeStop",
+  attack = PET_ATTACK_TEXTURE or "Interface\\Icons\\Ability_GhoulFrenzy",
+  passive = PET_PASSIVE_TEXTURE or "Interface\\Icons\\Ability_Seal",
+  defensive = PET_DEFENSIVE_TEXTURE or "Interface\\Icons\\Ability_Defend",
+}
+function ns.IsPetSlot(s) return s and (s.pet or s.petSpecial) and true or false end
+function ns.PetLabel(s) return s.pet and L["PET_" .. s.pet:upper()] or L.PET_SPECIAL end
+function ns.PetIcon(s)
+  if s.pet then return PET_ICON[s.pet] end
+  local first = (ns.PET_SPECIAL[ns.playerClass] or {})[1]
+  return first and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(first[2]) or QUESTION
+end
+
 -- Account index: class -> { "Name-Realm" = copy of keys }, for "copy from".
 function ns.Me() return UnitName("player") .. "-" .. GetRealmName(), select(2, UnitClass("player")) end
 function ns.SaveIndex()

@@ -86,7 +86,7 @@ test("over-limit setup drops mouseover, biggest saving first, until it fits", fu
   assert(text and n <= 255 and n == #text, "should fit, got " .. tostring(n))
   eq(trimmed[1], "altshift")
   eq(setup.slots.altshift.mouseover, true) -- input is not mutated, caller applies trimmed
-  local again = { slots = {} }
+  local again = { slots = {}, compact = true } -- over the limit, so the compact form
   for id, s in pairs(setup.slots) do again.slots[id] = sp(s.name, s.mouseover) end
   for _, id in ipairs(trimmed) do again.slots[id].mouseover = false end
   eq(core.MacroText(again), text)
@@ -94,7 +94,7 @@ end)
 
 test("impossible setup errors naming the slot with the longest name", function()
   local setup = { slots = { normal = sp(long), shift = sp(long), alt = sp(long), altshift = sp(long),
-    ctrl = sp(("y"):rep(60), true) } }
+    ctrl = sp(("y"):rep(70), true) } }
   local text, n, trimmed, errSlot = core.FitMacro(setup)
   eq(text, nil); assert(n > 255); eq(trimmed[1], "ctrl"); eq(errSlot, "ctrl")
 end)
@@ -220,10 +220,7 @@ local GRIM = {
 /cast [nomod] Eureka!
 /cast [mod:alt,mod:shift] Searing Pain; [mod:shift,@cursor] Rain of Fire; [mod:alt] Hellfire; Shadow Bolt]==], spells = { { mod = "Shift", name = "Rain of Fire", lvl = 20 }, { mod = "Alt", name = "Hellfire", lvl = 30 }, { mod = "Alt+Shift", name = "Searing Pain", lvl = 18 } } },
   { name = "G Pet", keys = { "G" }, body = [==[#showtooltip
-/petfollow [nomod]
-/petmoveto [mod:alt,nomod:shift,@cursor]
-/petstay [mod:alt,mod:shift]
-/stopmacro [mod:alt]
+/petfollow [nomod]\n/petmoveto [mod:alt,nomod:shift,@cursor]\n/petstay [mod:alt,mod:shift]\n/stopmacro [mod:alt]
 /cast [mod:shift,pet:Felhunter] Spell Lock; [mod:shift,pet:Succubus/Incubus] Seduction; [mod:shift,pet:Voidwalker] Sacrifice]==], spells = { { mod = "Shift", name = "Spell Lock", lvl = 10 } } },
   { name = "V Cura", keys = { "V" }, body = [==[#showtooltip
 /cast [mod:alt,mod:shift,@mouseover,harm,nodead][mod:alt,mod:shift] Death Coil; [mod:shift] Life Tap; [mod:alt] Health Funnel
@@ -314,6 +311,53 @@ test("rename plan: rename, keep new and drop our old, keep player's old, move ba
   eq(#d, 1); eq(d[1], "FKB E")
   eq(m["Q FK"], false); eq(m["E FK"], false); eq(m["R FK"], nil); eq(m["FKB R"], "old body"); eq(m.other, "x")
   eq(m["FKB Q"], nil); eq(m["FKB E"], nil)
+end)
+
+test("G key: pet follow/moveto/stay plus pet special fits as compact exclusive macro", function()
+  local text, len = core.FitMacro({ slots = { normal = { pet = "follow" }, alt = { pet = "moveto" },
+    altshift = { pet = "stay" }, shift = { petSpecial = true } } }, nil, "WARLOCK")
+  eq(text, T .. "/petstay [mod:alt,mod:shift]\n/petmoveto [mod:alt,nomod:shift,@cursor]\n/petfollow [nomod]\n"
+    .. "/cast [mod:shift,nomod:alt,pet:Felhunter]Spell Lock;[mod:shift,nomod:alt,pet:Succubus/Incubus]Seduction;"
+    .. "[mod:shift,nomod:alt,pet:Voidwalker]Sacrifice")
+  assert(len <= 255, len)
+end)
+
+test("compact keeps exclusions that filled slots need", function()
+  local long = string.rep("y", 60)
+  local text = core.FitMacro({ slots = { ctrl = { pet = "stay" }, shift = sp(long), altshift = sp(long), alt = sp("A") } })
+  eq(text, T .. "/petstay [mod:ctrl,nomod:alt]\n/cast [mod:alt,mod:shift]" .. long .. ";[mod:shift,nomod:alt,nomod:ctrl]"
+    .. long .. ";[mod:alt,nomod:shift,nomod:ctrl]A")
+end)
+
+for _, c in ipairs({ "follow", "stay", "attack", "passive", "defensive" }) do
+  test("pet " .. c .. " on shift", function()
+    eq(core.MacroText({ slots = { shift = { pet = c } } }), T .. "/pet" .. c .. " [mod:shift,nomod:alt,nomod:ctrl]")
+  end)
+end
+test("pet moveto always at cursor", function()
+  eq(core.MacroText({ slots = { normal = { pet = "moveto" } } }), T .. "/petmoveto [nomod,@cursor]")
+end)
+test("pet command with a spell: spell gets exclusive condition, no bare fallback", function()
+  eq(core.MacroText({ slots = { normal = sp("Shadow Bolt"), alt = { pet = "attack" } } }),
+    T .. "/petattack [mod:alt,nomod:shift,nomod:ctrl]\n/cast [nomod] Shadow Bolt")
+end)
+test("pet special without a class table casts nothing", function()
+  eq(core.MacroText({ slots = { shift = { petSpecial = true } } }, nil, "MAGE"), T .. "/cast ")
+end)
+test("FitMacro keeps pet slots and trims spell mouseover", function()
+  local long = string.rep("x", 30)
+  local setup = { slots = { normal = { pet = "follow" }, ctrl = { pet = "moveto" }, shift = sp(long, true),
+    alt = sp(long, true), altshift = sp(long, true) } }
+  local text, n, trimmed = core.FitMacro(setup)
+  assert(text and n <= 255, "fits, got " .. tostring(n))
+  assert(#trimmed > 0); eq(setup.slots.altshift.mouseover, true)
+  assert(text:find("/petfollow [nomod]", 1, true) and text:find("/petmoveto [mod:ctrl,nomod:alt,@cursor]", 1, true), text)
+end)
+
+test("Repair ignores pet slots", function()
+  local keys = { G = { slots = { normal = { pet = "follow" }, shift = { petSpecial = true } } } }
+  local out, ch = core.Repair(keys, function() return nil end)
+  eq(#ch, 0); eq(out.G.slots.normal.pet, "follow"); eq(out.G.slots.shift.petSpecial, true)
 end)
 
 for _, t in ipairs(tests) do
