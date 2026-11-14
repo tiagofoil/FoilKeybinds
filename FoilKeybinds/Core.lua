@@ -4,6 +4,15 @@ local ns = select(2, ...) or {}
 -- Most specific first: WoW takes the first matching clause, so Alt+Shift must come
 -- before the plain Alt and Shift clauses. Ctrl+Shift / Ctrl+Alt hit the Ctrl slot (out of scope).
 ns.SLOTS = { "altshift", "ctrl", "shift", "alt", "normal" }
+-- Cheat sheet column for the held modifiers, in the order the macro checks its clauses
+-- (ns.SLOTS): Alt+Shift first (so Ctrl+Alt+Shift fires it too), then Ctrl with anything, Shift, Alt.
+function ns.ModColumn(shift, alt, ctrl)
+  if alt and shift then return "altshift" end
+  if ctrl then return "ctrl" end
+  if shift then return "shift" end
+  if alt then return "alt" end
+  return "normal"
+end
 local COND = { altshift = "mod:alt,mod:shift", ctrl = "mod:ctrl", shift = "mod:shift", alt = "mod:alt" }
 
 -- Items, best first: the first one in the bags (and usable) wins. Same lists as GrimorioSetup.

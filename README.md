@@ -9,13 +9,14 @@ A WoW Forever addon that puts your whole layout on the keys near WASD. Each key 
 - Items: potions, Healthstone, bombs and bandages use the best one in your bags.
 - Places each macro on the bar slot the key already presses and clears the modifier bindings that would block it.
 - Future spells: with [What's Training](https://github.com/fusionpit/WhatsTraining) installed, the picker also lists spells you have not learned yet, with the level you get them.
+- Cheat sheet: a small floating grid of what is live (one row per applied key, one column per modifier). The column of the modifier you hold lights up. Drag it, scroll to resize, lock it to make it click-through in combat.
 - Login repair: renamed or removed spells are fixed once on login, with a popup that lists the changes and can undo them.
 
 ## How to use
 
 Type `/fkb` (or use the addon compartment button) to open the editor. Set your keys, then click Apply. Undo puts back what the first Apply changed.
 
-Commands: `/fkb`, `/fkb set Q Shadow Bolt`, `/fkb apply`, `/fkb undo`.
+Commands: `/fkb`, `/fkb set Q Shadow Bolt`, `/fkb apply`, `/fkb undo`, `/fkb cheat` (or `/fkb cola`) to show or hide the cheat sheet.
 
 ## Limits
 

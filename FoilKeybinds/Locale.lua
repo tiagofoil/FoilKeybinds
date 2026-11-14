@@ -59,6 +59,10 @@ local en = {
   GRIM_SKIPPED = "%s not imported: it does not fit Foil Keybinds (pet commands).",
   GRIM_LOST = "%s: not kept: %s",
   GRIM_NEXT = "open /fkb, check the keys and press Apply. Then disable GrimorioSetup.",
+  CHEAT_TITLE = "Cheat sheet",
+  CHEAT_LOCK = "Lock",
+  CHEAT_EMPTY = "Nothing applied yet. Press Apply in /fkb.",
+  CHEAT_COL_normal = "-", CHEAT_COL_shift = "Shift", CHEAT_COL_alt = "Alt", CHEAT_COL_altshift = "A+S", CHEAT_COL_ctrl = "Ctrl",
 }
 
 local ptBR = {
@@ -118,6 +122,9 @@ local ptBR = {
   GRIM_SKIPPED = "%s não foi importada: não cabe no Foil Keybinds (comandos de pet).",
   GRIM_LOST = "%s: ficou de fora: %s",
   GRIM_NEXT = "abra /fkb, confira as teclas e aperte Aplicar. Depois desative o GrimorioSetup.",
+  CHEAT_TITLE = "Cola",
+  CHEAT_LOCK = "Travar",
+  CHEAT_EMPTY = "Nada aplicado ainda. Aperte Aplicar em /fkb.",
 }
 -- Missing ptBR keys fall back to English.
 ns.L = GetLocale() == "ptBR" and setmetatable(ptBR, { __index = en }) or en

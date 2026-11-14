@@ -89,6 +89,9 @@ view:SetScript("OnHide", function(self) self:SetScript("OnUpdate", nil) end)
 local resetBtn = ns.Button(f, 110, 26, L.RESET_VIEW)
 resetBtn:SetPoint("BOTTOMLEFT", 12, 14)
 resetBtn:SetScript("OnClick", function() zoom, ox, oy = DEFAULT_ZOOM, DEFAULT_X, DEFAULT_Y; place() end)
+local cheatBtn = ns.Button(f, 110, 26, L.CHEAT_TITLE)
+cheatBtn:SetPoint("LEFT", resetBtn, "RIGHT", 8, 0)
+cheatBtn:SetScript("OnClick", function() ns.ToggleCheat() end)
 
 local K, U = 64, 70 -- key size and grid step
 -- { binding key, column, row [, width in units] }. move = shown but not editable (movement keys).
@@ -124,6 +127,7 @@ local function keyFace(b, top, bottom)
 end
 
 local keyButtons, refreshKeys = {}, nil
+ns.KEY_ORDER = {} -- editable keys in canvas order, for the cheat sheet
 for _, k in ipairs(LAYOUT) do
   local key = k[1]
   local b = CreateFrame("Button", nil, board, "BackdropTemplate")
@@ -136,6 +140,7 @@ for _, k in ipairs(LAYOUT) do
     b.label:SetTextColor(0.44, 0.6, 0.46); b:EnableMouse(false)
   else
     keyFace(b, T.keyTop, T.keyBot)
+    ns.KEY_ORDER[#ns.KEY_ORDER + 1] = key
     -- Selected glow: a brass ring just outside the key, softly pulsing.
     b.glow = b:CreateTexture(nil, "BACKGROUND", nil, -8)
     b.glow:SetPoint("TOPLEFT", -4, 4); b.glow:SetPoint("BOTTOMRIGHT", 4, -4)
@@ -455,7 +460,10 @@ function picker:Choose(s)
 end
 
 f:SetScript("OnShow", function() ns.ScanBags(); card:Refresh() end)
-function ns.Refresh() if f:IsShown() then card:Refresh() end end
+function ns.Refresh()
+  if f:IsShown() then card:Refresh() end
+  if ns.RefreshCheat then ns.RefreshCheat() end -- the cheat sheet is often open with the window closed
+end
 
 function FoilKeybinds_Toggle() f:SetShown(not f:IsShown()) end
 
@@ -487,5 +495,6 @@ SlashCmdList.FOILKEYBINDS = function(msg)
     ns.Say(L.UNKNOWN_SPELL:format(spell))
   elseif msg == "apply" then ns.Apply()
   elseif msg == "undo" then ns.Undo()
+  elseif msg == "cheat" or msg == "cola" then ns.ToggleCheat()
   else FoilKeybinds_Toggle() end
 end

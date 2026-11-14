@@ -360,6 +360,16 @@ test("Repair ignores pet slots", function()
   eq(#ch, 0); eq(out.G.slots.normal.pet, "follow"); eq(out.G.slots.shift.petSpecial, true)
 end)
 
+test("cheat sheet column follows the macro clause order for all 8 modifier combos", function()
+  local cases = { -- shift, alt, ctrl -> column
+    { false, false, false, "normal" }, { true, false, false, "shift" }, { false, true, false, "alt" },
+    { true, true, false, "altshift" }, { false, false, true, "ctrl" }, { true, false, true, "ctrl" },
+    { false, true, true, "ctrl" }, { true, true, true, "altshift" }, -- [mod:alt,mod:shift] comes first, no nomod:ctrl
+  }
+  for _, c in ipairs(cases) do eq(core.ModColumn(c[1], c[2], c[3]), c[4]) end
+  eq(core.ModColumn(nil, nil, nil), "normal") -- IsShiftKeyDown() and friends return nil when up
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

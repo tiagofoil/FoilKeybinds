@@ -222,6 +222,7 @@ function ns.Apply()
   FoilKeybindsDB.copyUndo = nil -- the copy is live now; Undo reverts the Apply instead
   ns.SaveIndex()
   ns.Say(L.DONE:format(done))
+  if ns.Refresh then ns.Refresh() end
 end
 
 function ns.Undo()
@@ -249,6 +250,7 @@ function ns.Undo()
   FoilKeybindsDB.backup = nil
   FoilKeybindsDB.applied = nil -- macros are back to their old bodies, nothing of ours is live
   ns.Say(L.UNDONE)
+  if ns.Refresh then ns.Refresh() end
 end
 
 -- Harmful/helpful decides the mouseover clause. ponytail: unverified on Forever, guarded to "other".
