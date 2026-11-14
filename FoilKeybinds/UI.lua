@@ -126,7 +126,10 @@ for _, k in ipairs(LAYOUT) do
       ic:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText(L["SLOT_" .. id] .. ": " .. self.name)
-        if not self.known then GameTooltip:AddLine(L.NOT_KNOWN, 0.6, 0.6, 0.6) end
+        if not self.known then
+          local lv = ns.FutureLevel(self.spellID)
+          GameTooltip:AddLine(lv and L.NOT_KNOWN_LEVEL:format(lv) or L.NOT_KNOWN, 0.6, 0.6, 0.6)
+        end
         GameTooltip:Show()
       end)
       ic:SetScript("OnLeave", GameTooltip_Hide)
@@ -150,10 +153,10 @@ local function refreshKeys()
       ic:SetShown(s ~= nil)
       if s then
         if s.item then
-          ic.name, ic.known = ns.ItemLabel(s.item), true
+          ic.name, ic.known, ic.spellID = ns.ItemLabel(s.item), true, nil
           ic.tex:SetTexture(ns.ItemIcon(s.item))
         else
-          ic.name, ic.known = s.name, ns.IsKnown(s.spellID)
+          ic.name, ic.known, ic.spellID = s.name, ns.IsKnown(s.spellID), s.spellID
           ic.tex:SetTexture(ns.SpellIcon(s.spellID))
         end
         ic.tex:SetDesaturated(not ic.known); ic:SetAlpha(ic.known and 1 or 0.4)
@@ -252,7 +255,7 @@ for i = 1, ROWS do
   b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(20, 20); b.icon:SetPoint("LEFT")
   b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   b.text:SetPoint("LEFT", b.icon, "RIGHT", 4, 0); b.text:SetJustifyH("LEFT")
-  b:SetScript("OnClick", function(self) picker:Choose(self.spell) end)
+  b:SetScript("OnClick", function(self) if not self.spell.header then picker:Choose(self.spell) end end)
   picker.rows[i] = b
 end
 picker.offset, picker.shown = 0, {}
@@ -266,18 +269,37 @@ function picker:Open(slot)
   self.slot, self.offset, self.all = slot, 0, {}
   for _, cat in ipairs(ns.ITEMS) do self.all[#self.all + 1] = { item = cat, name = ns.ItemLabel(cat) } end
   for _, s in ipairs(ns.LearnedSpells()) do self.all[#self.all + 1] = s end
+  self:AddFuture()
   self.search:SetText(""); self:Show(); self:Render()
+end
+-- Header rows always show (search skips them); future rows go grey with their level.
+function picker:AddFuture()
+  if not ns.HasWT() then self.all[#self.all + 1] = { header = true, name = L.FUTURE_HINT }; return end
+  local future = ns.FutureSpells()
+  if #future == 0 then return end
+  self.all[#self.all + 1] = { header = true, name = L.FUTURE_HEADER }
+  for _, s in ipairs(future) do self.all[#self.all + 1] = s end
+end
+function ns.RefreshPicker()
+  if not picker:IsShown() then return end
+  for i = #picker.all, 1, -1 do if picker.all[i].header or picker.all[i].future then table.remove(picker.all, i) end end
+  picker:AddFuture(); picker:Render()
 end
 function picker:Render()
   local q = (self.search:GetText() or ""):lower()
   self.shown = {}
   for _, s in ipairs(self.all or {}) do
-    if q == "" or s.name:lower():find(q, 1, true) then self.shown[#self.shown + 1] = s end
+    if q == "" or s.header or s.name:lower():find(q, 1, true) then self.shown[#self.shown + 1] = s end
   end
   for i, b in ipairs(self.rows) do
     local s = self.shown[self.offset + i]
     b.spell = s; b:SetShown(s ~= nil)
-    if s then b.text:SetText(s.sub and (s.name .. "  |cff808080" .. s.sub .. "|r") or s.name); b.icon:SetTexture(s.item and ns.ItemIcon(s.item) or ns.SpellIcon(s.spellID)) end
+    if s then
+      local extra = s.future and L.LEVEL:format(s.level) or s.sub
+      b.text:SetText(s.header and ("|cff808080" .. s.name .. "|r") or extra and (s.name .. "  |cff808080" .. extra .. "|r") or s.name)
+      if s.header then b.icon:SetTexture(nil) else b.icon:SetTexture(s.item and ns.ItemIcon(s.item) or ns.SpellIcon(s.spellID)) end
+      b.icon:SetDesaturated(s.future or false)
+    end
   end
 end
 function picker:Choose(s)

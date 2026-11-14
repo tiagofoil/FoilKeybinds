@@ -244,6 +244,37 @@ function ns.LearnedSpells()
   return ns.DedupeSpells(list)
 end
 
+-- Future spells from What's Training (optional). [] when it is missing or not ready yet; then
+-- asks it to load the class and refreshes an open picker when it is ready (callbacks, no polling).
+-- ponytail: faction filter only; WT's race filter takes a race tag whose format is unverified.
+ns.futureLevel = {} -- spellID -> level, for the canvas tooltip
+local wtHooked
+function ns.HasWT() return WT_API ~= nil end
+function ns.FutureSpells()
+  local api = WT_API
+  if not api then return {} end
+  local class = select(2, UnitClass("player"))
+  if not (api.IsReady() and api.IsClassReady(class)) then
+    if not wtHooked then
+      wtHooked = true
+      local function again() if ns.RefreshPicker then ns.RefreshPicker() end; if ns.Refresh then ns.Refresh() end end
+      api.RegisterCallback(ns, "Ready", again)
+      api.RegisterCallback(ns, "ClassReady", again)
+    end
+    if api.IsReady() then pcall(api.LoadClass, class) end
+    return {}
+  end
+  local learned = {}
+  for _, s in ipairs(ns.LearnedSpells()) do learned[s.name] = true end
+  local out = ns.FutureFrom(api.GetCatalog(class, { faction = UnitFactionGroup("player") }), learned)
+  for _, s in ipairs(out) do ns.futureLevel[s.spellID] = s.level end
+  return out
+end
+function ns.FutureLevel(id)
+  if id and not ns.futureLevel[id] and WT_API then ns.FutureSpells() end
+  return id and ns.futureLevel[id]
+end
+
 -- Rewrites the macro of a key from its applied snapshot, only when the text changed.
 local function rebuild(key)
   local setup = FoilKeybindsDB.applied and FoilKeybindsDB.applied[key]

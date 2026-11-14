@@ -8,6 +8,7 @@ A WoW Forever addon that puts your whole layout on the keys near WASD. Each key 
 - Canvas editor: click a key, pick a learned spell or a consumable for each slot.
 - Items: potions, Healthstone, bombs and bandages use the best one in your bags.
 - Places each macro on the bar slot the key already presses and clears the modifier bindings that would block it.
+- Future spells: with [What's Training](https://github.com/fusionpit/WhatsTraining) installed, the picker also lists spells you have not learned yet, with the level you get them.
 - Login repair: renamed or removed spells are fixed once on login, with a popup that lists the changes and can undo them.
 
 ## How to use
@@ -41,4 +42,4 @@ Releases are built by `.github/workflows/release.yml` on a `v*` tag. See `docs/p
 
 ## License
 
-MIT, see `LICENSE`.
+MIT, see `LICENSE`. Future spell data comes from the optional addon What's Training (MIT, by fusionpit) through its public `WT_API`.

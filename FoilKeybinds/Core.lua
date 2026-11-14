@@ -181,6 +181,29 @@ function ns.DedupeSpells(list)
   return out
 end
 
+-- What's Training catalog -> future spells. Keeps trainer/quest spells (no pet tomes, weapon
+-- skills or pet abilities) with a name not in learned (name -> true). One entry per name:
+-- level of the first rank, spellID of the highest rank (rank from subText, else level).
+-- Returns { spellID, name, level, future = true }, sorted by level then name.
+function ns.FutureFrom(catalog, learned)
+  local byName, out = {}, {}
+  for _, e in ipairs(catalog or {}) do
+    if (e.kind == "trainer" or e.kind == "quest") and not e.petAbility and e.name and type(e.id) == "number"
+      and not learned[e.name] then
+      local r = tonumber(e.subText and e.subText:match("(%d+)")) or e.level
+      local o = byName[e.name]
+      if not o then byName[e.name] = { spellID = e.id, name = e.name, level = e.level, r = r, future = true }
+      else
+        if r > o.r then o.spellID, o.r = e.id, r end
+        o.level = math.min(o.level, e.level)
+      end
+    end
+  end
+  for _, s in pairs(byName) do s.r = nil; out[#out + 1] = s end
+  table.sort(out, function(a, b) if a.level ~= b.level then return a.level < b.level end return a.name < b.name end)
+  return out
+end
+
 -- keys = key -> setup; lookup(spellID) -> current name or nil (nil = spell is gone).
 -- Returns a repaired copy and a change list { key, slot, kind = "renamed"|"removed", old, new }.
 -- Item slots are never touched.

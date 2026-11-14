@@ -269,6 +269,31 @@ test("DedupeSpells keeps one entry per name, highest rank, sorted", function()
   eq(out[3].name .. out[3].spellID, "Shadow Bolt20")
 end)
 
+test("FutureFrom: one entry per name, first-rank level, highest-rank id, learned and non-spells out", function()
+  local out = core.FutureFrom({
+    { id = 30, kind = "trainer", name = "Immolate", subText = "Rank 2", level = 10 },
+    { id = 31, kind = "trainer", name = "Immolate", subText = "Rank 3", level = 20 },
+    { id = 40, kind = "trainer", name = "Fear", subText = "Rank 1", level = 8 },
+    { id = 41, kind = "trainer", name = "Fear", subText = "Rank 2", level = 32 },
+    { id = 50, kind = "quest", name = "Summon Felhunter", level = 30 },
+    { id = 60, kind = "trainer", name = "Shadow Bolt", subText = "Rank 5", level = 22 },
+    { id = 70, kind = "trainer", name = "Torment", level = 10, petAbility = true },
+    { id = 80, kind = "item", name = "Grimoire", level = 10 },
+    { id = 90, kind = "weaponMaster", name = "Swords", level = 1 },
+    { id = 99, kind = "trainer", level = 4 }, -- name not resolved
+  }, { ["Shadow Bolt"] = true })
+  local got = {}
+  for _, s in ipairs(out) do got[#got + 1] = s.name .. ":" .. s.level .. ":" .. s.spellID end
+  eq(table.concat(got, " "), "Fear:8:41 Immolate:10:31 Summon Felhunter:30:50")
+  eq(out[1].future, true)
+  eq(#core.FutureFrom(nil, {}), 0)
+end)
+
+test("repair keeps a future (unlearned) spell whose ID still has a name", function()
+  local _, ch = core.Repair({ Q = { slots = { normal = ids(41, "Fear") } } }, names({ [41] = "Fear" }))
+  eq(#ch, 0)
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))
