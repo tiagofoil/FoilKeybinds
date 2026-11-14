@@ -167,6 +167,20 @@ function ns.SameClass(index, class, me)
   return out
 end
 
+-- Spellbooks list every rank; macros cast by name (highest known rank), so keep one entry
+-- per name. list = { name, spellID, rank (number or nil), sub }. Higher rank wins; without
+-- ranks the later entry wins (spellbooks list ranks in ascending order). Sorted by name.
+function ns.DedupeSpells(list)
+  local byName, out = {}, {}
+  for _, s in ipairs(list) do
+    local old = byName[s.name]
+    if not old or not (old.rank and s.rank and old.rank > s.rank) then byName[s.name] = s end
+  end
+  for _, s in pairs(byName) do out[#out + 1] = s end
+  table.sort(out, function(a, b) return a.name < b.name end)
+  return out
+end
+
 -- keys = key -> setup; lookup(spellID) -> current name or nil (nil = spell is gone).
 -- Returns a repaired copy and a change list { key, slot, kind = "renamed"|"removed", old, new }.
 -- Item slots are never touched.

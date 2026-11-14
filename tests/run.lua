@@ -257,6 +257,18 @@ test("grimorio import maps spells, mouseover, extras, items and lists every loss
     "V:/use Hearthstone", "3:[mod:shift] !Shoot" }, "|"))
 end)
 
+test("DedupeSpells keeps one entry per name, highest rank, sorted", function()
+  local out = core.DedupeSpells({
+    { name = "Immolate", spellID = 3, rank = 3 }, { name = "Immolate", spellID = 1, rank = 1 },
+    { name = "Corruption", spellID = 10 }, { name = "Corruption", spellID = 11 },
+    { name = "Immolate", spellID = 2, rank = 2 }, { name = "Shadow Bolt", spellID = 20, rank = 1 },
+  })
+  eq(#out, 3)
+  eq(out[1].name .. out[1].spellID, "Corruption11")
+  eq(out[2].name .. out[2].spellID, "Immolate3")
+  eq(out[3].name .. out[3].spellID, "Shadow Bolt20")
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

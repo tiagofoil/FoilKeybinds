@@ -277,7 +277,7 @@ function picker:Render()
   for i, b in ipairs(self.rows) do
     local s = self.shown[self.offset + i]
     b.spell = s; b:SetShown(s ~= nil)
-    if s then b.text:SetText(s.name); b.icon:SetTexture(s.item and ns.ItemIcon(s.item) or ns.SpellIcon(s.spellID)) end
+    if s then b.text:SetText(s.sub and (s.name .. "  |cff808080" .. s.sub .. "|r") or s.name); b.icon:SetTexture(s.item and ns.ItemIcon(s.item) or ns.SpellIcon(s.spellID)) end
   end
 end
 function picker:Choose(s)

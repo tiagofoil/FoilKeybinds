@@ -214,7 +214,12 @@ end
 function ns.LearnedSpells()
   local list, seen = {}, {}
   local function add(id, name)
-    if id and name and not seen[id] then seen[id] = true; list[#list + 1] = { spellID = id, name = name } end
+    if not (id and name) or seen[id] then return end
+    seen[id] = true
+    local sub = C_Spell and C_Spell.GetSpellSubtext and C_Spell.GetSpellSubtext(id)
+      or GetSpellSubtext and GetSpellSubtext(id)
+    if sub == "" then sub = nil end
+    list[#list + 1] = { spellID = id, name = name, sub = sub, rank = sub and tonumber(sub:match("(%d+)")) }
   end
   if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines then -- 11.0+ API
     local bank = Enum.SpellBookSpellBank.Player
@@ -236,8 +241,7 @@ function ns.LearnedSpells()
       end
     end
   end
-  table.sort(list, function(a, b) return a.name < b.name end)
-  return list
+  return ns.DedupeSpells(list)
 end
 
 -- Rewrites the macro of a key from its applied snapshot, only when the text changed.
