@@ -4,6 +4,8 @@ local ns = select(2, ...) or {}
 -- Most specific first: WoW takes the first matching clause, so Alt+Shift must come
 -- before the plain Alt and Shift clauses. Ctrl+Shift / Ctrl+Alt hit the Ctrl slot (out of scope).
 ns.SLOTS = { "altshift", "ctrl", "shift", "alt", "normal" }
+-- Display order of the Keys tab columns (the plain press first). Macro order stays ns.SLOTS.
+ns.COLUMNS = { "normal", "shift", "ctrl", "alt", "altshift" }
 -- Cheat sheet column for the held modifiers, in the order the macro checks its clauses
 -- (ns.SLOTS): Alt+Shift first (so Ctrl+Alt+Shift fires it too), then Ctrl with anything, Shift, Alt.
 function ns.ModColumn(shift, alt, ctrl)
@@ -394,6 +396,29 @@ end
 
 -- Sequence spell back to a plain slot (one spell left), mouseover off.
 function ns.Unseq(x) return { spellID = x.spellID, name = x.name, kind = x.kind, mouseover = false } end
+
+-- Sequence edits. Each returns a new slot value and never changes its input (the caller keeps it for undo).
+-- entry = { spellID, name, kind }. A plain spell plus one entry becomes a sequence, reset on target and combat.
+ns.MAXSEQ = 9
+function ns.AddStep(s, entry)
+  if not (s.seq or s.name) or (s.seq and #s.seq >= ns.MAXSEQ) then return ns.Copy(s) end -- item, pet, full
+  if s.seq then
+    local new = ns.Copy(s); new.seq[#new.seq + 1] = ns.Copy(entry); return new
+  end
+  return { seq = { { spellID = s.spellID, name = s.name, kind = s.kind }, ns.Copy(entry) }, reset = { target = true, combat = true } }
+end
+-- Swaps step i with step i + delta (delta -1 = up, 1 = down) when both exist.
+function ns.MoveStep(s, i, delta)
+  local new, j = ns.Copy(s), i + delta
+  if new.seq[i] and new.seq[j] then new.seq[i], new.seq[j] = new.seq[j], new.seq[i] end
+  return new
+end
+-- Removes step i; one step left gives the plain spell back.
+function ns.RemoveStep(s, i)
+  local new = ns.Copy(s)
+  table.remove(new.seq, i)
+  return #new.seq == 1 and ns.Unseq(new.seq[1]) or new
+end
 
 -- A stored spell counts as known when its ID is known or any spell with its name is learned
 -- (picker stores the highest rank; the macro casts by name, so the learned rank fires).

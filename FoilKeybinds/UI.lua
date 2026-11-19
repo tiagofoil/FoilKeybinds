@@ -380,7 +380,7 @@ card.show:SetScript("OnClick", function() seqp:Hide(); preview:SetShown(not prev
 
 -- Sequence editor: side panel where the macro preview sits (one of the two at a time).
 -- Each spell: < > to move it, x to remove it; down to one spell the slot is a plain spell again.
-local MAXSEQ = 9
+local MAXSEQ = ns.MAXSEQ
 seqp = ns.Panel(nil, f, "")
 seqp:SetSize(340, 400); seqp:SetPoint("TOPRIGHT", f, "TOPLEFT", -4, 0); seqp:Hide()
 local function seqOf() local s = current and setupOf(current).slots[seqp.slot]; return s and s.seq and s end
@@ -402,14 +402,9 @@ for i = 1, MAXSEQ do
   local function btn(text, x, fn)
     local b = ns.Button(r, 22, 20, text); b:SetPoint("RIGHT", x, 0); b:SetScript("OnClick", fn); return b
   end
-  r.left = btn("<", -52, function() change(function(s) s.seq[i - 1], s.seq[i] = s.seq[i], s.seq[i - 1] end) end)
-  r.right = btn(">", -27, function() change(function(s) s.seq[i + 1], s.seq[i] = s.seq[i], s.seq[i + 1] end) end)
-  r.del = btn("x", -2, function()
-    change(function(s, slots, id)
-      table.remove(s.seq, i)
-      if #s.seq == 1 then slots[id] = ns.Unseq(s.seq[1]) end
-    end)
-  end)
+  r.left = btn("<", -52, function() change(function(s, slots, id) slots[id] = ns.MoveStep(s, i, -1) end) end)
+  r.right = btn(">", -27, function() change(function(s, slots, id) slots[id] = ns.MoveStep(s, i, 1) end) end)
+  r.del = btn("x", -2, function() change(function(s, slots, id) slots[id] = ns.RemoveStep(s, i) end) end)
   seqp.rows[i] = r
 end
 seqp.add = ns.Button(seqp, 160, 22, L.SEQ_ADD, T.fel)
@@ -610,11 +605,7 @@ function picker:Choose(s)
   local slots, slot = setupOf(current).slots, self.slot
   local old = slots[slot]
   if s and self.append and old and (old.seq or old.name) then -- append: spell goes to the end
-    local entry = { spellID = s.spellID, name = s.name, kind = ns.SpellKind(s.spellID) }
-    local new = ns.Copy(old)
-    if new.seq then new.seq[#new.seq + 1] = entry
-    else new = { seq = { { spellID = old.spellID, name = old.name, kind = old.kind }, entry }, reset = { target = true, combat = true } } end
-    slots[slot] = new
+    slots[slot] = ns.AddStep(old, { spellID = s.spellID, name = s.name, kind = ns.SpellKind(s.spellID) })
   elseif s and (s.pet or s.petSpecial) then
     slots[slot] = { pet = s.pet, petSpecial = s.petSpecial }
   elseif s and s.item then

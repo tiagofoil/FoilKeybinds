@@ -514,6 +514,45 @@ test("repair inside sequences: rename, remove, shrink to one, shrink to none, no
   eq(out.Q.slots.normal.seq[1].spellID, 9); eq(#ch, 0)
 end)
 
+local function step(id, name) return { spellID = id, name = name, kind = "harm" } end
+test("add step: plain spell becomes a two-step sequence, reset on target and combat", function()
+  local s = core.AddStep({ spellID = 1, name = "A", kind = "harm", mouseover = true }, step(2, "B"))
+  eq(#s.seq, 2); eq(s.seq[1].name, "A"); eq(s.seq[1].spellID, 1); eq(s.seq[2].name, "B")
+  eq(s.seq[1].mouseover, nil); eq(s.reset.target, true); eq(s.reset.combat, true); eq(s.name, nil)
+end)
+test("add step: a sequence gets the spell at the end, its reset kept, input untouched", function()
+  local old = { seq = { step(1, "A"), step(2, "B") }, reset = { secs = 8 } }
+  local s = core.AddStep(old, step(3, "C"))
+  eq(#s.seq, 3); eq(s.seq[3].name, "C"); eq(s.reset.secs, 8); eq(s.reset.target, nil)
+  eq(#old.seq, 2)
+end)
+test("add step: 9 steps, an item or a pet command come back unchanged", function()
+  local nine = { seq = {} }
+  for i = 1, 9 do nine.seq[i] = step(i, "S" .. i) end
+  eq(#core.AddStep(nine, step(10, "X")).seq, 9); eq(core.MAXSEQ, 9)
+  eq(core.AddStep({ item = "HS" }, step(1, "A")).item, "HS")
+  eq(core.AddStep({ pet = "follow" }, step(1, "A")).pet, "follow")
+  eq(core.AddStep({ petSpecial = true }, step(1, "A")).seq, nil)
+end)
+local function order(s) local l = {}; for i, x in ipairs(s.seq) do l[i] = x.name end; return table.concat(l) end
+test("move step: swaps with the neighbor, past either end unchanged, input untouched", function()
+  local old = { seq = { step(1, "A"), step(2, "B"), step(3, "C") }, reset = TC }
+  eq(order(core.MoveStep(old, 2, -1)), "BAC"); eq(order(core.MoveStep(old, 2, 1)), "ACB")
+  eq(order(core.MoveStep(old, 1, -1)), "ABC"); eq(order(core.MoveStep(old, 3, 1)), "ABC")
+  eq(order(old), "ABC"); eq(core.MoveStep(old, 1, 1).reset.target, true)
+end)
+test("remove step: keeps the order, one step left is a plain spell with mouseover off, input untouched", function()
+  local old = { seq = { step(1, "A"), step(2, "B"), step(3, "C") }, reset = TC }
+  local s = core.RemoveStep(old, 2)
+  eq(order(s), "AC"); eq(s.reset.combat, true); eq(order(old), "ABC")
+  local p = core.RemoveStep(s, 1)
+  eq(p.seq, nil); eq(p.name, "C"); eq(p.spellID, 3); eq(p.kind, "harm"); eq(p.mouseover, false)
+end)
+test("column order: Normal, Shift, Ctrl, Alt, Alt+Shift; macro order unchanged", function()
+  eq(table.concat(core.COLUMNS, " "), "normal shift ctrl alt altshift")
+  eq(table.concat(core.SLOTS, " "), "altshift ctrl shift alt normal")
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))
