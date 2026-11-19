@@ -1,5 +1,5 @@
 -- Settings: one themed page of options (account-wide, ns.S = FoilKeybindsAccount.settings), built twice:
--- in our own window (gear button, /fkb config) and on a canvas in the game's Options > AddOns list.
+-- in the Settings tab of the main window (gear button, /fkb config) and on a canvas in Options > AddOns.
 -- Every change goes through ns.SetSetting, which checks, saves and applies it live.
 -- No Settings.OpenToCategory: on WoW Forever the client refuses that call from addon code.
 local _, ns = ...
@@ -38,7 +38,7 @@ end
 local entry = {
   text = L.TITLE, icon = "Interface\\Icons\\INV_Misc_Key_03", notCheckable = true, registerForAnyClick = true,
   func = function(_, input)
-    if input and input.buttonName == "RightButton" then ns.OpenSettings() else FoilKeybinds_Toggle() end
+    if input and input.buttonName == "RightButton" then ns.OpenWindow("settings") else FoilKeybinds_Toggle() end
   end,
 }
 function ns.HasCompartment()
@@ -142,22 +142,8 @@ local function build(parent, x, y)
   return refresh
 end
 
--- Own window: opens next to whatever is on screen, so the main window and the cheat sheet
--- stay visible for the live preview.
-local win = ns.Panel("FoilKeybindsSettings", UIParent, L.SETTINGS_TITLE)
-win:SetSize(COLW * 2 + GAP + 32, 430); win:SetPoint("RIGHT", -40, 0); win:SetFrameStrata("HIGH")
-win:SetClampedToScreen(true); win:SetMovable(true); win:EnableMouse(true); win:RegisterForDrag("LeftButton")
-win:SetScript("OnDragStart", win.StartMoving); win:SetScript("OnDragStop", win.StopMovingOrSizing)
-win:Hide()
-tinsert(UISpecialFrames, "FoilKeybindsSettings") -- Esc closes it
-win:SetScript("OnShow", build(win, 16, -42))
-
--- show nil toggles.
-function ns.OpenSettings(show)
-  if show == nil then show = not win:IsShown() end
-  win:SetShown(show)
-  if show then win:Raise() end
-end
+-- Settings tab of the main window (UI.lua makes the pane).
+ns.settingsPane:SetScript("OnShow", build(ns.settingsPane, 24, -16))
 
 -- Options > AddOns: the same page on a themed canvas.
 if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then

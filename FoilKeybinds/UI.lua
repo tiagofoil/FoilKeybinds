@@ -10,7 +10,27 @@ f:Hide()
 tinsert(UISpecialFrames, "FoilKeybindsFrame") -- Esc closes it
 function ns.SetMainScale(v) f:SetScale(v) end
 
--- Gear in the title bar, left of the close button: opens the settings window.
+-- Tabs at the top: Keys | Settings. One window, so closing it closes both.
+local keysPane = CreateFrame("Frame", nil, f); keysPane:SetAllPoints()
+ns.settingsPane = CreateFrame("Frame", nil, f) -- Settings.lua builds the page in it
+ns.settingsPane:SetPoint("TOPLEFT", 0, -28); ns.settingsPane:SetPoint("BOTTOMRIGHT"); ns.settingsPane:Hide()
+local tabs = {}
+local function showTab(name)
+  f.tab = name
+  keysPane:SetShown(name == "keys"); ns.settingsPane:SetShown(name == "settings")
+  for n, b in pairs(tabs) do b:GetFontString():SetTextColor(unpack(n == name and T.brass or T.muted)) end
+end
+for i, t in ipairs({ { "keys", L.TAB_KEYS }, { "settings", L.SETTINGS } }) do
+  local b = ns.Button(f, 90, 20, t[2])
+  b:SetPoint("LEFT", f.title, "RIGHT", 18 + (i - 1) * 96, 0)
+  b:SetScript("OnClick", function() showTab(t[1]) end)
+  tabs[t[1]] = b
+end
+showTab("keys")
+-- Opens the window on a tab (keys or settings).
+function ns.OpenWindow(tab) f:Show(); showTab(tab) end
+
+-- Gear in the title bar, left of the close button: switches between Settings and Keys.
 do
   local gear = CreateFrame("Button", nil, f)
   gear:SetSize(26, 26); gear:SetPoint("RIGHT", f.close, "LEFT", 0, 0)
@@ -24,17 +44,17 @@ do
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:SetText(L.SETTINGS); GameTooltip:Show()
   end)
   gear:SetScript("OnLeave", function() tex:SetVertexColor(unpack(T.muted)); GameTooltip:Hide() end)
-  gear:SetScript("OnClick", function() ns.OpenSettings() end)
+  gear:SetScript("OnClick", function() showTab(f.tab == "settings" and "keys" or "settings") end)
 end
 
-local applyBtn = ns.Button(f, 140, 26, L.APPLY, T.fel)
+local applyBtn = ns.Button(keysPane, 140, 26, L.APPLY, T.fel)
 applyBtn:SetPoint("BOTTOMRIGHT", -16, 14)
 applyBtn:SetScript("OnClick", function() ns.Apply() end)
-local undoBtn = ns.Button(f, 100, 26, L.UNDO)
+local undoBtn = ns.Button(keysPane, 100, 26, L.UNDO)
 undoBtn:SetPoint("RIGHT", applyBtn, "LEFT", -8, 0)
 undoBtn:SetScript("OnClick", function() ns.Undo() end)
 
-local copyBtn = ns.Button(f, 120, 26, L.COPY_FROM)
+local copyBtn = ns.Button(keysPane, 120, 26, L.COPY_FROM)
 copyBtn:SetPoint("RIGHT", undoBtn, "LEFT", -8, 0)
 copyBtn:SetScript("OnClick", function(self)
   local me, class = ns.Me()
@@ -45,7 +65,7 @@ copyBtn:SetScript("OnClick", function(self)
   end)
 end)
 
-local itemsBtn = ns.Button(f, 120, 26, L.REFRESH_ITEMS)
+local itemsBtn = ns.Button(keysPane, 120, 26, L.REFRESH_ITEMS)
 itemsBtn:SetPoint("RIGHT", copyBtn, "LEFT", -8, 0)
 itemsBtn:SetScript("OnClick", function() ns.SwapItems(true) end)
 
@@ -79,7 +99,7 @@ local function selectKey(key) current = key; picker:Hide(); seqp:Hide(); card.ms
 
 -- Canvas: keys near WASD plus the mouse on a board inside a clipping view.
 -- Drag empty space to pan, wheel to zoom. Board offset is kept in view units.
-local view = CreateFrame("Frame", nil, f, "BackdropTemplate")
+local view = CreateFrame("Frame", nil, keysPane, "BackdropTemplate")
 view:SetPoint("TOPLEFT", 12, -38); view:SetPoint("BOTTOMRIGHT", f, "BOTTOMLEFT", 572, 46)
 ns.Skin(view, { T.panel[1], T.panel[2], T.panel[3], 0.7 }, T.line)
 do -- inner shade at the top and bottom edges, like the page's inset shadow
@@ -108,10 +128,10 @@ view:SetScript("OnMouseDown", function(self)
 end)
 view:SetScript("OnMouseUp", function(self) self:SetScript("OnUpdate", nil) end)
 view:SetScript("OnHide", function(self) self:SetScript("OnUpdate", nil) end)
-local resetBtn = ns.Button(f, 110, 26, L.RESET_VIEW)
+local resetBtn = ns.Button(keysPane, 110, 26, L.RESET_VIEW)
 resetBtn:SetPoint("BOTTOMLEFT", 12, 14)
 resetBtn:SetScript("OnClick", function() zoom, ox, oy = DEFAULT_ZOOM, DEFAULT_X, DEFAULT_Y; place() end)
-local cheatBtn = ns.Button(f, 110, 26, L.CHEAT_TITLE)
+local cheatBtn = ns.Button(keysPane, 110, 26, L.CHEAT_TITLE)
 cheatBtn:SetPoint("LEFT", resetBtn, "RIGHT", 8, 0)
 cheatBtn:SetScript("OnClick", function() ns.ToggleCheat() end)
 
@@ -240,9 +260,9 @@ refreshKeys = function()
 end
 
 -- Key card: 5 slots, each with a mouseover checkbox, plus the two key toggles.
-card = CreateFrame("Frame", nil, f)
+card = CreateFrame("Frame", nil, keysPane)
 card:SetPoint("TOPLEFT", 588, -46); card:SetPoint("BOTTOMRIGHT", -14, 54)
-card.bg = CreateFrame("Frame", nil, f, "BackdropTemplate")
+card.bg = CreateFrame("Frame", nil, keysPane, "BackdropTemplate")
 card.bg:SetPoint("TOPLEFT", card, -8, 8); card.bg:SetPoint("BOTTOMRIGHT", card, 8, -8)
 card:SetFrameLevel(card.bg:GetFrameLevel() + 2)
 ns.Skin(card.bg, T.panel, { T.void[1], T.void[2], T.void[3], 0.45 })
@@ -482,7 +502,7 @@ end
 
 -- Picker: the 4 item categories on top, then pet commands, then learned spells, filtered by the search box, plus Clear.
 local ROWS = 12
-picker = ns.Panel("FoilKeybindsPicker", f, L.PICK_SPELL)
+picker = ns.Panel("FoilKeybindsPicker", keysPane, L.PICK_SPELL)
 picker:SetSize(240, 380); picker:SetPoint("TOPLEFT", f, "TOPRIGHT", 4, 0); picker:Hide()
 picker.search = CreateFrame("EditBox", nil, picker, "SearchBoxTemplate")
 picker.search:SetSize(200, 20); picker.search:SetPoint("TOP", 6, -34)
@@ -615,7 +635,9 @@ function ns.Refresh()
   if ns.RefreshCheat then ns.RefreshCheat() end -- the cheat sheet is often open with the window closed
 end
 
-function FoilKeybinds_Toggle() f:SetShown(not f:IsShown()) end
+function FoilKeybinds_Toggle()
+  if f:IsShown() and f.tab == "keys" then f:Hide() else ns.OpenWindow("keys") end
+end
 
 f:RegisterEvent("ADDON_LOADED")
 f:SetScript("OnEvent", function(_, event, name)
@@ -657,6 +679,6 @@ SlashCmdList.FOILKEYBINDS = function(msg)
   elseif word == "undo" then ns.Undo()
   elseif word == "items" or word == "itens" then ns.SwapItems(true)
   elseif word == "cheat" or word == "cola" then ns.ToggleCheat()
-  elseif CONFIG[word] then ns.OpenSettings(true)
+  elseif CONFIG[word] then ns.OpenWindow("settings")
   else FoilKeybinds_Toggle() end
 end
