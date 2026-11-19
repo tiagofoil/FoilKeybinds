@@ -3,7 +3,7 @@ local L = ns.L
 local T = ns.T
 
 local f = ns.Panel("FoilKeybindsFrame", UIParent, L.TITLE)
-f:SetSize(940, 560); f:SetPoint("CENTER")
+f:SetSize(960, 680); f:SetPoint("CENTER")
 f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
 f:Hide()
@@ -30,23 +30,6 @@ showTab("keys")
 -- Opens the window on a tab (keys or settings).
 function ns.OpenWindow(tab) f:Show(); showTab(tab) end
 
--- Gear in the title bar, left of the close button: switches between Settings and Keys.
-do
-  local gear = CreateFrame("Button", nil, f)
-  gear:SetSize(26, 26); gear:SetPoint("RIGHT", f.close, "LEFT", 0, 0)
-  local tex = gear:CreateTexture(nil, "ARTWORK"); tex:SetSize(16, 16); tex:SetPoint("CENTER")
-  local atlas = C_Texture and C_Texture.GetAtlasInfo and (C_Texture.GetAtlasInfo("QuestLog-icon-setting") and "QuestLog-icon-setting"
-    or C_Texture.GetAtlasInfo("GM-icon-settings") and "GM-icon-settings")
-  if atlas then tex:SetAtlas(atlas) else tex:SetTexture("Interface\\Buttons\\UI-OptionsButton") end
-  tex:SetDesaturated(true); tex:SetVertexColor(unpack(T.muted))
-  gear:SetScript("OnEnter", function(self)
-    tex:SetVertexColor(unpack(T.brass))
-    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:SetText(L.SETTINGS); GameTooltip:Show()
-  end)
-  gear:SetScript("OnLeave", function() tex:SetVertexColor(unpack(T.muted)); GameTooltip:Hide() end)
-  gear:SetScript("OnClick", function() showTab(f.tab == "settings" and "keys" or "settings") end)
-end
-
 local applyBtn = ns.Button(keysPane, 140, 26, L.APPLY, T.fel)
 applyBtn:SetPoint("BOTTOMRIGHT", -16, 14)
 applyBtn:SetScript("OnClick", function() ns.Apply() end)
@@ -70,8 +53,11 @@ itemsBtn:SetPoint("RIGHT", copyBtn, "LEFT", -8, 0)
 itemsBtn:SetScript("OnClick", function() ns.SwapItems(true) end)
 
 -- Master switch: bars and keybinds ON/OFF, always in sight next to Apply.
-local manageBtn = ns.Button(keysPane, 160, 26)
+local manageBtn = ns.Button(keysPane, 236, 26)
 manageBtn:SetPoint("RIGHT", itemsBtn, "LEFT", -8, 0)
+manageBtn:GetFontString():ClearAllPoints(); manageBtn:GetFontString():SetPoint("LEFT", 42, 0)
+manageBtn.track = ns.Shape(manageBtn, "Pill", "ARTWORK"); manageBtn.track:SetSize(26, 14); manageBtn.track:SetPoint("LEFT", 9, 0)
+manageBtn.knob = ns.Shape(manageBtn, "Dot", "OVERLAY"); manageBtn.knob:SetSize(12, 12); manageBtn.knob:SetVertexColor(unpack(T.ink))
 manageBtn:SetScript("OnClick", function() ns.SetManage(not ns.Manages()) end)
 manageBtn:HookScript("OnEnter", function(self)
   GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(L.SET_MANAGE)
@@ -107,42 +93,16 @@ end
 
 local function selectKey(key) current = key; picker:Hide(); seqp:Hide(); card.msg:SetText(""); card:Refresh() end
 
--- Canvas: keys near WASD plus the mouse on a board inside a clipping view.
--- Drag empty space to pan, wheel to zoom. Board offset is kept in view units.
-local view = CreateFrame("Frame", nil, keysPane, "BackdropTemplate")
-view:SetPoint("TOPLEFT", 12, -38); view:SetPoint("BOTTOMRIGHT", f, "BOTTOMLEFT", 572, 46)
-ns.Skin(view, { T.panel[1], T.panel[2], T.panel[3], 0.7 }, T.line)
-do -- inner shade at the top and bottom edges, like the page's inset shadow
-  local top = ns.Gradient(view, { 0, 0, 0, 0.45 }, { 0, 0, 0, 0 })
-  top:SetPoint("TOPLEFT", 1, -1); top:SetPoint("TOPRIGHT", -1, -1); top:SetHeight(40)
-  local bot = ns.Gradient(view, { 0, 0, 0, 0 }, { 0, 0, 0, 0.45 })
-  bot:SetPoint("BOTTOMLEFT", 1, 1); bot:SetPoint("BOTTOMRIGHT", -1, 1); bot:SetHeight(40)
-end
-view:SetClipsChildren(true); view:EnableMouse(true); view:EnableMouseWheel(true)
+-- Board: keys near WASD plus the mouse, fixed in the top strip at one scale (no pan, no zoom).
+local BOARD_SCALE = 0.66
+local view = CreateFrame("Frame", nil, keysPane)
+view:SetPoint("TOPLEFT", 12, -38); view:SetSize(468, 248)
+ns.RoundSkin(view, { T.panel[1], T.panel[2], T.panel[3], 0.7 }, T.line)
 local board = CreateFrame("Frame", nil, view)
-board:SetSize(640, 360)
-local DEFAULT_ZOOM, DEFAULT_X, DEFAULT_Y = 0.85, 10, -12
-local zoom, ox, oy = DEFAULT_ZOOM, DEFAULT_X, DEFAULT_Y
-local function place()
-  board:SetScale(zoom); board:ClearAllPoints(); board:SetPoint("TOPLEFT", view, "TOPLEFT", ox / zoom, oy / zoom)
-end
-place()
-view:SetScript("OnMouseWheel", function(_, d) zoom = math.max(0.5, math.min(2, zoom + d * 0.1)); place() end)
-view:SetScript("OnMouseDown", function(self)
-  local x, y = GetCursorPosition(); local sc = self:GetEffectiveScale()
-  local sx, sy, bx, by = x / sc, y / sc, ox, oy
-  self:SetScript("OnUpdate", function()
-    local cx, cy = GetCursorPosition()
-    ox, oy = bx + cx / sc - sx, by + cy / sc - sy; place()
-  end)
-end)
-view:SetScript("OnMouseUp", function(self) self:SetScript("OnUpdate", nil) end)
-view:SetScript("OnHide", function(self) self:SetScript("OnUpdate", nil) end)
-local resetBtn = ns.Button(keysPane, 110, 26, L.RESET_VIEW)
-resetBtn:SetPoint("BOTTOMLEFT", 12, 14)
-resetBtn:SetScript("OnClick", function() zoom, ox, oy = DEFAULT_ZOOM, DEFAULT_X, DEFAULT_Y; place() end)
+board:SetSize(680, 350); board:SetScale(BOARD_SCALE)
+board:SetPoint("TOPLEFT", view, "TOPLEFT", 12 / BOARD_SCALE, -10 / BOARD_SCALE)
 local cheatBtn = ns.Button(keysPane, 110, 26, L.CHEAT_TITLE)
-cheatBtn:SetPoint("LEFT", resetBtn, "RIGHT", 8, 0)
+cheatBtn:SetPoint("BOTTOMLEFT", 12, 14)
 cheatBtn:SetScript("OnClick", function() ns.ToggleCheat() end)
 
 local K, U = 64, 70 -- key size and grid step
@@ -155,21 +115,27 @@ local LAYOUT = {
   { "Z", 1.25, 3 }, { "X", 2.25, 3 }, { "C", 3.25, 3 }, { "V", 4.25, 3 },
   { "SPACE", 2, 4, 4 },
   -- mouse buttons (left/right click stay with the game)
-  { "BUTTON3", 7.4, 0.6 }, { "BUTTON4", 6.6, 2.1 }, { "BUTTON5", 6.6, 3.1 },
+  { "BUTTON3", 7.75, 0.6 }, { "BUTTON4", 6.6, 2.1 }, { "BUTTON5", 6.6, 3.1 },
 }
 ns.LAYOUT = LAYOUT -- the cheat sheet's mini keyboard uses the same places
-local mouse = CreateFrame("Frame", nil, board, "BackdropTemplate")
-mouse:SetSize(2 * U + 10, 4 * U); mouse:SetPoint("TOPLEFT", 6.85 * U, -0.2 * U)
-ns.Skin(mouse, T.keyTop, T.line, 2)
+-- Mouse: a real mouse shape. Left and right buttons stay with the game (grey, GAME, no click);
+-- M3 sits on the wheel, M4 and M5 stick out on the left side as thumb buttons.
+local mouse = CreateFrame("Frame", nil, board)
+mouse:SetSize(190, 4 * U); mouse:SetPoint("TOPLEFT", 6.85 * U, -0.2 * U)
 mouse:SetFrameLevel(board:GetFrameLevel())
-
--- Link from the selected key toward the card. Drawn above the keys and the mouse so nothing
--- hides it; the view still clips it at its right edge, so it never crosses the panel chrome.
-local links = CreateFrame("Frame", nil, board)
-links:SetAllPoints(); links:SetFrameLevel(mouse:GetFrameLevel() + 6)
-local linkGlow, linkCore = links:CreateLine(nil, "ARTWORK"), links:CreateLine(nil, "OVERLAY")
-linkGlow:SetThickness(9); linkGlow:SetColorTexture(T.brass[1], T.brass[2], T.brass[3], 0.12)
-linkCore:SetThickness(2); linkCore:SetColorTexture(T.brass[1], T.brass[2], T.brass[3], 0.8)
+do
+  local line = ns.Shape(mouse, "Mouse", "BACKGROUND", -7); line:SetAllPoints(); line:SetVertexColor(unpack(T.line))
+  local body = ns.Shape(mouse, "Mouse", "BACKGROUND", -6); body:SetVertexColor(unpack(T.keyTop))
+  body:SetPoint("TOPLEFT", 2, -2); body:SetPoint("BOTTOMRIGHT", -2, 2)
+  local split = mouse:CreateTexture(nil, "BORDER"); split:SetColorTexture(unpack(T.line))
+  split:SetPoint("TOPLEFT", 8, -118); split:SetPoint("TOPRIGHT", -8, -118); split:SetHeight(2)
+  local mid = mouse:CreateTexture(nil, "BORDER"); mid:SetColorTexture(unpack(T.line))
+  mid:SetPoint("TOP", 0, -2); mid:SetSize(2, 116)
+  for _, side in ipairs({ { "LEFT", 34 }, { "RIGHT", -34 } }) do
+    local g = ns.Text(mouse, "mono", 13, T.muted); g:SetPoint("CENTER", mouse, "TOP" .. side[1], side[2], -62)
+    g:SetText(L.GAME)
+  end
+end
 
 -- Keycap: rounded outline, dark bottom edge, top to bottom gradient face (the page's 5px key-edge).
 -- b.line is the outline: idle, hover and selected colors all go through it.
@@ -272,13 +238,6 @@ refreshKeys = function()
       if used then d:SetVertexColor(unpack(T.void)) else d:SetVertexColor(T.line[1], T.line[2], T.line[3], 0.9) end
     end
   end
-  local b = current and keyButtons[current]
-  linkGlow:SetShown(b ~= nil); linkCore:SetShown(b ~= nil)
-  if b then
-    for _, l in ipairs({ linkGlow, linkCore }) do
-      l:ClearAllPoints(); l:SetStartPoint("RIGHT", b, 0, 0); l:SetEndPoint("TOPLEFT", card.bg, 0, -22)
-    end
-  end
 end
 
 -- Key card: 5 slots, each with a mouseover checkbox, plus the two key toggles.
@@ -290,8 +249,6 @@ card:SetFrameLevel(card.bg:GetFrameLevel() + 2)
 ns.Skin(card.bg, T.panel, { T.void[1], T.void[2], T.void[3], 0.45 })
 do
   local g = ns.Gradient(card.bg, T.panel2, T.panel); g:SetPoint("TOPLEFT", 1, -1); g:SetPoint("BOTTOMRIGHT", -1, 1)
-  local dot = card.bg:CreateTexture(nil, "OVERLAY"); dot:SetSize(6, 6); dot:SetColorTexture(unpack(T.brass))
-  dot:SetPoint("CENTER", card.bg, "TOPLEFT", 0, -22) -- where the key link lands
 end
 card.label = ns.Text(card, "bold", 15)
 card.label:SetPoint("TOPLEFT"); card.label:SetPoint("RIGHT", -60, 0); card.label:SetJustifyH("LEFT"); card.label:SetWordWrap(false)
@@ -478,6 +435,8 @@ function card:Refresh()
   local on = ns.Manages()
   manageBtn:SetText(L.MANAGE_BTN:format(on and L.ON or L.OFF))
   manageBtn:GetFontString():SetTextColor(unpack(on and T.fel or T.muted))
+  manageBtn.track:SetVertexColor(unpack(on and T.fel or T.line))
+  manageBtn.knob:ClearAllPoints(); manageBtn.knob:SetPoint("CENTER", manageBtn.track, on and "RIGHT" or "LEFT", on and -7 or 7, 0)
   self.hint:SetText(current and not on and L.DRAG_HINT:format(ns.MacroName(current)) or "")
   if not current then
     self.label:SetText(L.PICK_KEY)

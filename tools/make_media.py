@@ -28,6 +28,9 @@ save(shape(32, 32, lambda d, s: d.rounded_rectangle([0, 0, 32 * s - 1, 32 * s - 
 # Circle for the modifier dots.
 save(shape(16, 16, lambda d, s: d.ellipse([s, s, 15 * s - 1, 15 * s - 1], fill=255)), "Dot.tga")
 
+# Pill for the switch track, 32x16, stretched to the switch size.
+save(shape(32, 16, lambda d, s: d.rounded_rectangle([0, 0, 32 * s - 1, 16 * s - 1], 8 * s, fill=255)), "Pill.tga")
+
 # Mouse body: a capsule, stretched to the mouse frame.
 save(shape(128, 256, lambda d, s: d.rounded_rectangle([0, 0, 128 * s - 1, 256 * s - 1], 60 * s, fill=255)), "Mouse.tga")
 
