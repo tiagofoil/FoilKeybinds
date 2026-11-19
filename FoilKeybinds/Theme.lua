@@ -192,3 +192,41 @@ function ns.Dropdown(parent, w, choices)
   end)
   return b
 end
+
+-- One dialog for every popup (repair, Apply preview, master switch). buttons, right to left:
+-- { { label, fn, accent }, ... }. A click closes it unless fn returns true (stay open, e.g. in combat).
+-- combat: close when combat starts. Esc and x close it with no action (cancel).
+local dlg
+function ns.Popup(title, text, buttons, combat)
+  if not dlg then
+    dlg = ns.Panel("FoilKeybindsPopup", UIParent, "")
+    dlg:SetPoint("CENTER"); dlg:SetFrameStrata("DIALOG"); dlg:SetClampedToScreen(true)
+    dlg:SetMovable(true); dlg:EnableMouse(true); dlg:RegisterForDrag("LeftButton")
+    dlg:SetScript("OnDragStart", dlg.StartMoving); dlg:SetScript("OnDragStop", dlg.StopMovingOrSizing)
+    dlg.text = ns.Text(dlg, "body", 13); dlg.text:SetPoint("TOPLEFT", 16, -38); dlg.text:SetWidth(468)
+    dlg.text:SetJustifyH("LEFT"); dlg.text:SetSpacing(2)
+    dlg.cache = {} -- one button per label: accents are set at creation
+    dlg:SetScript("OnEvent", dlg.Hide)
+    dlg:SetScript("OnHide", function(self) self:UnregisterEvent("PLAYER_REGEN_DISABLED") end)
+    tinsert(UISpecialFrames, "FoilKeybindsPopup")
+  end
+  dlg:Hide()
+  dlg.title:SetText(title); dlg.text:SetText(text)
+  for _, b in pairs(dlg.cache) do b:Hide() end
+  local prev
+  for _, spec in ipairs(buttons) do
+    local b = dlg.cache[spec[1]]
+    if not b then
+      b = ns.Button(dlg, 90, 24, spec[1], spec[3])
+      b:SetWidth(math.max(90, b:GetFontString():GetStringWidth() + 24))
+      dlg.cache[spec[1]] = b
+    end
+    b:ClearAllPoints()
+    if prev then b:SetPoint("RIGHT", prev, "LEFT", -8, 0) else b:SetPoint("BOTTOMRIGHT", -14, 12) end
+    b:SetScript("OnClick", function() if not (spec[2] and spec[2]()) then dlg:Hide() end end)
+    b:Show(); prev = b
+  end
+  dlg:SetSize(500, dlg.text:GetStringHeight() + 90)
+  if combat then dlg:RegisterEvent("PLAYER_REGEN_DISABLED") end
+  dlg:Show()
+end

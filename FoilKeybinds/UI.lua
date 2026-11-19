@@ -69,6 +69,16 @@ local itemsBtn = ns.Button(keysPane, 120, 26, L.REFRESH_ITEMS)
 itemsBtn:SetPoint("RIGHT", copyBtn, "LEFT", -8, 0)
 itemsBtn:SetScript("OnClick", function() ns.SwapItems(true) end)
 
+-- Master switch: bars and keybinds ON/OFF, always in sight next to Apply.
+local manageBtn = ns.Button(keysPane, 160, 26)
+manageBtn:SetPoint("RIGHT", itemsBtn, "LEFT", -8, 0)
+manageBtn:SetScript("OnClick", function() ns.SetManage(not ns.Manages()) end)
+manageBtn:HookScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(L.SET_MANAGE)
+  GameTooltip:AddLine(L.MANAGE_TIP, 0.8, 0.8, 0.8, true); GameTooltip:Show()
+end)
+manageBtn:HookScript("OnLeave", GameTooltip_Hide)
+
 local current, card, picker, seqp
 
 local function setupOf(key)
@@ -346,6 +356,8 @@ local function toggle(field, text, y)
   end)
   return c
 end
+card.hint = ns.Text(card, "body", 12, T.muted) -- switch OFF: Apply only writes the macro
+card.hint:SetPoint("TOPLEFT", 0, -314); card.hint:SetPoint("RIGHT"); card.hint:SetJustifyH("LEFT")
 card.target = toggle("targetEnemy", L.TARGET_ENEMY, -200)
 card.pet = toggle("petAttack", L.PET_ATTACK, -226)
 
@@ -456,6 +468,10 @@ end
 function card:Refresh()
   ns.ResetLearned()
   refreshKeys()
+  local on = ns.Manages()
+  manageBtn:SetText(L.MANAGE_BTN:format(on and L.ON or L.OFF))
+  manageBtn:GetFontString():SetTextColor(unpack(on and T.fel or T.muted))
+  self.hint:SetText(current and not on and L.DRAG_HINT:format(ns.MacroName(current)) or "")
   if not current then
     self.label:SetText(L.PICK_KEY)
     for _, r in pairs(rows) do r.btn:Hide(); r.mo:Hide(); r.mod:Hide(); r.del:Hide(); r.add:Hide() end
@@ -647,6 +663,7 @@ f:SetScript("OnEvent", function(_, event, name)
   FoilKeybindsDB = FoilKeybindsDB or {}
   FoilKeybindsDB.keys = FoilKeybindsDB.keys or {}
   FoilKeybindsAccount = FoilKeybindsAccount or {}
+  FoilKeybindsDB.manage = ns.ManageStart(FoilKeybindsDB.manage, FoilKeybindsDB.applied)
   for key, setup in pairs(FoilKeybindsDB.keys) do -- ticket 01 stored { normal = "Name" }, drop it
     if not setup.slots then FoilKeybindsDB.keys[key] = { slots = {} } end
   end

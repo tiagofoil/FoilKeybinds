@@ -114,6 +114,7 @@ local function build(parent, x, y)
   header(L.SET_GENERAL)
   if ns.HasCompartment() then check("compartment", L.SET_COMPARTMENT) end
   check("chat", L.SET_CHAT)
+  check(nil, L.SET_MANAGE, ns.Manages, function(on) ns.SetManage(on) end)
   cy = cy + 8
   button(L.SET_RESETPOS, nil, function() ns.ResetCheatPosition() end)
   button(L.SET_RESET, T.blood, function() ns.ResetSettings() end)

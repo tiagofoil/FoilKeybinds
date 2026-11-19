@@ -115,7 +115,6 @@ function ns.CopyFrom(name)
   ns.Say(L.COPIED:format(name))
 end
 
--- Puts one key back as it was before the first Apply: bindings, bar slot, macro body (or no macro).
 -- Moves macros from the old "FKB <key>" names to the new ones. Same macro index, so bar slots keep it.
 -- Out of combat only (macro API is locked in combat).
 function ns.MigrateNames()
@@ -146,86 +145,248 @@ function ns.MigrateNames()
   SaveBindings(GetCurrentBindingSet())
 end
 
-local function unapply(b, key, snap)
-  for _, k in ipairs({ key, "SHIFT-" .. key, "ALT-" .. key, "ALT-SHIFT-" .. key, "CTRL-" .. key }) do
-    local action = b.binds[k]
-    if action == "" then SetBinding(k) elseif action then SetBinding(k, action) end
-  end
-  local name = ns.MacroName(key)
-  local i, body = GetMacroIndexByName(name), b.macros[name]
-  if body and i > 0 then EditMacro(i, name, nil, body) end
-  if snap.barSlot and b.slots[snap.barSlot] ~= nil then restoreSlot(b.slots[snap.barSlot], snap.barSlot) end
-  if body == false and i > 0 then DeleteMacro(i) end
-  FoilKeybindsDB.applied[key] = nil
+-- Apply in two steps: plan() reads the game and writes nothing, run(p) does what the plan says.
+-- The preview lists the plan and OK plans again and runs it, so the preview is what Apply does.
+-- Bars and keybinds only while the master switch is ON (ns.Manages); OFF writes macros only.
+local KEYBINDS = { "", "SHIFT-", "ALT-", "ALT-SHIFT-", "CTRL-" }
+function ns.Manages() return FoilKeybindsDB and FoilKeybindsDB.manage and true or false end
+
+local function sorted(t)
+  local l = {}
+  for k in pairs(t) do l[#l + 1] = k end
+  table.sort(l)
+  return l
 end
 
+local function plan()
+  local db = FoilKeybindsDB
+  local keys, applied = db.keys, db.applied or {}
+  local b = db.backup or { binds = {}, slots = {}, macros = {} }
+  local manage = ns.Manages()
+  -- binds: binding -> final value ("" cleared, a command, or "MACRO <name>"); owner: the key it is for
+  local p = { manage = manage, binds = {}, owner = {}, order = {}, keys = {}, drops = {}, notes = {} }
+  local function bind(k, v, key)
+    if p.binds[k] == nil then p.order[#p.order + 1] = k end
+    p.binds[k], p.owner[k] = v, key
+  end
+  local taken = {}
+  local function free()
+    local slot, cmd = ns.FirstEmptySlot(function(s, c) return taken[s] or HasAction(s) or GetBindingKey(c) ~= nil end)
+    if slot then taken[slot] = true end
+    return slot, cmd
+  end
+  for _, key in ipairs(sorted(applied)) do -- keys cleared since the last Apply go back
+    if not (keys[key] and next(keys[key].slots)) then
+      local snap, d = applied[key], { key = key, name = ns.MacroName(key) }
+      if manage then
+        for _, m in ipairs(KEYBINDS) do if b.binds[m .. key] then bind(m .. key, b.binds[m .. key], key) end end
+        if snap.barSlot and b.slots[snap.barSlot] ~= nil then d.restore = snap.barSlot end
+      end
+      p.drops[#p.drops + 1] = d
+    end
+  end
+  local _, nChar = GetNumMacros()
+  for _, key in ipairs(sorted(keys)) do
+    local setup = keys[key]
+    if next(setup.slots) then -- clicked but empty keys are skipped
+      local name = ns.MacroName(key)
+      local text, n, trimmed = ns.FitMacro(setup, ns.best)
+      local i = GetMacroIndexByName(name)
+      if not text then p.notes[#p.notes + 1] = L.SKIP_LONG:format(key, n, ns.MAX)
+      elseif i == 0 and nChar >= (MAX_CHARACTER_MACROS or 18) then p.notes[#p.notes + 1] = L.MACRO_LIMIT:format(name)
+      else
+        if i == 0 then nChar = nChar + 1 end
+        local prev = applied[key]
+        local k = { key = key, setup = setup, name = name, text = text, trimmed = trimmed, new = i == 0,
+          changed = i == 0 or not ns.SameMacro(GetMacroBody(i), text) }
+        if not manage then -- macros only: whatever an earlier Apply placed stays where it is
+          k.place, k.modSlot, k.keep = prev and prev.barSlot, prev and prev.modSlot, true
+        else
+          for _, m in ipairs(MODS) do bind(m .. key, "", key) end
+          -- ponytail: two keys on the same bar command share one slot, the last key applied wins it
+          local slot = ns.SlotOf(GetBindingAction(key))
+          if not setup.slots.normal then -- base key stays as it is (Jump on Space); modifiers press a bar slot with the macro
+            local base = b.binds[key]
+            if base == nil then base = GetBindingAction(key) or "" end
+            bind(key, base, key)
+            local f = prev and prev.modSlot and prev.barSlot
+            if f and GetActionText(f) ~= name then f = nil end -- reuse our old slot while it still holds the macro
+            if f then taken[f] = true else f = free() end
+            if f then
+              local cmd = ns.CommandOf(f)
+              k.place, k.modSlot = f, true
+              for id, m in pairs(MODKEY) do if setup.slots[id] then bind(m .. key, cmd, key) end end
+              k.msg = L.MODS_PLACED:format(key, cmd, f)
+            else -- no free slot: modifiers go straight to the macro (no cooldown on a bar)
+              for id, m in pairs(MODKEY) do if setup.slots[id] then bind(m .. key, "MACRO " .. name, key) end end
+              k.msg = L.BOUND_DIRECT:format(key)
+            end
+          elseif slot then k.place = slot; taken[slot] = true
+          else
+            k.say = L.NO_SLOT:format(key)
+            local f, cmd = free()
+            if f then k.place = f; bind(key, cmd, key); k.msg = L.PLACED:format(key, cmd, f)
+            else bind(key, "MACRO " .. name, key); k.msg = L.BOUND_DIRECT:format(key) end
+          end
+          -- the slot an earlier Apply used is no longer ours: put back what it held
+          if prev and prev.barSlot and prev.barSlot ~= k.place and b.slots[prev.barSlot] ~= nil then k.restore = prev.barSlot end
+        end
+        p.keys[#p.keys + 1] = k
+      end
+    end
+  end
+  return p
+end
+
+local function setBind(k, v)
+  if v == "" then SetBinding(k)
+  elseif v:find("^MACRO ") then SetBindingMacro(k, v:sub(7))
+  else SetBinding(k, v) end
+end
+
+-- quiet: the preview had nothing to show; snapshots still follow the card.
+local function run(p, quiet)
+  if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
+  local db = FoilKeybindsDB
+  db.backup = db.backup or { binds = {}, slots = {}, macros = {} }
+  db.applied = db.applied or {}
+  local b, failed, done = db.backup, {}, 0
+  for _, d in ipairs(p.drops) do -- macro back to its old body (or gone), bar slot back to what it held
+    local i, body = GetMacroIndexByName(d.name), b.macros[d.name]
+    if body and i > 0 then EditMacro(i, d.name, nil, body) end
+    if d.restore then restoreSlot(b.slots[d.restore], d.restore) end
+    if body == false and i > 0 then DeleteMacro(i) end
+    db.applied[d.key] = nil
+  end
+  for _, k in ipairs(p.keys) do
+    for _, id in ipairs(k.trimmed) do k.setup.slots[id].mouseover = false end
+    if upsertMacro(b, k.name, k.text) then
+      if k.say then ns.Say(k.say) end
+      if k.place and not k.keep then place(b, k.name, k.place) end
+      if k.restore then restoreSlot(b.slots[k.restore], k.restore) end
+      if k.msg and not quiet then ns.Info(k.msg) end
+      local snap = ns.Copy(k.setup) -- what the macro holds now; swaps and repair rebuild from this
+      snap.barSlot, snap.modSlot = k.place, k.modSlot
+      db.applied[k.key] = snap
+      done = done + 1
+    else failed[k.key] = true end -- no macro: leave that key's bindings alone
+  end
+  for _, k in ipairs(p.order) do
+    if not failed[p.owner[k]] then keepBind(b, k); setBind(k, p.binds[k]) end
+  end
+  for _, n in ipairs(p.notes) do ns.Say(n) end
+  SaveBindings(GetCurrentBindingSet())
+  db.copyUndo = nil -- the copy is live now; Undo reverts the Apply instead
+  ns.SaveIndex()
+  if quiet then ns.Say(L.NOTHING_TO_CHANGE) else ns.Info((p.manage and L.DONE or L.DONE_MACROS):format(done)) end
+  if ns.Refresh then ns.Refresh() end
+end
+
+-- Preview text: one line per change the player would see in game.
+local spellNameOf = C_Spell and C_Spell.GetSpellName or function(id) return (GetSpellInfo(id)) end
+local function bindLabel(k)
+  local mods, base = k:match("^(.-)([^%-]+)$")
+  mods = mods:gsub("ALT%-", "Alt-"):gsub("SHIFT%-", "Shift-"):gsub("CTRL%-", "Ctrl-")
+  return mods .. (L["KEY_" .. base] or base)
+end
+local function cmdLabel(v)
+  if v == "" then return nil end
+  if v:find("^MACRO ") then return L.PV_MACRO:format(v:sub(7)) end
+  return GetBindingName and GetBindingName(v) or v
+end
+local function slotLabel(slot) -- what a bar slot holds now
+  local kind, id = GetActionInfo(slot)
+  if not kind then return L.PV_EMPTY end
+  if kind == "macro" then return GetActionText(slot) or kind end
+  if kind == "spell" then return spellNameOf(id) or kind end
+  if kind == "item" then return itemName(id) or kind end
+  return kind
+end
+local function backupLabel(prev) -- what the backup holds for a bar slot
+  if not prev then return L.PV_EMPTY end
+  if prev.kind == "spell" then return spellNameOf(prev.id) or prev.kind end
+  if prev.kind == "item" then return itemName(prev.id) or prev.kind end
+  return tostring(prev.id)
+end
+local function describe(p)
+  local out, b = {}, FoilKeybindsDB.backup or { slots = {}, macros = {} }
+  for _, d in ipairs(p.drops) do
+    local body = b.macros[d.name]
+    if GetMacroIndexByName(d.name) > 0 then
+      if body == false then out[#out + 1] = L.PV_DELETE:format(d.key, d.name)
+      elseif body then out[#out + 1] = L.PV_RESTORE_MACRO:format(d.key, d.name) end
+    end
+    if d.restore then out[#out + 1] = L.PV_PUT_BACK:format(d.restore, backupLabel(b.slots[d.restore])) end
+  end
+  for _, k in ipairs(p.keys) do
+    if k.new then out[#out + 1] = L.PV_CREATE:format(k.key, k.name)
+    elseif k.changed then out[#out + 1] = L.PV_UPDATE:format(k.key, k.name) end
+    if k.place and not k.keep and GetActionText(k.place) ~= k.name then
+      out[#out + 1] = L.PV_PLACE:format(k.key, k.name, k.place, slotLabel(k.place))
+    end
+    if k.restore then out[#out + 1] = L.PV_PUT_BACK:format(k.restore, backupLabel(b.slots[k.restore])) end
+  end
+  for _, k in ipairs(p.order) do
+    local was, now = GetBindingAction(k) or "", p.binds[k]
+    if was ~= now then
+      local wl, nl = cmdLabel(was), cmdLabel(now)
+      if not nl then out[#out + 1] = L.PV_CLEARED:format(bindLabel(k), wl)
+      elseif not wl then out[#out + 1] = L.PV_BOUND:format(bindLabel(k), nl)
+      else out[#out + 1] = L.PV_REBOUND:format(bindLabel(k), wl, nl) end
+    end
+  end
+  return out
+end
+
+local MAX_LINES = 30
 function ns.Apply()
   if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
   ns.MigrateNames()
   ns.ScanBags()
-  local keys = FoilKeybindsDB.keys
-  if not next(keys) and not next(FoilKeybindsDB.applied or {}) then return ns.Say(L.NOTHING) end
-  FoilKeybindsDB.backup = FoilKeybindsDB.backup or { binds = {}, slots = {}, macros = {} }
-  local b = FoilKeybindsDB.backup
-  FoilKeybindsDB.applied = FoilKeybindsDB.applied or {}
-  local done = 0
-  for key, snap in pairs(FoilKeybindsDB.applied) do -- keys cleared since the last Apply go back
-    if not (keys[key] and next(keys[key].slots)) then unapply(b, key, snap) end
+  if not next(FoilKeybindsDB.keys) and not next(FoilKeybindsDB.applied or {}) then return ns.Say(L.NOTHING) end
+  local p = plan()
+  local lines = describe(p)
+  if #lines == 0 then return run(p, true) end
+  local text = table.concat(lines, "\n", 1, math.min(#lines, MAX_LINES))
+  if #lines > MAX_LINES then text = text .. "\n" .. L.PV_MORE:format(#lines - MAX_LINES) end
+  if #p.notes > 0 then text = "|cffef5d55" .. table.concat(p.notes, "\n") .. "|r\n\n" .. text end
+  ns.Popup(L.PV_TITLE, text, { { OKAY or "OK", function() run(plan()) end, ns.T.fel }, { CANCEL or "Cancel" } }, true)
+end
+
+-- Master switch. ON asks first (what Apply will do). OFF after an Apply asks what happens to the
+-- bars and keybinds it changed. The controls are redrawn first, so a cancelled click springs back.
+function ns.SetManage(on)
+  local db = FoilKeybindsDB
+  local function redraw()
+    if ns.Refresh then ns.Refresh() end
+    if ns.RefreshSettings then ns.RefreshSettings() end
   end
-  for key, setup in pairs(keys) do if next(setup.slots) then -- clicked but empty keys are skipped
-    local name = ns.MacroName(key)
-    local placed
-    local text, n, trimmed = ns.FitMacro(setup, ns.best)
-    for _, id in ipairs(trimmed) do setup.slots[id].mouseover = false end
-    if not text then ns.Say(L.SKIP_LONG:format(key, n, ns.MAX))
-    elseif upsertMacro(b, name, text) then
-      keepBind(b, key)
-      for _, m in ipairs(MODS) do keepBind(b, m .. key); SetBinding(m .. key) end
-      -- ponytail: two keys on the same bar command share one slot, the last key applied wins it
-      local slot = ns.SlotOf(GetBindingAction(key))
-      local prev = FoilKeybindsDB.applied[key]
-      local modSlot
-      if not setup.slots.normal then -- base key stays as it is (Jump on Space); modifiers press a bar slot with the macro
-        if b.binds[key] == "" then SetBinding(key) else SetBinding(key, b.binds[key]) end
-        local free = prev and prev.modSlot and prev.barSlot
-        if free and GetActionText(free) ~= name then free = nil end -- reuse our old slot while it still holds the macro
-        if not free then free = ns.FirstEmptySlot(function(s, c) return HasAction(s) or GetBindingKey(c) ~= nil end) end
-        if free then
-          local cmd = ns.CommandOf(free)
-          place(b, name, free); placed, modSlot = free, true
-          for id, m in pairs(MODKEY) do if setup.slots[id] then SetBinding(m .. key, cmd) end end
-          ns.Info(L.MODS_PLACED:format(key, cmd, free))
-        else -- no free slot: modifiers go straight to the macro (no cooldown on a bar)
-          for id, m in pairs(MODKEY) do if setup.slots[id] then SetBindingMacro(m .. key, name) end end
-          ns.Info(L.BOUND_DIRECT:format(key))
-        end
-      elseif slot then place(b, name, slot); placed = slot
-      else
-        ns.Say(L.NO_SLOT:format(key))
-        local free, cmd = ns.FirstEmptySlot(function(s, c) return HasAction(s) or GetBindingKey(c) ~= nil end)
-        if free then
-          place(b, name, free); SetBinding(key, cmd); placed = free
-          ns.Info(L.PLACED:format(key, cmd, free))
-        else
-          SetBindingMacro(key, name)
-          ns.Info(L.BOUND_DIRECT:format(key))
-        end
-      end
-      -- the slot an earlier Apply used is no longer ours: put back what it held
-      if prev and prev.barSlot and prev.barSlot ~= placed and b.slots[prev.barSlot] ~= nil then
-        restoreSlot(b.slots[prev.barSlot], prev.barSlot)
-      end
-      FoilKeybindsDB.applied[key] = ns.Copy(setup) -- what the macro holds now; swaps and repair rebuild from this
-      FoilKeybindsDB.applied[key].barSlot = placed
-      FoilKeybindsDB.applied[key].modSlot = modSlot
-      done = done + 1
-    end
-  end end
+  local function set(v) db.manage = v; redraw() end
+  redraw()
+  if on == ns.Manages() then return end
+  if on then
+    return ns.Popup(L.MANAGE_ON_TITLE, L.MANAGE_ON_TEXT, { { OKAY or "OK", function() set(true) end, ns.T.fel }, { CANCEL or "Cancel" } })
+  end
+  local b = db.backup
+  if not (b and (next(b.binds) or next(b.slots))) then return set(false) end
+  ns.Popup(L.MANAGE_OFF_TITLE, L.MANAGE_OFF_TEXT, {
+    { L.MANAGE_UNDO, function() if not ns.UndoBars() then return true end; set(false) end, ns.T.blood },
+    { L.MANAGE_KEEP, function() set(false) end },
+  }, true)
+end
+
+-- Switch turned OFF with "Undo them": bindings and bar slots go back, the macros stay.
+-- Returns false in combat (the popup stays open to try again).
+function ns.UndoBars()
+  if InCombatLockdown() then ns.Say(L.IN_COMBAT); return false end
+  local b = FoilKeybindsDB.backup
+  for k, action in pairs(b.binds) do if action == "" then SetBinding(k) else SetBinding(k, action) end end
+  for slot, prev in pairs(b.slots) do restoreSlot(prev, slot) end
   SaveBindings(GetCurrentBindingSet())
-  FoilKeybindsDB.copyUndo = nil -- the copy is live now; Undo reverts the Apply instead
-  ns.SaveIndex()
-  ns.Info(L.DONE:format(done))
-  if ns.Refresh then ns.Refresh() end
+  b.binds, b.slots = {}, {}
+  for _, snap in pairs(FoilKeybindsDB.applied or {}) do snap.barSlot, snap.modSlot = nil, nil end
+  ns.Say(L.BARS_UNDONE)
+  return true
 end
 
 function ns.Undo()
@@ -445,32 +606,15 @@ local function spellName(id)
 end
 
 -- Repair popup: one line per change, OK closes, Undo puts the pre-repair setups back.
-local popup
 local function changeLine(c)
   local where = ("%s %s"):format(c.key, L["SLOT_" .. c.slot]) .. (c.pos and (" #" .. c.pos) or "")
   if c.kind == "renamed" then return L.REPAIR_RENAMED:format(where, c.old, c.new) end
   return L.REPAIR_REMOVED:format(where, c.old or "?")
 end
 local function showPopup(changes)
-  if not popup then
-    popup = ns.Panel("FoilKeybindsRepair", UIParent, L.REPAIR_TITLE)
-    popup:SetPoint("CENTER"); popup:SetFrameStrata("DIALOG")
-    popup:SetMovable(true); popup:EnableMouse(true); popup:RegisterForDrag("LeftButton")
-    popup:SetScript("OnDragStart", popup.StartMoving); popup:SetScript("OnDragStop", popup.StopMovingOrSizing)
-    popup.text = ns.Text(popup, "body", 13)
-    popup.text:SetPoint("TOPLEFT", 16, -38); popup.text:SetWidth(388); popup.text:SetJustifyH("LEFT"); popup.text:SetSpacing(2)
-    local ok = ns.Button(popup, 90, 24, OKAY or "OK", ns.T.fel)
-    ok:SetPoint("BOTTOMRIGHT", -14, 12)
-    ok:SetScript("OnClick", function() popup:Hide() end)
-    local undo = ns.Button(popup, 90, 24, L.UNDO)
-    undo:SetPoint("RIGHT", ok, "LEFT", -8, 0)
-    undo:SetScript("OnClick", function() ns.UndoRepair() end)
-  end
   local lines = {}
   for i, c in ipairs(changes) do lines[i] = changeLine(c) end
-  popup.text:SetText(table.concat(lines, "\n"))
-  popup:SetSize(420, popup.text:GetStringHeight() + 90)
-  popup:Show()
+  ns.Popup(L.REPAIR_TITLE, table.concat(lines, "\n"), { { OKAY or "OK", nil, ns.T.fel }, { L.UNDO, ns.UndoRepair } })
 end
 
 -- Once per login, out of combat. Fixes both the live setups and the applied snapshots,
@@ -499,8 +643,7 @@ function ns.RepairOnLogin()
 end
 
 function ns.UndoRepair()
-  if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end -- popup stays open to try again
-  if popup then popup:Hide() end
+  if InCombatLockdown() then ns.Say(L.IN_COMBAT); return true end -- popup stays open to try again
   local u = FoilKeybindsDB.repairUndo
   if not u then return end
   FoilKeybindsDB.keys, FoilKeybindsDB.applied = u.keys, u.applied
