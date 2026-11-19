@@ -400,8 +400,12 @@ function ns.Unseq(x) return { spellID = x.spellID, name = x.name, kind = x.kind,
 -- Sequence edits. Each returns a new slot value and never changes its input (the caller keeps it for undo).
 -- entry = { spellID, name, kind }. A plain spell plus one entry becomes a sequence, reset on target and combat.
 ns.MAXSEQ = 9
+-- A step can be added to a plain spell or to a sequence with room; never to items or pet commands.
+function ns.CanAddStep(s)
+  return s ~= nil and (s.seq or s.name) ~= nil and not (s.seq and #s.seq >= ns.MAXSEQ)
+end
 function ns.AddStep(s, entry)
-  if not (s.seq or s.name) or (s.seq and #s.seq >= ns.MAXSEQ) then return ns.Copy(s) end -- item, pet, full
+  if not ns.CanAddStep(s) then return ns.Copy(s) end
   if s.seq then
     local new = ns.Copy(s); new.seq[#new.seq + 1] = ns.Copy(entry); return new
   end

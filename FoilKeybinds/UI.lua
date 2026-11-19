@@ -91,7 +91,12 @@ local function commit(undo, slot)
   card:Refresh()
 end
 
-local function selectKey(key) current = key; picker:Hide(); card.msg:SetText(""); card:Refresh() end
+-- A seconds box with focus commits on focus loss, so it must lose focus while current is still its key.
+local function selectKey(key)
+  local box = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+  if box then box:ClearFocus() end
+  current = key; picker:Hide(); card.msg:SetText(""); card:Refresh()
+end
 
 -- Board: keys near WASD plus the mouse, fixed in the top strip at one scale (no pan, no zoom).
 local BOARD_SCALE = 0.66
@@ -452,8 +457,7 @@ local function drawColumn(c, setup)
     if x then
       r:ClearAllPoints(); r:SetPoint("TOPLEFT", 8, top - (j - 1) * STEP)
       local tex, label, known, spellID = ns.SlotView(x)
-      r.num:SetShown(seq ~= nil)
-      r.iconF:ClearAllPoints(); r.iconF:SetPoint("LEFT", seq and 18 or 2, 0)
+      r.iconF:ClearAllPoints(); r.iconF:SetPoint("LEFT", 18, 0)
       r.icon:SetTexture(tex); r.spellID = spellID
       r.name:SetText(label)
       -- Spell not learned yet: faded row, grey icon, level chip when What's Training knows it.
@@ -470,7 +474,7 @@ local function drawColumn(c, setup)
     r.tools:SetShown(x ~= nil and r.inSeq and r:IsMouseOver() or false)
   end
   -- Add under a spell (plain or sequence) while there is room; never for items or pet commands.
-  local canAdd = s ~= nil and (seq or s.name) ~= nil and #list < ns.MAXSEQ
+  local canAdd = ns.CanAddStep(s)
   c.add:SetShown(canAdd)
   if canAdd then c.add:ClearAllPoints(); c.add:SetPoint("TOPLEFT", 8, top - #list * STEP - 4) end
   c.hint:SetShown(canAdd and not seq)
@@ -626,7 +630,7 @@ end
 function picker:Choose(s)
   local slots, slot = setupOf(current).slots, self.slot
   local old = slots[slot]
-  if s and self.append and old and (old.seq or old.name) then -- append: spell goes to the end
+  if s and self.append and old then -- append: spell goes to the end (AddStep keeps a slot that cannot grow)
     slots[slot] = ns.AddStep(old, { spellID = s.spellID, name = s.name, kind = ns.SpellKind(s.spellID) })
   elseif s and (s.pet or s.petSpecial) then
     slots[slot] = { pet = s.pet, petSpecial = s.petSpecial }

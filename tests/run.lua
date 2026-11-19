@@ -534,6 +534,13 @@ test("add step: 9 steps, an item or a pet command come back unchanged", function
   eq(core.AddStep({ pet = "follow" }, step(1, "A")).pet, "follow")
   eq(core.AddStep({ petSpecial = true }, step(1, "A")).seq, nil)
 end)
+test("can add step: a spell or a sequence under 9 steps; not empty, items, pet commands or a full sequence", function()
+  local nine = { seq = {} }
+  for i = 1, 9 do nine.seq[i] = step(i, "S" .. i) end
+  eq(core.CanAddStep(step(1, "A")), true); eq(core.CanAddStep({ seq = { step(1, "A"), step(2, "B") } }), true)
+  eq(core.CanAddStep(nil), false); eq(core.CanAddStep({ item = "HS" }), false)
+  eq(core.CanAddStep({ pet = "follow" }), false); eq(core.CanAddStep(nine), false)
+end)
 local function order(s) local l = {}; for i, x in ipairs(s.seq) do l[i] = x.name end; return table.concat(l) end
 test("move step: swaps with the neighbor, past either end unchanged, input untouched", function()
   local old = { seq = { step(1, "A"), step(2, "B"), step(3, "C") }, reset = TC }

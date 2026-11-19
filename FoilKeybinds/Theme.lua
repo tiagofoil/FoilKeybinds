@@ -68,16 +68,16 @@ end
 
 -- White shape textures from Media (tools/make_media.py), tinted with SetVertexColor.
 -- Round and Dash are sliced (8 px margins) so the corners keep their shape at any size; Dash
--- tiles its edges so the dashes keep their length. A client without slicing gets the flat square.
+-- tiles its edges so the dashes keep their length. A client without slicing gets a flat square box,
+-- and the dashed line stretched as one picture.
+-- ponytail: no fixed-size variants; add them if a client without slicing ever matters.
 local MEDIA = "Interface\\AddOns\\FoilKeybinds\\Media\\"
-ns.MEDIA = MEDIA
 local SLICE = Enum and Enum.UITextureSliceMode
 function ns.Shape(parent, file, layer, sub)
   local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub)
   local sliced = file == "Round" or file == "Dash"
   if sliced and not (SLICE and t.SetTextureSliceMargins and t.SetTextureSliceMode) then
-    t:SetTexture(ns.WHITE)
-    if file == "Dash" then t:SetAlpha(0.25) end -- flat stand-in for the dashed line
+    t:SetTexture(file == "Dash" and MEDIA .. file or ns.WHITE)
     return t
   end
   t:SetTexture(MEDIA .. file)
