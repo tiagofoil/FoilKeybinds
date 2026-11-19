@@ -45,6 +45,10 @@ copyBtn:SetScript("OnClick", function(self)
   end)
 end)
 
+local itemsBtn = ns.Button(f, 120, 26, L.REFRESH_ITEMS)
+itemsBtn:SetPoint("RIGHT", copyBtn, "LEFT", -8, 0)
+itemsBtn:SetScript("OnClick", function() ns.SwapItems(true) end)
+
 local current, card, picker
 
 local function setupOf(key)
@@ -541,6 +545,7 @@ SlashCmdList.FOILKEYBINDS = function(msg)
     ns.Say(L.UNKNOWN_SPELL:format(spell))
   elseif word == "apply" then ns.Apply()
   elseif word == "undo" then ns.Undo()
+  elseif word == "items" or word == "itens" then ns.SwapItems(true)
   elseif word == "cheat" or word == "cola" then ns.ToggleCheat()
   elseif CONFIG[word] then ns.OpenSettings(true)
   else FoilKeybinds_Toggle() end

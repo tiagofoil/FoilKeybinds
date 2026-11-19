@@ -63,6 +63,7 @@ function ns.ScanBags()
     end
   end
   ns.best = ns.BestItems(owned, usable and function(id) return (usable(id)) end)
+  ns.scanned = true
 end
 
 function ns.ItemIcon(cat)
@@ -389,32 +390,45 @@ function ns.FutureLevel(id)
 end
 
 -- Rewrites the macro of a key from its applied snapshot, only when the text changed.
+-- Returns why it could not write: "missing" (no macro) or "long" (over 255).
 local function rebuild(key)
   local setup = FoilKeybindsDB.applied and FoilKeybindsDB.applied[key]
+  if not setup then return end
   local name = ns.MacroName(key)
   local i = GetMacroIndexByName(name)
-  local text = setup and i > 0 and ns.FitMacro(setup, ns.best)
-  if text and not ns.SameMacro(GetMacroBody(i), text) then EditMacro(i, name, nil, text) end
+  if i == 0 then return "missing" end
+  local text = ns.FitMacro(setup, ns.best)
+  if not text then return "long" end
+  if not ns.SameMacro(GetMacroBody(i), text) then EditMacro(i, name, nil, text) end
 end
 
 -- Out of combat item swap: only macros of keys with an item slot. Uses the applied
 -- snapshot, so card edits not yet applied stay off the live macro.
+-- manual (Refresh items button, /fkb items): always says what happened. Automatic swaps
+-- (login, bags, combat end, level-up) warn once per key and reason per session.
 local function hasItem(setup)
   for _, s in pairs(setup.slots) do if s.item then return true end end
 end
-function ns.SwapItems()
-  if InCombatLockdown() or not FoilKeybindsDB then return end -- macros are locked in combat
+local warned = {}
+function ns.SwapItems(manual)
+  if not FoilKeybindsDB then return end
+  if InCombatLockdown() then if manual then ns.Say(L.IN_COMBAT) end; return end -- macros are locked in combat
   local any
   for _, setup in pairs(FoilKeybindsDB.applied or {}) do if hasItem(setup) then any = true; break end end
-  if not any then return end
-  local old = ns.best
+  if not any then if manual then ns.Say(L.ITEMS_NONE) end; return end
+  local old, first = ns.best, not ns.scanned -- first scan of the session: no "before" to compare with
   ns.ScanBags()
-  for key, setup in pairs(FoilKeybindsDB.applied or {}) do
-    if hasItem(setup) then rebuild(key) end
+  for key, setup in pairs(FoilKeybindsDB.applied) do
+    local why = hasItem(setup) and rebuild(key)
+    if why and (manual or not warned[key .. why]) then
+      warned[key .. why] = true
+      ns.Say(L["SWAP_" .. why]:format(key))
+    end
   end
-  for cat, b in pairs(ns.best) do
-    if old[cat] and old[cat].id ~= b.id then ns.Info(L.ITEM_NOW:format(b.name)) end
-  end
+  local changes = first and {} or ns.ItemChanges(old, ns.best, FoilKeybindsDB.applied)
+  local say = manual and ns.Say or ns.Info
+  for _, c in ipairs(changes) do say(L.ITEM_CHANGE:format(c.key, c.from or L.ITEM_NONE, c.to or L.ITEM_NONE)) end
+  if manual and #changes == 0 then ns.Say(L.ITEMS_UP_TO_DATE) end
   if ns.Refresh then ns.Refresh() end
 end
 
@@ -516,7 +530,11 @@ function ns.ImportOnLogin()
 end
 
 local ev = CreateFrame("Frame")
-ev:RegisterEvent("PLAYER_LOGIN"); ev:RegisterEvent("PLAYER_LOGOUT"); ev:RegisterEvent("BAG_UPDATE_DELAYED"); ev:RegisterEvent("PLAYER_REGEN_ENABLED")
+-- PLAYER_LEVEL_UP: a potion can become usable. ponytail: if the usable check still sees the old
+-- level at this event, the swap waits for the next bag change or the Refresh items button.
+for _, e in ipairs({ "PLAYER_LOGIN", "PLAYER_LOGOUT", "BAG_UPDATE_DELAYED", "PLAYER_REGEN_ENABLED", "PLAYER_LEVEL_UP" }) do
+  ev:RegisterEvent(e)
+end
 local repairPending
 ev:SetScript("OnEvent", function(_, event)
   if event == "PLAYER_LOGOUT" then return ns.SaveIndex() end
