@@ -3,7 +3,7 @@ local L = ns.L
 local T = ns.T
 
 local f = ns.Panel("FoilKeybindsFrame", UIParent, L.TITLE)
-f:SetSize(960, 680); f:SetPoint("CENTER")
+f:SetSize(960, 700); f:SetPoint("CENTER")
 f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
 f:Hide()
@@ -240,83 +240,22 @@ refreshKeys = function()
   end
 end
 
--- Key card: 5 slots, each with a mouseover checkbox, plus the two key toggles.
+-- Key panel: right of the board. Key and macro name, size meter, the two key toggles, Show macro,
+-- the dot legend, the fit messages and the switch OFF hint.
 card = CreateFrame("Frame", nil, keysPane)
-card:SetPoint("TOPLEFT", 588, -46); card:SetPoint("BOTTOMRIGHT", -14, 54)
-card.bg = CreateFrame("Frame", nil, keysPane, "BackdropTemplate")
-card.bg:SetPoint("TOPLEFT", card, -8, 8); card.bg:SetPoint("BOTTOMRIGHT", card, 8, -8)
-card:SetFrameLevel(card.bg:GetFrameLevel() + 2)
-ns.Skin(card.bg, T.panel, { T.void[1], T.void[2], T.void[3], 0.45 })
-do
-  local g = ns.Gradient(card.bg, T.panel2, T.panel); g:SetPoint("TOPLEFT", 1, -1); g:SetPoint("BOTTOMRIGHT", -1, 1)
-end
+card:SetPoint("TOPLEFT", view, "TOPRIGHT", 12, 0); card:SetPoint("BOTTOMRIGHT", keysPane, "TOPRIGHT", -12, -286)
+ns.RoundSkin(card, T.panel, { T.void[1], T.void[2], T.void[3], 0.45 })
 card.label = ns.Text(card, "bold", 15)
-card.label:SetPoint("TOPLEFT"); card.label:SetPoint("RIGHT", -60, 0); card.label:SetJustifyH("LEFT"); card.label:SetWordWrap(false)
+card.label:SetPoint("TOPLEFT", 14, -12); card.label:SetPoint("RIGHT", -80, 0); card.label:SetJustifyH("LEFT"); card.label:SetWordWrap(false)
 card.count = ns.Text(card, "mono", 11, T.muted)
-card.count:SetPoint("TOPRIGHT", 0, -2)
-card.msg = ns.Text(card, "body", 13, T.blood)
-card.msg:SetPoint("TOPLEFT", 0, -254); card.msg:SetPoint("RIGHT"); card.msg:SetJustifyH("LEFT")
-local rows = {}
-for i, id in ipairs(ns.SLOTS) do
-  local r = {}
-  local y = -24 - (i - 1) * 34
-  r.mod = ns.Chip(card, "mono", 9); r.mod:SetPoint("LEFT", card, "TOPLEFT", 0, y - 13); r.mod:Set(L["SLOT_" .. id], 8)
-  r.btn = ns.Button(card, 140, 26)
-  r.btn:SetPoint("TOPLEFT", 62, y)
-  r.btn:SetScript("OnClick", function() -- a sequence opens its editor, anything else the picker
-    local s = setupOf(current).slots[id]
-    if s and s.seq then seqp:Open(id) else picker:Open(id) end
-  end)
-  r.name = r.btn:GetFontString(); r.name:SetFontObject(ns.Font("body", 13))
-  r.name:ClearAllPoints(); r.name:SetPoint("LEFT", 30, 0); r.name:SetPoint("RIGHT", -6, 0)
-  r.name:SetJustifyH("LEFT"); r.name:SetWordWrap(false)
-  r.iconF = ns.IconFrame(r.btn, 20); r.iconF:SetPoint("LEFT", 4, 0); r.icon = r.iconF.tex
-  r.lv = ns.Chip(r.btn, "mono", 9, T.fel); r.lv:SetPoint("RIGHT", -4, 0)
-  r.mo = ns.Check(card, L.MOUSEOVER)
-  r.mo:SetPoint("LEFT", r.btn, "RIGHT", 8, 0) -- label ends ~70px later, trash sits at the far right
-  r.mo:SetScript("OnClick", function(self)
-    local s = setupOf(current).slots[id]
-    if not s then return end
-    local old = s.mouseover
-    s.mouseover = self:GetChecked() and true or false
-    commit(function() s.mouseover = old end, id)
-  end)
-  -- Trash button: same path as the picker's Clear slot.
-  r.del = CreateFrame("Button", nil, card)
-  r.del:SetSize(18, 18); r.del:SetPoint("TOPRIGHT", 0, y - 4)
-  -- SetNormalAtlas does not error on a missing atlas, so check it exists first.
-  if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("common-icon-delete") then
-    r.del:SetNormalAtlas("common-icon-delete")
-  else
-    r.del:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
-  end
-  local trash = r.del:GetNormalTexture()
-  trash:SetDesaturated(true); trash:SetVertexColor(unpack(T.muted))
-  r.del:SetScript("OnClick", function() picker.slot = id; picker:Choose(nil) end)
-  r.del:SetScript("OnEnter", function(self)
-    trash:SetDesaturated(false); trash:SetVertexColor(unpack(T.blood))
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText(L.CLEAR); GameTooltip:AddLine(L.CLEAR_HINT, 0.8, 0.8, 0.8)
-    GameTooltip:Show()
-  end)
-  r.del:SetScript("OnLeave", function()
-    trash:SetDesaturated(true); trash:SetVertexColor(unpack(T.muted)); GameTooltip:Hide()
-  end)
-  -- Plus: add a spell after this one, the slot becomes (or grows) a cast sequence.
-  r.add = ns.Button(card, 18, 18, "+", T.fel)
-  r.add:SetPoint("RIGHT", r.del, "LEFT", -4, 0)
-  r.add:SetScript("OnClick", function() picker:Open(id, true) end)
-  r.add:HookScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(L.SEQ_ADD_HINT); GameTooltip:Show()
-  end)
-  r.add:HookScript("OnLeave", GameTooltip_Hide)
-  rows[id] = r
-end
-card.rule = card:CreateTexture(nil, "ARTWORK"); card.rule:SetColorTexture(unpack(T.line))
-card.rule:SetPoint("TOPLEFT", 0, -192); card.rule:SetPoint("RIGHT"); card.rule:SetHeight(1)
+card.count:SetPoint("TOPRIGHT", -14, -14)
+card.meter = CreateFrame("Frame", nil, card)
+card.meter:SetPoint("TOPLEFT", 14, -34); card.meter:SetPoint("RIGHT", -14, 0); card.meter:SetHeight(4)
+card.meter.bg = card.meter:CreateTexture(nil, "BACKGROUND"); card.meter.bg:SetAllPoints(); card.meter.bg:SetColorTexture(unpack(T.well))
+card.meter.fill = card.meter:CreateTexture(nil, "ARTWORK"); card.meter.fill:SetPoint("TOPLEFT"); card.meter.fill:SetPoint("BOTTOMLEFT")
 local function toggle(field, text, y)
   local c = ns.Check(card, text)
-  c:SetPoint("TOPLEFT", 0, y - 4)
+  c:SetPoint("TOPLEFT", 14, y)
   c:SetScript("OnClick", function(self)
     local setup = setupOf(current)
     local old = setup[field]
@@ -325,10 +264,130 @@ local function toggle(field, text, y)
   end)
   return c
 end
+card.target = toggle("targetEnemy", L.TARGET_ENEMY, -50)
+card.pet = toggle("petAttack", L.PET_ATTACK, -74)
+card.show = ns.Button(card, 130, 24)
+card.show:SetPoint("TOPLEFT", 14, -98)
+-- Dot legend: what the four dots on a key mean.
+card.legend = CreateFrame("Frame", nil, card)
+card.legend:SetPoint("TOPLEFT", 14, -134); card.legend:SetSize(420, 14)
+do
+  local x = 0
+  for _, id in ipairs(DOTS) do
+    local d = ns.Shape(card.legend, "Dot", "ARTWORK"); d:SetSize(9, 9); d:SetPoint("LEFT", x, 0); d:SetVertexColor(unpack(T.void))
+    local t = ns.Text(card.legend, "mono", 10, T.muted); t:SetPoint("LEFT", d, "RIGHT", 4, 0); t:SetText(L["SLOT_" .. id])
+    x = x + 9 + 4 + t:GetStringWidth() + 12
+  end
+  local t = ns.Text(card.legend, "body", 12, T.muted); t:SetPoint("LEFT", x, 0); t:SetText(L.DOT_LEGEND)
+end
+card.msg = ns.Text(card, "body", 13, T.blood)
+card.msg:SetPoint("TOPLEFT", 14, -156); card.msg:SetPoint("RIGHT", -14, 0); card.msg:SetJustifyH("LEFT")
 card.hint = ns.Text(card, "body", 12, T.muted) -- switch OFF: Apply only writes the macro
-card.hint:SetPoint("TOPLEFT", 0, -314); card.hint:SetPoint("RIGHT"); card.hint:SetJustifyH("LEFT")
-card.target = toggle("targetEnemy", L.TARGET_ENEMY, -200)
-card.pet = toggle("petAttack", L.PET_ATTACK, -226)
+card.hint:SetPoint("BOTTOMLEFT", 14, 12); card.hint:SetPoint("RIGHT", -14, 0); card.hint:SetJustifyH("LEFT")
+
+-- Columns: one per modifier, Normal first (ns.COLUMNS). Each column edits its slot in place:
+-- header (chip, key, trash, mouseover), the steps (one for a plain slot), or a big Choose button.
+local STEP = 22
+local cols = {}
+for i, id in ipairs(ns.COLUMNS) do
+  local c = CreateFrame("Frame", nil, keysPane)
+  c:SetSize(180, 350); c:SetPoint("TOPLEFT", 12 + (i - 1) * 189, -296)
+  ns.RoundSkin(c, T.panel, T.line)
+  c.id = id
+  c.mod = ns.Chip(c, "mono", 9); c.mod:SetPoint("TOPLEFT", 8, -8); c.mod:Set(L["SLOT_" .. id], 8)
+  c.key = ns.Text(c, "mono", 11, T.muted); c.key:SetPoint("LEFT", c.mod, "RIGHT", 6, 0)
+  c.key:SetWidth(90); c.key:SetJustifyH("LEFT"); c.key:SetWordWrap(false)
+  -- Trash: same path as the picker's Clear slot.
+  c.del = CreateFrame("Button", nil, c)
+  c.del:SetSize(18, 18); c.del:SetPoint("TOPRIGHT", -8, -8)
+  -- SetNormalAtlas does not error on a missing atlas, so check it exists first.
+  if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("common-icon-delete") then
+    c.del:SetNormalAtlas("common-icon-delete")
+  else
+    c.del:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+  end
+  local trash = c.del:GetNormalTexture()
+  trash:SetDesaturated(true); trash:SetVertexColor(unpack(T.muted))
+  c.del:SetScript("OnClick", function() picker.slot = id; picker:Choose(nil) end)
+  c.del:SetScript("OnEnter", function(self)
+    trash:SetDesaturated(false); trash:SetVertexColor(unpack(T.blood))
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(L.CLEAR); GameTooltip:AddLine(L.CLEAR_HINT, 0.8, 0.8, 0.8)
+    GameTooltip:Show()
+  end)
+  c.del:SetScript("OnLeave", function()
+    trash:SetDesaturated(true); trash:SetVertexColor(unpack(T.muted)); GameTooltip:Hide()
+  end)
+  c.mo = ns.Check(c, L.MOUSEOVER)
+  c.mo:SetPoint("TOPLEFT", 10, -34)
+  c.mo:SetScript("OnClick", function(self)
+    local s = setupOf(current).slots[id]
+    if not s then return end
+    local old = s.mouseover
+    s.mouseover = self:GetChecked() and true or false
+    commit(function() s.mouseover = old end, id)
+  end)
+  -- Empty slot: one big dashed button.
+  c.choose = CreateFrame("Button", nil, c)
+  c.choose:SetPoint("TOPLEFT", 8, -40); c.choose:SetPoint("TOPRIGHT", -8, -40); c.choose:SetHeight(110)
+  c.choose.dash = ns.Shape(c.choose, "Dash", "ARTWORK"); c.choose.dash:SetAllPoints()
+  c.choose.dash:SetVertexColor(unpack(T.muted))
+  c.choose.text = ns.Text(c.choose, "body", 13, T.muted); c.choose.text:SetPoint("LEFT", 10, 0); c.choose.text:SetPoint("RIGHT", -10, 0)
+  c.choose.text:SetText(L.CHOOSE)
+  c.choose:SetScript("OnEnter", function(self) self.dash:SetVertexColor(unpack(T.brass)); self.text:SetTextColor(unpack(T.ink)) end)
+  c.choose:SetScript("OnLeave", function(self) self.dash:SetVertexColor(unpack(T.muted)); self.text:SetTextColor(unpack(T.muted)) end)
+  c.choose:SetScript("OnClick", function() picker:Open(id) end)
+  -- Steps: one row per spell of a sequence, or the single spell, item or pet command.
+  c.steps = {}
+  for j = 1, ns.MAXSEQ do
+    local r = CreateFrame("Button", nil, c)
+    r:SetSize(164, STEP)
+    r:SetHighlightTexture(ns.WHITE); r:GetHighlightTexture():SetVertexColor(1, 1, 1, 0.06)
+    r.num = ns.Text(r, "mono", 10, T.muted); r.num:SetPoint("LEFT", 2, 0); r.num:SetText(j .. ".")
+    r.iconF = ns.IconFrame(r, 18); r.icon = r.iconF.tex
+    r.name = ns.Text(r, "body", 13); r.name:SetPoint("LEFT", r.iconF, "RIGHT", 6, 0); r.name:SetPoint("RIGHT", -4, 0)
+    r.name:SetJustifyH("LEFT"); r.name:SetWordWrap(false)
+    r.lv = ns.Chip(r, "mono", 9, T.fel); r.lv:SetPoint("RIGHT", -2, 0)
+    r:SetScript("OnClick", function() -- a sequence opens its editor, anything else the picker
+      local s = setupOf(current).slots[id]
+      if s and s.seq then seqp:Open(id) else picker:Open(id) end
+    end)
+    c.steps[j] = r
+  end
+  cols[id] = c
+end
+
+-- One column from the slot it edits.
+local function drawColumn(c, setup)
+  local s = setup.slots[c.id]
+  local item, pet, seq = s and s.item, ns.IsPetSlot(s), s and s.seq
+  c.key:SetText(L["KEY_" .. current] or current)
+  c.del:SetShown(s ~= nil)
+  c.mo:SetShown(s ~= nil and not seq)
+  c.mo:SetChecked(s and s.mouseover or false); c.mo:SetEnabled(s ~= nil and not item and not pet) -- no mouseover on items/pet
+  c.choose:SetShown(s == nil)
+  local list = seq or (s and { s }) or {}
+  local top = seq and -40 or -58
+  for j, r in ipairs(c.steps) do
+    local x = list[j]
+    r:SetShown(x ~= nil)
+    if x then
+      r:ClearAllPoints(); r:SetPoint("TOPLEFT", 8, top - (j - 1) * STEP)
+      local tex, label, known, spellID = ns.SlotView(x)
+      r.num:SetShown(seq ~= nil)
+      r.iconF:ClearAllPoints(); r.iconF:SetPoint("LEFT", seq and 18 or 2, 0)
+      r.icon:SetTexture(tex); r.spellID = spellID
+      r.name:SetText(label)
+      -- Spell not learned yet: faded row, grey icon, level chip when What's Training knows it.
+      local future = not x.item and not ns.IsPetSlot(x) and not known
+      local lv = future and ns.FutureLevel(spellID)
+      r:SetAlpha(future and 0.5 or 1); r.icon:SetDesaturated(future or false)
+      if lv then r.lv:Set(L.LEVEL:format(lv), 8) end
+      r.lv:SetShown(lv and true or false)
+      r.name:SetPoint("RIGHT", lv and -(r.lv:GetWidth() + 6) or -4, 0)
+    end
+  end
+end
 
 -- Macro preview: side panel on the window's left edge (the picker uses the right one).
 local preview = ns.Panel(nil, f, L.SHOW_MACRO)
@@ -343,8 +402,6 @@ preview.text:SetJustifyH("LEFT"); preview.text:SetJustifyV("TOP"); preview.text:
 preview.text:SetWordWrap(true); preview.text:SetNonSpaceWrap(true)
 preview.warn = ns.Text(preview, "body", 12, T.blood)
 preview.warn:SetPoint("BOTTOMLEFT", 14, 10); preview.warn:SetPoint("RIGHT", -14, 0); preview.warn:SetJustifyH("LEFT")
-card.show = ns.Button(card, 130, 24)
-card.show:SetPoint("TOPLEFT", 0, -280)
 card.show:SetScript("OnClick", function() seqp:Hide(); preview:SetShown(not preview:IsShown()); card:Refresh() end)
 
 -- Sequence editor: side panel where the macro preview sits (one of the two at a time).
@@ -438,11 +495,11 @@ function card:Refresh()
   manageBtn.track:SetVertexColor(unpack(on and T.fel or T.line))
   manageBtn.knob:ClearAllPoints(); manageBtn.knob:SetPoint("CENTER", manageBtn.track, on and "RIGHT" or "LEFT", on and -7 or 7, 0)
   self.hint:SetText(current and not on and L.DRAG_HINT:format(ns.MacroName(current)) or "")
+  for _, w in ipairs({ self.count, self.meter, self.target, self.pet, self.show, self.legend }) do w:SetShown(current ~= nil) end
+  for _, c in pairs(cols) do c:SetShown(current ~= nil) end
   if not current then
     self.label:SetText(L.PICK_KEY)
-    for _, r in pairs(rows) do r.btn:Hide(); r.mo:Hide(); r.mod:Hide(); r.del:Hide(); r.add:Hide() end
-    self.count:SetText("")
-    self.target:Hide(); self.pet:Hide(); self.show:Hide(); self.rule:Hide(); preview:Hide(); seqp:Hide()
+    preview:Hide(); seqp:Hide()
     return
   end
   local setup = setupOf(current)
@@ -450,29 +507,13 @@ function card:Refresh()
   self.label:SetText(L.KEY:format(L["KEY_" .. current] or current) .. "   |cffa99bb7" .. L.MACRO:format(name) .. "|r")
   local text, n = ns.FitMacro(setup, ns.best)
   self.count:SetText(n .. "/" .. ns.MAX)
-  for id, r in pairs(rows) do
-    local s = setup.slots[id]
-    r.btn:Show(); r.mod:Show(); r.mo:SetShown(not (s and s.seq))
-    r.del:SetShown(s ~= nil); r.add:SetShown(s ~= nil and (s.seq or s.name) ~= nil)
-    local item, pet = s and s.item, ns.IsPetSlot(s)
-    local tex, label, known, spellID = ns.SlotView(s)
-    r.btn:SetText(s and (s.seq and L.SEQ_ROW:format(s.seq[1].name, #s.seq - 1) or label) or L.EMPTY)
-    r.icon:SetTexture(tex); r.spellID = spellID
-    r.iconF:SetShown(s ~= nil)
-    r.name:SetTextColor(unpack(s and T.ink or T.muted))
-    -- Spell not learned yet: faded row, grey icon, level chip when What's Training knows it.
-    local future = s and not item and not pet and not known
-    local lv = future and ns.FutureLevel(spellID)
-    r.btn:SetAlpha(future and 0.5 or 1); r.icon:SetDesaturated(future or false)
-    if lv then r.lv:Set(L.LEVEL:format(lv), 8) end
-    r.lv:SetShown(lv and true or false)
-    r.name:SetPoint("RIGHT", lv and -(r.lv:GetWidth() + 8) or -6, 0)
-    r.mo:SetChecked(s and s.mouseover or false); r.mo:SetEnabled(s ~= nil and not item and not pet) -- no mouseover on items/pet
-  end
-  self.target:Show(); self.target:SetChecked(setup.targetEnemy or false)
-  self.pet:Show(); self.pet:SetChecked(setup.petAttack or false)
-  self.rule:Show()
-  self.show:Show(); self.show:SetText(preview:IsShown() and L.HIDE_MACRO or L.SHOW_MACRO)
+  local full = math.min(n / ns.MAX, 1)
+  self.meter.fill:SetWidth(math.max(1, self.meter:GetWidth() * full))
+  self.meter.fill:SetColorTexture(unpack(full > 0.9 and T.brass or T.fel))
+  for _, c in pairs(cols) do drawColumn(c, setup) end
+  self.target:SetChecked(setup.targetEnemy or false)
+  self.pet:SetChecked(setup.petAttack or false)
+  self.show:SetText(preview:IsShown() and L.HIDE_MACRO or L.SHOW_MACRO)
   if seqp:IsShown() then seqp:Render() end
   if preview:IsShown() then
     -- One clause per line for reading; the real macro keeps "; " on one line.
@@ -600,7 +641,9 @@ end)
 f:SetScript("OnHide", function(self) for _, e in ipairs(LIVE) do self:UnregisterEvent(e) end end)
 local function loaded(id)
   for _, b in pairs(keyButtons) do if b.big.spellID == id then b.big.tex:SetTexture(ns.SpellIcon(id)) end end
-  for _, r in pairs(rows) do if r.spellID == id then r.icon:SetTexture(ns.SpellIcon(id)) end end
+  for _, c in pairs(cols) do
+    for _, r in ipairs(c.steps) do if r:IsShown() and r.spellID == id then r.icon:SetTexture(ns.SpellIcon(id)) end end
+  end
   for _, b in ipairs(picker.rows) do
     if b:IsShown() and b.spell and b.spell.spellID == id then b.icon:SetTexture(ns.SpellIcon(id, b.spell.icon)) end
   end
