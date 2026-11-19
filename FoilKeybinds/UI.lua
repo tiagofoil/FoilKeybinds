@@ -719,6 +719,7 @@ end
 local LIVE = { "SPELLS_CHANGED", "SPELL_DATA_LOAD_RESULT" }
 f:SetScript("OnShow", function(self)
   for _, e in ipairs(LIVE) do self:RegisterEvent(e) end
+  self:Raise() -- on top of other HIGH frames (SetToplevel only raises on click)
   ns.ScanBags(); card:Refresh()
 end)
 f:SetScript("OnHide", function(self) for _, e in ipairs(LIVE) do self:UnregisterEvent(e) end end)

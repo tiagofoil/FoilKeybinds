@@ -104,7 +104,8 @@ function ns.SaveIndex()
   FoilKeybindsAccount[class][me] = ns.Copy(FoilKeybindsDB.keys)
 end
 
--- Replaces this character's keys with another's. Not applied; Undo brings the old keys back
+-- Every place that replaces the keys table clears the Undo edit history (its steps would land in the
+-- wrong data). Replaces this character's keys with another's. Not applied; Undo brings the old keys back
 -- (edit steps made after the copy come back first; the ones before it are dropped).
 function ns.CopyFrom(name)
   local me, class = ns.Me()
@@ -393,7 +394,7 @@ end
 -- A pending Copy from: its old keys come back. It touched nothing in game. False when none.
 function ns.UndoCopy()
   if not FoilKeybindsDB.copyUndo then return false end
-  FoilKeybindsDB.keys, FoilKeybindsDB.copyUndo = FoilKeybindsDB.copyUndo, nil
+  FoilKeybindsDB.keys, FoilKeybindsDB.copyUndo = FoilKeybindsDB.copyUndo, nil; if ns.ClearHistory then ns.ClearHistory() end
   if ns.Refresh then ns.Refresh() end
   ns.Say(L.COPY_UNDONE)
   return true
@@ -634,7 +635,7 @@ function ns.RepairOnLogin()
   local keys, keyChanges = ns.Repair(db.keys, spellName, idOf)
   local applied, appChanges = ns.Repair(db.applied or {}, spellName, idOf)
   local undo = { keys = db.keys, applied = db.applied }
-  db.keys, db.applied = keys, db.applied and applied -- filled IDs are kept even with no change to show
+  db.keys, db.applied = keys, db.applied and applied; if ns.ClearHistory then ns.ClearHistory() end -- filled IDs are kept even with no change to show
   if #keyChanges == 0 and #appChanges == 0 then return end
   db.repairUndo = undo
   local changes, seen, touched = {}, {}, {}
@@ -655,7 +656,7 @@ function ns.UndoRepair()
   if InCombatLockdown() then ns.Say(L.IN_COMBAT); return true end -- popup stays open to try again
   local u = FoilKeybindsDB.repairUndo
   if not u then return end
-  FoilKeybindsDB.keys, FoilKeybindsDB.applied = u.keys, u.applied
+  FoilKeybindsDB.keys, FoilKeybindsDB.applied = u.keys, u.applied; if ns.ClearHistory then ns.ClearHistory() end
   for key in pairs(u.touched) do rebuild(key) end
   FoilKeybindsDB.repairUndo = nil
   if ns.Refresh then ns.Refresh() end
@@ -668,7 +669,7 @@ function ns.ImportOnLogin()
   if not GrimorioSetupData or db.grimorioImported or next(db.keys) or select(2, UnitClass("player")) ~= "WARLOCK" then return end
   db.grimorioImported = true
   local keys, lost = ns.ImportGrimorio(GrimorioSetupData, spellOf)
-  db.keys = keys
+  db.keys = keys; if ns.ClearHistory then ns.ClearHistory() end
   local names = {}
   for k in pairs(keys) do names[#names + 1] = k end
   table.sort(names)
