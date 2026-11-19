@@ -3,7 +3,7 @@ local L = ns.L
 local T = ns.T
 
 local f = ns.Panel("FoilKeybindsFrame", UIParent, L.TITLE)
-f:SetSize(960, 700); f:SetPoint("CENTER")
+f:SetSize(960, 744); f:SetPoint("CENTER")
 f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
 f:Hide()
@@ -122,9 +122,9 @@ function ns.UndoStep()
 end
 
 -- Board: keys near WASD plus the mouse, fixed in the top strip at one scale (no pan, no zoom).
-local BOARD_SCALE = 0.66
+local BOARD_SCALE = 0.8
 local view = CreateFrame("Frame", nil, keysPane)
-view:SetPoint("TOPLEFT", 12, -38); view:SetSize(468, 248)
+view:SetPoint("TOPLEFT", 12, -38); view:SetSize(568, 300)
 ns.RoundSkin(view, { T.panel[1], T.panel[2], T.panel[3], 0.7 }, T.line)
 local board = CreateFrame("Frame", nil, view)
 board:SetSize(680, 350); board:SetScale(BOARD_SCALE)
@@ -212,7 +212,7 @@ for _, k in ipairs(LAYOUT) do
   local b = CreateFrame("Button", nil, board)
   b:SetSize(K + ((k[4] or 1) - 1) * U, K)
   b:SetPoint("TOPLEFT", k[2] * U, -k[3] * U); b:SetFrameLevel(mouse:GetFrameLevel() + 2)
-  b.label = ns.Text(b, "mono", 12)
+  b.label = ns.Text(b, "mono", 14)
   b.label:SetPoint("TOPLEFT", 8, -6); b.label:SetText(L["KEY_" .. key] or key)
   if k.move then
     keyFace(b, T.moveTop, T.moveBot)
@@ -234,19 +234,24 @@ for _, k in ipairs(LAYOUT) do
     b:SetScript("OnLeave", function(self) self.line:SetVertexColor(unpack(self.idle or T.line)); GameTooltip:Hide() end)
     -- The plain press: big icon in the middle (the key takes the clicks), count badge for a sequence.
     b.big = ns.IconFrame(b, 26); b.big:SetPoint("CENTER", 0, 3); b.big:EnableMouse(false)
+    b.big.stack = ns.IconFrame(b, 26); b.big.stack:SetPoint("CENTER", b.big, "CENTER", 5, 5)
+    b.big.stack:SetFrameLevel(b.big:GetFrameLevel() - 1); b.big.stack:SetAlpha(0.55); b.big.stack:EnableMouse(false)
+    b.withF = ns.IconFrame(b, 18); b.withF:SetPoint("TOPRIGHT", -6, -6); b.withF:EnableMouse(false)
+    b.withF.plus = ns.Text(b.withF, "mono", 12, T.brass); b.withF.plus:SetPoint("RIGHT", b.withF, "LEFT", -1, 0)
+    b.withF.plus:SetText("+")
     b.big.badge = ns.Text(b.big, "mono", 10)
     b.big.badge:SetPoint("BOTTOMRIGHT", 2, -1); b.big.badge:SetShadowColor(0, 0, 0, 1); b.big.badge:SetShadowOffset(1, -1)
     -- Modifier slots: four dots along the bottom, filled when the slot is used.
     b.dots = {}
     for j, id in ipairs(DOTS) do
-      local d = ns.Shape(b, "Dot", "ARTWORK"); d:SetSize(9, 9); d:SetPoint("BOTTOM", (j - 2.5) * 13, 9)
+      local d = ns.Shape(b, "Dot", "ARTWORK"); d:SetSize(10, 10); d:SetPoint("BOTTOM", (j - 2.5) * 14, 9)
       d.slot = id; b.dots[j] = d
     end
     keyButtons[key] = b
   end
 end
 
-function ns.SetKeyIconSize(n) for _, b in pairs(keyButtons) do b.big:SetSize(n, n) end end
+function ns.SetKeyIconSize(n) for _, b in pairs(keyButtons) do b.big:SetSize(n, n); b.big.stack:SetSize(n, n) end end
 
 -- Redraws every key: plain press icon, filled dots, selected key glows in brass.
 refreshKeys = function()
@@ -267,9 +272,17 @@ refreshKeys = function()
       b.big.tex:SetDesaturated(not known); b.big:SetAlpha(known and 1 or 0.4)
       b.big.badge:SetText(count or ""); b.big.badge:SetShown(count ~= nil)
     end
+    local second = s and s.seq and s.seq[2]
+    b.big.stack:SetShown(second ~= nil)
+    if second then b.big.stack.tex:SetTexture(ns.SpellIcon(second.spellID)) end
+    local w = s and s.with and s.with[1]
+    b.withF:SetShown(w ~= nil); b.withF.spellID = w and w.spellID
+    if w then b.withF.tex:SetTexture(ns.SpellIcon(w.spellID)) end
     for _, d in ipairs(b.dots) do
       local used = setup and setup.slots[d.slot]
-      if used then d:SetVertexColor(unpack(T.void)) else d:SetVertexColor(T.line[1], T.line[2], T.line[3], 0.9) end
+      if not used then d:SetVertexColor(T.line[1], T.line[2], T.line[3], 0.9)
+      elseif used.seq or used.with then d:SetVertexColor(unpack(T.brass))
+      else d:SetVertexColor(unpack(T.void)) end
     end
   end
 end
@@ -277,7 +290,7 @@ end
 -- Key panel: right of the board. Key and macro name, size meter, the two key toggles, Show macro,
 -- the dot legend, the fit messages and the switch OFF hint.
 card = CreateFrame("Frame", nil, keysPane)
-card:SetPoint("TOPLEFT", view, "TOPRIGHT", 12, 0); card:SetPoint("BOTTOMRIGHT", keysPane, "TOPRIGHT", -12, -286)
+card:SetPoint("TOPLEFT", view, "TOPRIGHT", 12, 0); card:SetPoint("BOTTOMRIGHT", keysPane, "TOPRIGHT", -12, -338)
 ns.RoundSkin(card, T.panel, { T.void[1], T.void[2], T.void[3], 0.45 })
 card.label = ns.Text(card, "bold", 15)
 card.label:SetPoint("TOPLEFT", 14, -12); card.label:SetPoint("RIGHT", -80, 0); card.label:SetJustifyH("LEFT"); card.label:SetWordWrap(false)
@@ -317,20 +330,21 @@ end)
 card.clear:HookScript("OnLeave", GameTooltip_Hide)
 -- Dot legend: what the four dots on a key mean.
 card.legend = CreateFrame("Frame", nil, card)
-card.legend:SetPoint("TOPLEFT", 14, -134); card.legend:SetSize(420, 14)
+card.legend:SetPoint("TOPLEFT", 14, -132); card.legend:SetSize(320, 32)
 do
-  local x = 0
-  for _, id in ipairs(DOTS) do
-    local d = ns.Shape(card.legend, "Dot", "ARTWORK"); d:SetSize(9, 9); d:SetPoint("LEFT", x, 0); d:SetVertexColor(unpack(T.void))
-    local t = ns.Text(card.legend, "mono", 10, T.muted); t:SetPoint("LEFT", d, "RIGHT", 4, 0); t:SetText(L["SLOT_" .. id])
-    x = x + 9 + 4 + t:GetStringWidth() + 12
+  local function dot(x, y, color, text, kind)
+    local d = ns.Shape(card.legend, "Dot", "ARTWORK"); d:SetSize(9, 9); d:SetPoint("TOPLEFT", x, y); d:SetVertexColor(unpack(color))
+    local t = ns.Text(card.legend, kind, kind == "mono" and 10 or 12, T.muted); t:SetPoint("LEFT", d, "RIGHT", 4, 0); t:SetText(text)
+    return x + 9 + 4 + t:GetStringWidth() + 12
   end
-  local t = ns.Text(card.legend, "body", 12, T.muted); t:SetPoint("LEFT", x, 0); t:SetText(L.DOT_LEGEND)
+  local x = 0
+  for _, id in ipairs(DOTS) do x = dot(x, -2, T.void, L["SLOT_" .. id], "mono") end
+  x = dot(0, -20, T.void, L.DOT_SPELL, "body")
+  dot(x, -20, T.brass, L.DOT_SPECIAL, "body")
 end
-card.msg = ns.Text(card, "body", 13, T.blood)
 card.swapTip = ns.Text(card, "body", 12, T.muted)
-card.swapTip:SetPoint("TOPLEFT", 14, -152); card.swapTip:SetText(L.SWAP_TIP)
-card.msg:SetPoint("TOPLEFT", 14, -172); card.msg:SetPoint("RIGHT", -14, 0); card.msg:SetJustifyH("LEFT")
+card.swapTip:SetPoint("TOPLEFT", 14, -172); card.swapTip:SetText(L.SWAP_TIP)
+card.msg:SetPoint("TOPLEFT", 14, -192); card.msg:SetPoint("RIGHT", -14, 0); card.msg:SetJustifyH("LEFT")
 card.hint = ns.Text(card, "body", 12, T.muted) -- switch OFF: Apply only writes the macro
 card.hint:SetPoint("BOTTOMLEFT", 14, 12); card.hint:SetPoint("RIGHT", -14, 0); card.hint:SetJustifyH("LEFT")
 
@@ -369,17 +383,34 @@ local function swapSlots(a, b)
   slots[a], slots[b] = slots[b], slots[a]
   commit(function() slots[a], slots[b] = slots[b], slots[a] end)
 end
+local ghost = CreateFrame("Frame", nil, UIParent)
+ghost:SetFrameStrata("TOOLTIP"); ghost:SetSize(170, 30); ghost:Hide()
+ns.RoundSkin(ghost, T.panel2, T.brass)
+ghost.iconF = ns.IconFrame(ghost, 20); ghost.iconF:SetPoint("LEFT", 6, 0)
+ghost.text = ns.Text(ghost, "body", 13); ghost.text:SetPoint("LEFT", ghost.iconF, "RIGHT", 6, 0)
+ghost.text:SetPoint("RIGHT", -8, 0); ghost.text:SetJustifyH("LEFT"); ghost.text:SetWordWrap(false)
+ghost:SetScript("OnUpdate", function(self)
+  local x, y = GetCursorPosition()
+  local sc = self:GetEffectiveScale()
+  self:ClearAllPoints(); self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / sc + 14, y / sc - 10)
+end)
+local MOVE_CURSOR = "Interface\\CURSOR\\UI-Cursor-Move"
 local function dragStart(c)
   if not current then return end
   dragFrom = c.id
-  SetCursor("Interface\\CURSOR\\UI-Cursor-Move")
+  SetCursor(MOVE_CURSOR)
   c.rLine:SetVertexColor(unpack(T.brass))
+  local s = setupOf(current).slots[c.id]
+  local tex, label = ns.SlotView(s)
+  ghost.iconF:SetShown(tex ~= nil); if tex then ghost.iconF.tex:SetTexture(tex) end
+  ghost.text:SetText(L["SLOT_" .. c.id] .. ": " .. (label or L.EMPTY))
+  ghost:Show()
 end
 local function dragStop(c)
   if not dragFrom then return end
   local from = dragFrom
   dragFrom = nil
-  ResetCursor()
+  ghost:Hide(); ResetCursor()
   for _, t in pairs(cols) do t.rLine:SetVertexColor(unpack(T.line)) end
   for id, t in pairs(cols) do
     if id ~= from and t:IsMouseOver() then return swapSlots(from, id) end
@@ -387,17 +418,36 @@ local function dragStop(c)
 end
 for i, id in ipairs(ns.COLUMNS) do
   local c = CreateFrame("Frame", nil, keysPane)
-  c:SetSize(180, 350); c:SetPoint("TOPLEFT", 12 + (i - 1) * 189, -296)
+  c:SetSize(180, 340); c:SetPoint("TOPLEFT", 12 + (i - 1) * 189, -348)
   ns.RoundSkin(c, T.panel, T.line)
   c:EnableMouse(true); c:RegisterForDrag("LeftButton") -- drag from the header or any empty spot
   c:SetScript("OnDragStart", dragStart); c:SetScript("OnDragStop", dragStop)
   c:SetScript("OnHide", dragStop) -- window closed mid-drag: cursor back, no swap
-  c:SetScript("OnEnter", function(self) if dragFrom and dragFrom ~= self.id then self.rLine:SetVertexColor(unpack(T.fel)) end end)
-  c:SetScript("OnLeave", function(self) if dragFrom and dragFrom ~= self.id then self.rLine:SetVertexColor(unpack(T.line)) end end)
+  c.band = ns.Shape(c, "Round", "BACKGROUND", -5); c.band:SetVertexColor(unpack(T.panel2))
+  c.band:SetPoint("TOPLEFT", 2, -2); c.band:SetPoint("TOPRIGHT", -2, -2); c.band:SetHeight(28)
+  c.grip = {}
+  for g = 0, 5 do
+    local d = ns.Shape(c, "Dot", "ARTWORK"); d:SetSize(4, 4); d:SetVertexColor(unpack(T.muted))
+    d:SetPoint("TOPLEFT", 9 + (g % 2) * 5, -9 - math.floor(g / 2) * 5); c.grip[#c.grip + 1] = d
+  end
+  local function lit(self, on)
+    self.band:SetVertexColor(unpack(on and T.keyTop or T.panel2))
+    for _, d in ipairs(self.grip) do d:SetVertexColor(unpack(on and T.brass or T.muted)) end
+  end
+  c:SetScript("OnEnter", function(self)
+    if dragFrom then
+      if dragFrom ~= self.id then self.rLine:SetVertexColor(unpack(T.fel)) end
+    elseif current then lit(self, true); SetCursor(MOVE_CURSOR) end
+  end)
+  c:SetScript("OnLeave", function(self)
+    if dragFrom then
+      if dragFrom ~= self.id then self.rLine:SetVertexColor(unpack(T.line)) end
+    else lit(self, false); ResetCursor() end
+  end)
   c.id = id
-  c.mod = ns.Chip(c, "mono", 9); c.mod:SetPoint("TOPLEFT", 8, -8); c.mod:Set(L["SLOT_" .. id], 8)
+  c.mod = ns.Chip(c, "mono", 9); c.mod:SetPoint("TOPLEFT", 22, -8); c.mod:Set(L["SLOT_" .. id], 8)
   c.key = ns.Text(c, "mono", 11, T.muted); c.key:SetPoint("LEFT", c.mod, "RIGHT", 6, 0)
-  c.key:SetWidth(54); c.key:SetJustifyH("LEFT"); c.key:SetWordWrap(false)
+  c.key:SetWidth(40); c.key:SetJustifyH("LEFT"); c.key:SetWordWrap(false)
   -- Clear: same path as the picker's Clear slot.
   c.del = ns.Button(c, 54, 18, L.CLEAR_SHORT, T.blood)
   c.del:SetPoint("TOPRIGHT", -8, -8)
@@ -535,7 +585,7 @@ end
 local function drawColumn(c, setup)
   local s = setup.slots[c.id]
   local item, pet, seq = s and s.item, ns.IsPetSlot(s), s and s.seq
-  c.key:SetText(L["KEY_" .. current] or current)
+  c.key:SetText(ns.ShortKey(current))
   c.del:SetShown(s ~= nil)
   c.mo:SetShown(s ~= nil and not seq)
   c.mo:SetChecked(s and s.mouseover or false); c.mo:SetEnabled(s ~= nil and not item and not pet) -- no mouseover on items/pet
@@ -756,7 +806,10 @@ f:SetScript("OnShow", function(self)
 end)
 f:SetScript("OnHide", function(self) for _, e in ipairs(LIVE) do self:UnregisterEvent(e) end end)
 local function loaded(id)
-  for _, b in pairs(keyButtons) do if b.big.spellID == id then b.big.tex:SetTexture(ns.SpellIcon(id)) end end
+  for _, b in pairs(keyButtons) do
+    if b.big.spellID == id then b.big.tex:SetTexture(ns.SpellIcon(id)) end
+    if b.withF.spellID == id then b.withF.tex:SetTexture(ns.SpellIcon(id)) end
+  end
   for _, c in pairs(cols) do
     for _, r in ipairs(c.steps) do if r:IsShown() and r.spellID == id then r.icon:SetTexture(ns.SpellIcon(id)) end end
     for _, w in ipairs(c.with) do if w:IsShown() and w.spellID == id then w.iconF.tex:SetTexture(ns.SpellIcon(id)) end end
