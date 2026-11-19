@@ -20,19 +20,28 @@ ns.ITEMS = { "HS", "POT", "BAND", "BOMB" }
 ns.RANKS = {
   HS = { "Major Healthstone", "Greater Healthstone", "Healthstone", "Lesser Healthstone", "Minor Healthstone" },
   POT = { "Major Healing Potion", "Superior Healing Potion", "Greater Healing Potion", "Healing Potion",
-    "Discolored Healing Potion", "Lesser Healing Potion", "Minor Healing Potion" },
-  BAND = { "Heavy Runecloth Bandage", "Runecloth Bandage", "Heavy Mageweave Bandage", "Mageweave Bandage",
-    "Heavy Silk Bandage", "Silk Bandage", "Heavy Wool Bandage", "Wool Bandage", "Heavy Linen Bandage", "Linen Bandage" },
-  BOMB = { "Dark Iron Bomb", "Thorium Grenade", "Hi-Explosive Bomb", "Mithril Frag Bomb", "Big Iron Bomb", "Iron Grenade",
-    "Big Bronze Bomb", "Small Bronze Bomb", "Large Copper Bomb", "Rough Copper Bomb" },
+    "Lesser Healing Potion", "Minor Healing Potion", "Major Discolored Healing Potion", "Superior Discolored Healing Potion",
+    "Greater Discolored Healing Potion", "Discolored Healing Potion", "Lesser Discolored Healing Potion",
+    "Minor Discolored Healing Potion" },
+  BAND = { "Dense Runecloth Bandage", "Crystal Infused Bandage", "Heavy Runecloth Bandage", "Runecloth Bandage",
+    "Heavy Mageweave Bandage", "Mageweave Bandage", "Heavy Silk Bandage", "Silk Bandage", "Heavy Wool Bandage",
+    "Wool Bandage", "Heavy Linen Bandage", "Linen Bandage" },
+  BOMB = { "Dark Iron Bomb", "EZ-Thro Dark Bomb", "Thorium Grenade", "EZ-Thro Thorium Grenade", "Hi-Explosive Bomb",
+    "Mithril Frag Bomb", "Tru-Trigger Frag Bomb", "Big Iron Bomb", "SAF-T Bomb", "Iron Grenade", "Big Bronze Bomb",
+    "Small Bronze Bomb", "SAF-T Bronze Bomb", "Large Copper Bomb", "EZ-Thro Copper Bomb XL", "Rough Copper Bomb",
+    "SAF-T Copper Bomb" },
 }
--- Same order by itemID (Classic-era IDs; talented Healthstones above the plain one). Bags match by ID
--- first, so non-English clients work; the names above stay as a fallback for IDs not listed here.
+-- Same order by itemID, checked on wowhead.com/forever (2026-11-18). Bags match by ID first, so
+-- non-English clients work; the names above stay as a fallback for IDs not listed here.
+-- HS: on Forever each base stone heals like its best talented one, the middle one is lower.
+-- POT: plain first; a Discolored potion deals 75% of its heal back over time.
+-- BOMB: each Classic bomb (needs Engineering) next to its Forever copy anyone can use (EZ-Thro, SAF-T, Tru-Trigger).
 ns.RANK_IDS = {
-  HS = { 19013, 19012, 9421, 19011, 19010, 5510, 19009, 19008, 5509, 19007, 19006, 5511, 19005, 19004, 5512 },
-  POT = { 13446, 3928, 1710, 929, 4596, 858, 118 },
-  BAND = { 14530, 14529, 8545, 8544, 6451, 6450, 3531, 3530, 2581, 1251 },
-  BOMB = { 16005, 15993, 10562, 10514, 4394, 4390, 4380, 4374, 4370, 4360 },
+  HS = { 19013, 9421, 19012, 19011, 5510, 19010, 19009, 5509, 19008, 19007, 5511, 19006, 19005, 5512, 19004 },
+  POT = { 13446, 3928, 1710, 929, 858, 118, 241650, 247242, 247241, 247240, 247239, 4596 },
+  BAND = { 232433, 23684, 14530, 14529, 8545, 8544, 6451, 6450, 3531, 3530, 2581, 1251 },
+  BOMB = { 16005, 260817, 15993, 260816, 10562, 10514, 260809, 4394, 260805, 4390, 4380, 4374, 260797, 4370, 260795,
+    4360, 260793 },
 }
 -- Shown with no item in the bags. ponytail: English names, so a non-English client gets a /use that fails until an item is in the bags.
 ns.ITEM_DEFAULT = { HS = "Healthstone", POT = "Healing Potion", BAND = "Linen Bandage", BOMB = "Rough Copper Bomb" }

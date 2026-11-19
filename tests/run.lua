@@ -114,6 +114,14 @@ test("ranking matches by itemID on non-English clients, name as fallback", funct
   eq(core.BestItems({ [99999] = "Wool Bandage" }).BAND.id, 99999) -- unknown Forever ID, English name
 end)
 
+test("Forever IDs: new items rank in place, base Major stone above the middle talented one", function()
+  eq(core.BestItems({ [14530] = "", [232433] = "" }).BAND.id, 232433) -- Dense Runecloth over Heavy Runecloth
+  eq(core.BestItems({ [19012] = "", [9421] = "" }).HS.id, 9421) -- 1440 over 1320 on Forever
+  eq(core.BestItems({ [241650] = "", [929] = "" }).POT.id, 929) -- plain potion before Discolored
+  local noEng = function(id) return id ~= 16005 end -- Classic bomb needs Engineering
+  eq(core.BestItems({ [16005] = "", [260817] = "" }, noEng).BOMB.id, 260817)
+end)
+
 test("new spell slot: mouseover on for harm/help into an empty slot, kept when replacing", function()
   eq(core.NewSlot(1, "A", "harm").mouseover, true); eq(core.NewSlot(1, "A", "help").mouseover, true)
   eq(core.NewSlot(1, "A", "other").mouseover, false)
