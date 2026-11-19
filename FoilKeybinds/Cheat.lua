@@ -10,7 +10,6 @@ local L, T = ns.L, ns.T
 local COLS = { "normal", "shift", "alt", "altshift", "ctrl" } -- left to right
 local MODS = { "shift", "alt", "altshift", "ctrl" } -- small icons on a keyboard key, same order
 local PAD, TOP, HEAD = 8, 32, 18
-local QUESTION = 134400
 
 local function db()
   FoilKeybindsDB.cheat = FoilKeybindsDB.cheat or {}
@@ -84,6 +83,8 @@ local cells, live = {}, {} -- every icon cell (for the lock); cells shown by the
 local function newCell(parent, slot)
   local cell = ns.IconFrame(parent, 24)
   cell.slot, cell.cheat = slot, true
+  cell.badge = shade(ns.Text(cell, "mono", 10)) -- sequence length
+  cell.badge:SetPoint("BOTTOMRIGHT", 1, 0)
   cell:RegisterForDrag("LeftButton") -- cells take the mouse for tooltips, so they pass drags on
   cell:SetScript("OnDragStart", startMove); cell:SetScript("OnDragStop", stopMove)
   cell:SetScript("OnMouseWheel", wheel)
@@ -138,13 +139,10 @@ local function paint()
 end
 
 local function fill(cell, s)
-  local tex, name, known, spellID
-  if ns.IsPetSlot(s) then tex, name, known = ns.PetIcon(s), ns.PetLabel(s), true
-  elseif s and s.item then tex, name, known = ns.ItemIcon(s.item), ns.ItemLabel(s.item), true
-  elseif s and s.name then
-    tex, name, known, spellID = ns.SpellIcon(s.spellID) or QUESTION, s.name, ns.IsKnown(s.spellID), s.spellID
-  end
+  local tex, name, known, spellID, count = ns.SlotView(s)
   cell.name, cell.known, cell.spellID = name, known, spellID
+  cell.badge:SetFontObject(ns.Font("mono", cell:GetWidth() < 18 and 8 or 10))
+  cell.badge:SetText(count or ""); cell.badge:SetShown(count ~= nil)
   cell.tex:SetTexture(tex); cell.tex:SetShown(tex ~= nil); cell.tex:SetDesaturated(name ~= nil and not known)
   local edge = name and { T.brass[1], T.brass[2], T.brass[3], 0.55 } or T.line
   cell:SetBackdropBorderColor(unpack(edge))
@@ -275,6 +273,7 @@ end
 local function refresh()
   local s = ns.S
   local applied = FoilKeybindsDB.applied or {}
+  ns.ResetLearned()
   local list, seen, extra = {}, {}, {}
   for _, k in ipairs(ns.KEY_ORDER) do
     if applied[k] then list[#list + 1] = k; seen[k] = true end
@@ -337,7 +336,7 @@ end
 p.close:SetScript("OnClick", function() ns.ToggleCheat(false) end)
 lock:SetScript("OnClick", function(self) ns.SetSetting("cheatLock", self:GetChecked() and true or false) end)
 
-local LIVE = { "MODIFIER_STATE_CHANGED", "SPELLS_CHANGED", "PLAYER_LEVEL_UP" }
+local LIVE = { "MODIFIER_STATE_CHANGED", "SPELLS_CHANGED", "PLAYER_LEVEL_UP", "SPELL_DATA_LOAD_RESULT" }
 p:SetScript("OnShow", function(self)
   for _, e in ipairs(LIVE) do self:RegisterEvent(e) end
   refresh()
@@ -346,8 +345,12 @@ p:SetScript("OnHide", function(self)
   for _, e in ipairs(LIVE) do self:UnregisterEvent(e) end
 end)
 p:RegisterEvent("PLAYER_LOGIN")
-p:SetScript("OnEvent", function(self, event)
+p:SetScript("OnEvent", function(self, event, id)
   if event == "MODIFIER_STATE_CHANGED" then return paint() end
+  if event == "SPELL_DATA_LOAD_RESULT" then -- only the cells showing that spell
+    for _, cell in ipairs(live) do if cell.spellID == id then cell.tex:SetTexture(ns.SpellIcon(id)) end end
+    return
+  end
   if event == "PLAYER_LOGIN" then
     local c, scale = db(), ns.S.cheatScale
     self:SetScale(scale) -- scale before the point: offsets are in the frame's scale

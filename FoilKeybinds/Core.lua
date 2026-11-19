@@ -63,8 +63,8 @@ function ns.NewSlot(spellID, name, kind, old)
   return { spellID = spellID, name = name, kind = kind, mouseover = mo }
 end
 
--- With an item on the key, /use and /cast both run on one press, so every clause gets a
--- condition that excludes the other slots (and normal loses its bare fallback).
+-- With an item (or a sequence) on the key, /use, /castsequence and /cast all run on one press,
+-- so every clause gets a condition that excludes the other slots (and normal loses its bare fallback).
 local EXCL = { altshift = "mod:alt,mod:shift", ctrl = "mod:ctrl,nomod:alt", shift = "mod:shift,nomod:alt,nomod:ctrl",
   alt = "mod:alt,nomod:shift,nomod:ctrl", normal = "nomod" }
 
@@ -76,17 +76,31 @@ ns.PET_SPECIAL = {
   WARLOCK = { { "Felhunter", "Spell Lock" }, { "Succubus/Incubus", "Seduction" }, { "Voidwalker", "Sacrifice" } },
 }
 
--- setup = { slots = { normal = { spellID, name, mouseover, kind } or { item = "HS" }, ... }, targetEnemy, petAttack }
+-- One /castsequence line: s = { seq = { { spellID, name, kind }, ... }, reset = { target, combat, secs } }.
+-- ponytail: syntax with conditions and reset= unverified on Forever, check in game.
+local function seqLine(s, cond, compact)
+  local r, list = {}, {}
+  local reset = s.reset or {}
+  if reset.target then r[#r + 1] = "target" end
+  if reset.combat then r[#r + 1] = "combat" end
+  if reset.secs then r[#r + 1] = tostring(reset.secs) end
+  for i, x in ipairs(s.seq) do list[i] = x.name end
+  local head = "/castsequence [" .. cond .. "]" .. (compact and "" or " ")
+  if #r > 0 then head = head .. "reset=" .. table.concat(r, "/") .. " " end
+  return head .. table.concat(list, compact and "," or ", ")
+end
+
+-- setup = { slots = { normal = { spellID, name, mouseover, kind } or { item = "HS" } or a sequence, ... }, targetEnemy, petAttack }
 -- best = BestItems() output; an item missing from the bags falls back to its default name.
 -- class picks the PET_SPECIAL table (default ns.playerClass, set in game).
 function ns.MacroText(setup, best, class)
   best = best or {}
   local special = ns.PET_SPECIAL[class or ns.playerClass] or {}
-  local lines, casts, uses, pets = { "#showtooltip" }, {}, {}, {}
+  local lines, casts, uses, pets, seqs = { "#showtooltip" }, {}, {}, {}, {}
   if setup.targetEnemy then lines[#lines + 1] = "/targetenemy [noharm][dead]" end
   if setup.petAttack then lines[#lines + 1] = "/petattack [harm,nodead]" end
   local hasItem = false
-  for _, s in pairs(setup.slots) do if s.item or s.pet or s.petSpecial then hasItem = true end end
+  for _, s in pairs(setup.slots) do if s.item or s.pet or s.petSpecial or s.seq then hasItem = true end end
   local conds = hasItem and EXCL or COND
   local sl, sep, sp = setup.slots, "; ", " "
   if setup.compact then sep, sp = ";", "" end
@@ -97,7 +111,9 @@ function ns.MacroText(setup, best, class)
       if not sl.ctrl then cond = cond:gsub(",nomod:ctrl", "") end
       if not sl.altshift then cond = cond:gsub(",nomod:shift", ""):gsub(",nomod:alt", "") end
     end
-    if s and s.pet then
+    if s and s.seq then
+      seqs[#seqs + 1] = seqLine(s, cond, setup.compact)
+    elseif s and s.pet then
       pets[#pets + 1] = "/pet" .. s.pet .. " [" .. cond .. (s.pet == "moveto" and ",@cursor" or "") .. "]"
     elseif s and s.petSpecial then
       for _, p in ipairs(special) do casts[#casts + 1] = "[" .. cond .. ",pet:" .. p[1] .. "]" .. sp .. p[2] end
@@ -116,7 +132,8 @@ function ns.MacroText(setup, best, class)
   end
   for _, l in ipairs(pets) do lines[#lines + 1] = l end
   if #uses > 0 then lines[#lines + 1] = "/use " .. table.concat(uses, sep) end
-  if #casts > 0 or (#uses == 0 and #pets == 0) then lines[#lines + 1] = "/cast " .. table.concat(casts, sep) end
+  for _, l in ipairs(seqs) do lines[#lines + 1] = l end
+  if #casts > 0 or (#uses == 0 and #pets == 0 and #seqs == 0) then lines[#lines + 1] = "/cast " .. table.concat(casts, sep) end
   return table.concat(lines, "\n")
 end
 
@@ -166,7 +183,12 @@ end
 -- removal saves the most chars (ties: SLOTS order), repeat until it fits.
 -- Returns text, length, trimmed (slot ids that lost mouseover, apply them to saved data).
 -- Still over with no mouseover left: returns nil, length, trimmed, errSlot, where errSlot
--- is the slot with the longest spell name (the one most worth changing; item slots never are).
+-- is the slot with the longest text (the one most worth changing; item slots never are).
+-- A sequence counts with its whole spell list.
+local function textLen(s)
+  if s.seq then local n = 0; for _, x in ipairs(s.seq) do n = n + #x.name + 2 end; return n end
+  return s.name and #s.name
+end
 function ns.FitMacro(setup, best, class)
   local slots = {}
   for id, s in pairs(setup.slots) do slots[id] = ns.Copy(s) end
@@ -187,8 +209,8 @@ function ns.FitMacro(setup, best, class)
     if not pick then
       local errSlot
       for _, id in ipairs(ns.SLOTS) do
-        local s = slots[id]
-        if s and s.name and (not errSlot or #s.name > #slots[errSlot].name) then errSlot = id end
+        local n = slots[id] and textLen(slots[id])
+        if n and (not errSlot or n > textLen(slots[errSlot])) then errSlot = id end
       end
       return nil, #text, trimmed, errSlot
     end
@@ -302,8 +324,8 @@ end
 
 -- What's Training catalog -> future spells. Keeps trainer/quest spells (no pet tomes, weapon
 -- skills or pet abilities) with a name not in learned (name -> true). One entry per name:
--- level of the first rank, spellID of the highest rank (rank from subText, else level).
--- Returns { spellID, name, level, future = true }, sorted by level then name.
+-- level of the first rank, spellID and icon of the highest rank (rank from subText, else level).
+-- Returns { spellID, name, level, icon, future = true }, sorted by level then name.
 function ns.FutureFrom(catalog, learned)
   local byName, out = {}, {}
   for _, e in ipairs(catalog or {}) do
@@ -311,9 +333,9 @@ function ns.FutureFrom(catalog, learned)
       and not learned[e.name] then
       local r = tonumber(e.subText and e.subText:match("(%d+)")) or e.level
       local o = byName[e.name]
-      if not o then byName[e.name] = { spellID = e.id, name = e.name, level = e.level, r = r, future = true }
+      if not o then byName[e.name] = { spellID = e.id, name = e.name, level = e.level, icon = e.icon, r = r, future = true }
       else
-        if r > o.r then o.spellID, o.r = e.id, r end
+        if r > o.r then o.spellID, o.icon, o.r = e.id, e.icon, r end
         o.level = math.min(o.level, e.level)
       end
     end
@@ -323,27 +345,76 @@ function ns.FutureFrom(catalog, learned)
   return out
 end
 
--- keys = key -> setup; lookup(spellID) -> current name or nil (nil = spell is gone).
--- Returns a repaired copy and a change list { key, slot, kind = "renamed"|"removed", old, new }.
--- Item slots are never touched.
-function ns.Repair(keys, lookup)
+-- keys = key -> setup; lookup(spellID) -> current name, false (spell is gone) or nil (not loaded
+-- yet: left as it is). byName(name) -> spellID or nil, fills slots stored without an ID (silent).
+-- Returns a repaired copy and a change list { key, slot, kind = "renamed"|"removed", old, new, pos },
+-- pos = place in a sequence. A sequence left with one spell becomes a plain slot, with none it is cleared.
+-- Item and pet slots are never touched.
+function ns.Repair(keys, lookup, byName)
   local out, changes = ns.Copy(keys), {}
+  local function fix(key, slot, s, pos) -- false when the spell is gone
+    if not s.spellID and byName then s.spellID = byName(s.name) end
+    if not s.spellID then return true end
+    local now = lookup(s.spellID)
+    if now == false then
+      changes[#changes + 1] = { key = key, slot = slot, kind = "removed", old = s.name, pos = pos }
+      return false
+    end
+    if now and now ~= s.name then
+      changes[#changes + 1] = { key = key, slot = slot, kind = "renamed", old = s.name, new = now, pos = pos }
+      s.name = now
+    end
+    return true
+  end
   for key, setup in pairs(out) do
     for _, id in ipairs(ns.SLOTS) do
       local s = setup.slots and setup.slots[id]
-      if s and s.spellID then
-        local now = lookup(s.spellID)
-        if not now then
-          setup.slots[id] = nil
-          changes[#changes + 1] = { key = key, slot = id, kind = "removed", old = s.name }
-        elseif now ~= s.name then
-          changes[#changes + 1] = { key = key, slot = id, kind = "renamed", old = s.name, new = now }
-          s.name = now
-        end
+      if s and s.seq then
+        local kept = {}
+        for i, x in ipairs(s.seq) do if fix(key, id, x, i) then kept[#kept + 1] = x end end
+        if #kept == 0 then setup.slots[id] = nil
+        elseif #kept == 1 then setup.slots[id] = ns.Unseq(kept[1])
+        else s.seq = kept end
+      elseif s and s.name and not fix(key, id, s) then
+        setup.slots[id] = nil
       end
     end
   end
   return out, changes
+end
+
+-- Sequence spell back to a plain slot (one spell left), mouseover off.
+function ns.Unseq(x) return { spellID = x.spellID, name = x.name, kind = x.kind, mouseover = false } end
+
+-- A stored spell counts as known when its ID is known or any spell with its name is learned
+-- (picker stores the highest rank; the macro casts by name, so the learned rank fires).
+-- knownID(spellID) -> bool, learned = name -> true.
+function ns.Known(spellID, name, knownID, learned)
+  return (spellID ~= nil and knownID(spellID)) or (name ~= nil and learned[name]) or false
+end
+
+-- Item swap chat lines: one entry per applied key and item slot whose best item changed.
+-- old/new = BestItems() output. Returns { key, slot, from, to } (names, nil = none), sorted.
+function ns.ItemChanges(old, new, applied)
+  local out = {}
+  for key, setup in pairs(applied or {}) do
+    for _, id in ipairs(ns.SLOTS) do
+      local s = setup.slots[id]
+      local a, b = s and s.item and old[s.item], s and s.item and new[s.item]
+      if s and s.item and (a and a.id) ~= (b and b.id) then
+        out[#out + 1] = { key = key, slot = id, from = a and a.name, to = b and b.name }
+      end
+    end
+  end
+  table.sort(out, function(x, y) if x.key ~= y.key then return x.key < y.key end return x.slot < y.slot end)
+  return out
+end
+
+-- Master switch start state: a saved value wins; first time, ON only for a character that
+-- already has applied keys (an existing setup keeps working), OFF on a fresh install.
+function ns.ManageStart(saved, applied)
+  if saved ~= nil then return saved end
+  return applied ~= nil and next(applied) ~= nil
 end
 
 -- GrimorioSetup import. data = GrimorioSetupData; lookup(name) -> spellID, kind (both may be nil).

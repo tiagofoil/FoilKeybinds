@@ -163,7 +163,8 @@ test("FitMacro keeps item slots and passes best through", function()
   eq(text, T .. "/use [nomod] item:14530\n/cast [mod:ctrl,nomod:alt] X")
 end)
 
-local function names(t) return function(id) return t[id] end end
+-- Repair lookup: name, false = removed, nil = not loaded yet. Missing from t means removed.
+local function names(t) return function(id) if t[id] == nil then return false end return t[id] end end
 local function ids(id, name) return { spellID = id, name = name, mouseover = true, kind = "harm" } end
 test("repair renames a spell by spellID and keeps the other fields", function()
   local keys = { Q = { targetEnemy = true, slots = { normal = ids(1, "Old"), shift = it("HS") } } }
@@ -398,6 +399,111 @@ test("Snap gives clean step values for slider text", function()
   local r = core.SETTING_RANGES.scale
   eq(core.Snap(1.1000000001, r), 1.1); eq(core.Snap(0.7 + 0.05 * 8, r), 1.1); eq(core.Snap(1.124, r), 1.1)
   eq(("%.2fx"):format(core.Snap(1.126, r)), "1.15x")
+end)
+
+
+test("repair: not loaded yet leaves the slot, removed still removes", function()
+  local keys = { Q = { slots = { normal = ids(1, "A"), shift = ids(2, "B") } } }
+  local out, ch = core.Repair(keys, function(id) if id == 2 then return false end end)
+  eq(out.Q.slots.normal.name, "A"); eq(out.Q.slots.shift, nil); eq(#ch, 1); eq(ch[1].kind, "removed")
+end)
+test("repair fills a nil spellID from the name lookup, silently", function()
+  local keys = { Q = { slots = { normal = { name = "Fear", kind = "harm" }, shift = { name = "Nope" } } } }
+  local out, ch = core.Repair(keys, names({ [41] = "Fear" }), function(n) return n == "Fear" and 41 or nil end)
+  eq(out.Q.slots.normal.spellID, 41); eq(out.Q.slots.shift.spellID, nil); eq(out.Q.slots.shift.name, "Nope"); eq(#ch, 0)
+end)
+
+test("Known: same rank, other rank by name, not known", function()
+  local function knownID(id) return id == 5 end
+  local learned = { Immolate = true }
+  eq(core.Known(5, "Shadow Bolt", knownID, learned), true)
+  eq(core.Known(9, "Immolate", knownID, learned), true) -- stored highest rank, rank 1 learned
+  eq(core.Known(9, "Fear", knownID, learned), false)
+  eq(core.Known(nil, "Immolate", knownID, learned), true)
+  eq(core.Known(nil, nil, knownID, learned), false)
+end)
+
+test("ItemChanges: one entry per key and item slot that changed, sorted", function()
+  local applied = { Q = { slots = { normal = it("POT"), shift = sp("X") } }, E = { slots = { alt = it("POT"), ctrl = it("HS") } },
+    R = { slots = { normal = sp("Y") } } }
+  local old = { POT = { id = 929, name = "Healing Potion" }, HS = { id = 5512, name = "Healthstone" } }
+  local new = { POT = { id = 1710, name = "Greater Healing Potion" }, HS = { id = 5512, name = "Healthstone" } }
+  local ch = core.ItemChanges(old, new, applied)
+  eq(#ch, 2)
+  eq(ch[1].key .. ch[1].slot .. ch[1].from .. ">" .. ch[1].to, "EaltHealing Potion>Greater Healing Potion")
+  eq(ch[2].key .. ch[2].slot, "Qnormal")
+  eq(#core.ItemChanges(new, new, applied), 0)
+  local gone = core.ItemChanges(old, {}, { Q = { slots = { normal = it("HS") } } })
+  eq(#gone, 1); eq(gone[1].from, "Healthstone"); eq(gone[1].to, nil)
+end)
+
+test("ManageStart: saved value wins, else ON only with applied keys", function()
+  eq(core.ManageStart(nil, nil), false); eq(core.ManageStart(nil, {}), false)
+  eq(core.ManageStart(nil, { Q = {} }), true)
+  eq(core.ManageStart(false, { Q = {} }), false); eq(core.ManageStart(true, nil), true)
+end)
+
+local function seq(reset, ...) local l = {}; for i, n in ipairs({ ... }) do l[i] = sp(n) end; return { seq = l, reset = reset } end
+local TC = { target = true, combat = true }
+test("sequence on normal alone", function()
+  eq(core.MacroText({ slots = { normal = seq(TC, "A", "B", "C") } }), T .. "/castsequence [nomod] reset=target/combat A, B, C")
+end)
+for _, c in ipairs({ { "shift", "mod:shift,nomod:alt,nomod:ctrl" }, { "alt", "mod:alt,nomod:shift,nomod:ctrl" },
+  { "altshift", "mod:alt,mod:shift" }, { "ctrl", "mod:ctrl,nomod:alt" } }) do
+  test("sequence on " .. c[1] .. " alone", function()
+    eq(core.MacroText({ slots = { [c[1]] = seq(TC, "A", "B") } }), T .. "/castsequence [" .. c[2] .. "] reset=target/combat A, B")
+  end)
+end
+test("sequence with spell slots: exclusive conditions, no bare fallback", function()
+  eq(core.MacroText({ slots = { normal = sp("N", true), shift = seq(TC, "A", "B") } }),
+    T .. "/castsequence [mod:shift,nomod:alt,nomod:ctrl] reset=target/combat A, B\n/cast [nomod,@mouseover,harm,nodead][nomod] N")
+end)
+test("sequence with an item slot", function()
+  eq(core.MacroText({ slots = { normal = it("HS"), alt = seq(nil, "A", "B") } }, { HS = { id = 5512 } }),
+    T .. "/use [nomod] item:5512\n/castsequence [mod:alt,nomod:shift,nomod:ctrl] A, B")
+end)
+test("two sequences: one line each, clause order", function()
+  eq(core.MacroText({ slots = { normal = seq(nil, "A", "B"), altshift = seq(nil, "C", "D") } }),
+    T .. "/castsequence [mod:alt,mod:shift] C, D\n/castsequence [nomod] A, B")
+end)
+test("sequence reset options", function()
+  local function r(reset) return core.MacroText({ slots = { normal = seq(reset, "A", "B") } }) end
+  eq(r({ target = true }), T .. "/castsequence [nomod] reset=target A, B")
+  eq(r({ combat = true }), T .. "/castsequence [nomod] reset=combat A, B")
+  eq(r({}), T .. "/castsequence [nomod] A, B")
+  eq(r({ secs = 12 }), T .. "/castsequence [nomod] reset=12 A, B")
+  eq(r({ target = true, combat = true, secs = 8 }), T .. "/castsequence [nomod] reset=target/combat/8 A, B")
+end)
+test("sequence fits, fits after trim on other slots, or is blocked naming the sequence slot", function()
+  local text, n = core.FitMacro({ slots = { normal = seq(TC, "A", "B") } })
+  eq(text, T .. "/castsequence [nomod] reset=target/combat A, B"); eq(n, #text)
+  local l30 = ("x"):rep(30)
+  local setup = { slots = { shift = seq(TC, l30, l30, l30), alt = sp(l30, true), normal = sp(l30, true) } }
+  local t2, n2, trimmed = core.FitMacro(setup)
+  assert(t2 and n2 <= 255, "fits after trim, got " .. tostring(n2)); assert(#trimmed > 0)
+  local t3, n3, _, errSlot = core.FitMacro({ slots = { ctrl = seq(TC, l30, l30, l30, l30, l30, l30, l30), normal = sp(l30) } })
+  eq(t3, nil); assert(n3 > 255); eq(errSlot, "ctrl")
+end)
+test("compact sequence drops spaces", function()
+  local l = ("z"):rep(55)
+  local text = core.FitMacro({ slots = { normal = seq({ target = true }, l, l), shift = sp(l), alt = sp("A") } })
+  assert(text and text:find("/castsequence [nomod]reset=target " .. l .. "," .. l, 1, true), text)
+end)
+
+test("repair inside sequences: rename, remove, shrink to one, shrink to none, not loaded stays", function()
+  local s = { seq = { ids(1, "A"), ids(2, "B"), ids(3, "C") }, reset = TC }
+  local out, ch = core.Repair({ Q = { slots = { normal = s } } }, function(id) if id == 1 then return "A2" elseif id == 2 then return false end end)
+  local q = out.Q.slots.normal
+  eq(#q.seq, 2); eq(q.seq[1].name, "A2"); eq(q.seq[2].name, "C"); eq(q.reset.target, true)
+  eq(#ch, 2); eq(ch[1].kind .. ch[1].pos, "renamed1"); eq(ch[2].kind .. ch[2].pos .. ch[2].old, "removed2B")
+  out = core.Repair({ Q = { slots = { normal = { seq = { ids(1, "A"), ids(2, "B") }, reset = TC } } } }, names({ [1] = "A" }))
+  q = out.Q.slots.normal
+  eq(q.seq, nil); eq(q.name, "A"); eq(q.spellID, 1); eq(q.mouseover, false)
+  out, ch = core.Repair({ Q = { slots = { normal = { seq = { ids(1, "A"), ids(2, "B") } } } } }, names({}))
+  eq(out.Q.slots.normal, nil); eq(#ch, 2)
+  out, ch = core.Repair({ Q = { slots = { normal = { seq = { { name = "F" }, ids(2, "B") } } } } }, function() end,
+    function(n) return n == "F" and 9 or nil end)
+  eq(out.Q.slots.normal.seq[1].spellID, 9); eq(#ch, 0)
 end)
 
 for _, t in ipairs(tests) do

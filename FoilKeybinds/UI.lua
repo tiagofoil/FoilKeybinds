@@ -192,6 +192,9 @@ for _, k in ipairs(LAYOUT) do
       end)
       ic:SetScript("OnLeave", GameTooltip_Hide)
       ic:SetScript("OnMouseUp", function() selectKey(key) end) -- icon eats the click, forward it
+      ic.badge = ns.Text(ic, "mono", id == "normal" and 10 or 7) -- sequence length
+      ic.badge:SetPoint("BOTTOMRIGHT", id == "normal" and 2 or 3, id == "normal" and -1 or -2)
+      ic.badge:SetShadowColor(0, 0, 0, 1); ic.badge:SetShadowOffset(1, -1)
       ic.slot = id; b.icons[i] = ic
     end
     keyButtons[key] = b
@@ -215,17 +218,11 @@ refreshKeys = function()
       local s = setup and setup.slots[ic.slot]
       ic:SetShown(s ~= nil)
       if s then
-        if ns.IsPetSlot(s) then
-          ic.name, ic.known, ic.spellID = ns.PetLabel(s), true, nil
-          ic.tex:SetTexture(ns.PetIcon(s))
-        elseif s.item then
-          ic.name, ic.known, ic.spellID = ns.ItemLabel(s.item), true, nil
-          ic.tex:SetTexture(ns.ItemIcon(s.item))
-        else
-          ic.name, ic.known, ic.spellID = s.name, ns.IsKnown(s.spellID), s.spellID
-          ic.tex:SetTexture(ns.SpellIcon(s.spellID))
-        end
+        local tex, count
+        tex, ic.name, ic.known, ic.spellID, count = ns.SlotView(s)
+        ic.tex:SetTexture(tex)
         ic.tex:SetDesaturated(not ic.known); ic:SetAlpha(ic.known and 1 or 0.4)
+        ic.badge:SetText(count or ""); ic.badge:SetShown(count ~= nil)
       end
     end
   end
@@ -335,6 +332,7 @@ card.show:SetPoint("TOPLEFT", 0, -280)
 card.show:SetScript("OnClick", function() preview:SetShown(not preview:IsShown()); card:Refresh() end)
 
 function card:Refresh()
+  ns.ResetLearned()
   refreshKeys()
   if not current then
     self.label:SetText(L.PICK_KEY)
@@ -353,13 +351,14 @@ function card:Refresh()
     r.btn:Show(); r.mod:Show(); r.mo:Show()
     r.del:SetShown(s ~= nil)
     local item, pet = s and s.item, ns.IsPetSlot(s)
-    r.btn:SetText(pet and ns.PetLabel(s) or item and ns.ItemLabel(item) or s and s.name or L.EMPTY)
-    r.icon:SetTexture(pet and ns.PetIcon(s) or item and ns.ItemIcon(item) or s and ns.SpellIcon(s.spellID) or nil)
+    local tex, label, known, spellID = ns.SlotView(s)
+    r.btn:SetText(s and label or L.EMPTY)
+    r.icon:SetTexture(tex); r.spellID = spellID
     r.iconF:SetShown(s ~= nil)
     r.name:SetTextColor(unpack(s and T.ink or T.muted))
     -- Spell not learned yet: faded row, grey icon, level chip when What's Training knows it.
-    local future = s and not item and not pet and not ns.IsKnown(s.spellID)
-    local lv = future and ns.FutureLevel(s.spellID)
+    local future = s and not item and not pet and not known
+    local lv = future and ns.FutureLevel(spellID)
     r.btn:SetAlpha(future and 0.5 or 1); r.icon:SetDesaturated(future or false)
     if lv then r.lv:Set(L.LEVEL:format(lv), 8) end
     r.lv:SetShown(lv and true or false)
@@ -458,7 +457,7 @@ function picker:Render()
       else
         local extra = s.future and ("|cff93d35a" .. L.LEVEL:format(s.level) .. "|r") or s.sub and ("|cffa99bb7" .. s.sub .. "|r")
         b.text:SetText(extra and (s.name .. "  " .. extra) or s.name)
-        b.icon:SetTexture(ns.IsPetSlot(s) and ns.PetIcon(s) or s.item and ns.ItemIcon(s.item) or ns.SpellIcon(s.spellID))
+        b.icon:SetTexture(ns.IsPetSlot(s) and ns.PetIcon(s) or s.item and ns.ItemIcon(s.item) or ns.SpellIcon(s.spellID, s.icon))
         b.icon:SetDesaturated(s.future or false)
       end
     end
@@ -480,7 +479,23 @@ function picker:Choose(s)
   commit(function() slots[slot] = old end, slot)
 end
 
-f:SetScript("OnShow", function() ns.ScanBags(); card:Refresh() end)
+-- While shown: spells learned redraw the window, loaded spell data updates the icons of that spell.
+local LIVE = { "SPELLS_CHANGED", "SPELL_DATA_LOAD_RESULT" }
+f:SetScript("OnShow", function(self)
+  for _, e in ipairs(LIVE) do self:RegisterEvent(e) end
+  ns.ScanBags(); card:Refresh()
+end)
+f:SetScript("OnHide", function(self) for _, e in ipairs(LIVE) do self:UnregisterEvent(e) end end)
+local function loaded(id)
+  for _, b in pairs(keyButtons) do
+    for _, ic in ipairs(b.icons) do if ic.spellID == id then ic.tex:SetTexture(ns.SpellIcon(id)) end end
+  end
+  for _, r in pairs(rows) do if r.spellID == id then r.icon:SetTexture(ns.SpellIcon(id)) end end
+  for _, b in ipairs(picker.rows) do
+    if b:IsShown() and b.spell and b.spell.spellID == id then b.icon:SetTexture(ns.SpellIcon(id, b.spell.icon)) end
+  end
+  if ns.RefreshSeq then ns.RefreshSeq(id) end
+end
 function ns.Refresh()
   if f:IsShown() then card:Refresh() end
   if ns.RefreshCheat then ns.RefreshCheat() end -- the cheat sheet is often open with the window closed
@@ -489,7 +504,9 @@ end
 function FoilKeybinds_Toggle() f:SetShown(not f:IsShown()) end
 
 f:RegisterEvent("ADDON_LOADED")
-f:SetScript("OnEvent", function(_, _, name)
+f:SetScript("OnEvent", function(_, event, name)
+  if event == "SPELLS_CHANGED" then return card:Refresh() end
+  if event == "SPELL_DATA_LOAD_RESULT" then return loaded(name) end
   if name ~= "FoilKeybinds" then return end
   FoilKeybindsDB = FoilKeybindsDB or {}
   FoilKeybindsDB.keys = FoilKeybindsDB.keys or {}

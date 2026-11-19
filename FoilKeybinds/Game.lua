@@ -263,10 +263,25 @@ function ns.SpellKind(spellID)
   return "other"
 end
 
-function ns.SpellIcon(spellID)
-  if not spellID then return QUESTION end -- imported spell with unknown ID
-  if C_Spell and C_Spell.GetSpellTexture then return C_Spell.GetSpellTexture(spellID) end
-  if GetSpellTexture then return GetSpellTexture(spellID) end
+-- Spell data may not be loaded yet (texture nil): ask for it, show fallback (What's Training's
+-- icon) or "?" for now. SPELL_DATA_LOAD_RESULT then updates the cells that show this spellID.
+function ns.SpellIcon(spellID, fallback)
+  if not spellID then return fallback or QUESTION end -- imported spell with unknown ID
+  if C_Spell and C_Spell.IsSpellDataCached and not C_Spell.IsSpellDataCached(spellID) and C_Spell.RequestLoadSpellData then
+    C_Spell.RequestLoadSpellData(spellID)
+  end
+  local tex = C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spellID)
+    or GetSpellTexture and GetSpellTexture(spellID)
+  return tex or fallback or QUESTION
+end
+
+-- Spell by name in the player's spellbook: id and harmful/helpful kind (both nil when unknown).
+local function spellOf(name)
+  local id
+  if not name then return end
+  if C_Spell and C_Spell.GetSpellInfo then local info = C_Spell.GetSpellInfo(name); id = info and info.spellID
+  elseif GetSpellInfo then id = select(7, GetSpellInfo(name)) end
+  return id, id and ns.SpellKind(id) or nil
 end
 
 -- Stored spells the character does not know (yet) are faded on the canvas.
@@ -277,6 +292,35 @@ function ns.IsKnown(spellID)
   if IsPlayerSpell then return IsPlayerSpell(spellID) end
   if IsSpellKnown then return IsSpellKnown(spellID) end
   return true
+end
+
+-- Learned names (any rank), built once per refresh pass: frames call ResetLearned before drawing.
+local learnedNames
+function ns.ResetLearned() learnedNames = nil end
+local function learned()
+  if not learnedNames then
+    learnedNames = {}
+    for _, s in ipairs(ns.LearnedSpells()) do learnedNames[s.name] = true end
+  end
+  return learnedNames
+end
+function ns.IsKnownSlot(s) return ns.Known(s.spellID, s.name, ns.IsKnown, learned()) end
+
+-- What a slot shows: texture, name (tooltip), known, spellID, sequence length. A spell stored
+-- without an ID (GrimorioSetup import) gets it here once the spellbook has it.
+function ns.SlotView(s)
+  if not s then return end
+  if ns.IsPetSlot(s) then return ns.PetIcon(s), ns.PetLabel(s), true end
+  if s.item then return ns.ItemIcon(s.item), ns.ItemLabel(s.item), true end
+  local first = s.seq and s.seq[1] or s
+  if not first.spellID then first.spellID = (spellOf(first.name)) end
+  local name = first.name
+  if s.seq then
+    local l = {}
+    for i, x in ipairs(s.seq) do l[i] = x.name end
+    name = table.concat(l, " > ")
+  end
+  return ns.SpellIcon(first.spellID), name, ns.IsKnownSlot(first), first.spellID, s.seq and #s.seq
 end
 
 -- Learned, active (non passive, non future) spells from the player spellbook, sorted by name.
@@ -374,19 +418,22 @@ function ns.SwapItems()
   if ns.Refresh then ns.Refresh() end
 end
 
--- Current name of a spellID, nil when the client has no spell with that ID.
--- Assumption: spell names for valid IDs are in the client data at login (modern clients
--- ship the spell DB locally), so nil here means removed, not "not loaded yet".
+-- Repair lookup: current name of a spellID, false when the client has no such spell, nil when
+-- it cannot tell (data not loaded yet, or no DoesSpellExist): nil never removes anything.
 local function spellName(id)
-  if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(id) end
-  if C_Spell and C_Spell.GetSpellInfo then local info = C_Spell.GetSpellInfo(id); return info and info.name end
-  if GetSpellInfo then return (GetSpellInfo(id)) end
+  local n
+  if C_Spell and C_Spell.GetSpellName then n = C_Spell.GetSpellName(id)
+  elseif C_Spell and C_Spell.GetSpellInfo then local info = C_Spell.GetSpellInfo(id); n = info and info.name
+  elseif GetSpellInfo then n = GetSpellInfo(id) end
+  if n then return n end
+  if C_Spell and C_Spell.DoesSpellExist and not C_Spell.DoesSpellExist(id) then return false end
+  if C_Spell and C_Spell.RequestLoadSpellData then C_Spell.RequestLoadSpellData(id) end
 end
 
 -- Repair popup: one line per change, OK closes, Undo puts the pre-repair setups back.
 local popup
 local function changeLine(c)
-  local where = ("%s %s"):format(c.key, L["SLOT_" .. c.slot])
+  local where = ("%s %s"):format(c.key, L["SLOT_" .. c.slot]) .. (c.pos and (" #" .. c.pos) or "")
   if c.kind == "renamed" then return L.REPAIR_RENAMED:format(where, c.old, c.new) end
   return L.REPAIR_REMOVED:format(where, c.old or "?")
 end
@@ -416,15 +463,17 @@ end
 -- rebuilds the macros whose snapshot changed. Nothing changed: no popup, no macro edits.
 function ns.RepairOnLogin()
   local db = FoilKeybindsDB
-  local keys, keyChanges = ns.Repair(db.keys, spellName)
-  local applied, appChanges = ns.Repair(db.applied or {}, spellName)
+  local function idOf(name) return (spellOf(name)) end
+  local keys, keyChanges = ns.Repair(db.keys, spellName, idOf)
+  local applied, appChanges = ns.Repair(db.applied or {}, spellName, idOf)
+  local undo = { keys = db.keys, applied = db.applied }
+  db.keys, db.applied = keys, db.applied and applied -- filled IDs are kept even with no change to show
   if #keyChanges == 0 and #appChanges == 0 then return end
-  db.repairUndo = { keys = ns.Copy(db.keys), applied = ns.Copy(db.applied) }
-  db.keys, db.applied = keys, db.applied and applied
+  db.repairUndo = undo
   local changes, seen, touched = {}, {}, {}
   for _, list in ipairs({ keyChanges, appChanges }) do
     for _, c in ipairs(list) do
-      local id = c.key .. c.slot .. c.kind
+      local id = c.key .. c.slot .. c.kind .. (c.pos or "")
       if not seen[id] then seen[id] = true; changes[#changes + 1] = c end
     end
   end
@@ -448,12 +497,6 @@ function ns.UndoRepair()
 end
 
 -- One-time GrimorioSetup import: Warlock, GrimorioSetup loaded, no keys yet, never imported.
-local function spellOf(name)
-  local id
-  if C_Spell and C_Spell.GetSpellInfo then local info = C_Spell.GetSpellInfo(name); id = info and info.spellID
-  elseif GetSpellInfo then id = select(7, GetSpellInfo(name)) end
-  return id, id and ns.SpellKind(id) or nil
-end
 function ns.ImportOnLogin()
   local db = FoilKeybindsDB
   if not GrimorioSetupData or db.grimorioImported or next(db.keys) or select(2, UnitClass("player")) ~= "WARLOCK" then return end
