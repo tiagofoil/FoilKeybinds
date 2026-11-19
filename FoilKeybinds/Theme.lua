@@ -66,6 +66,37 @@ function ns.Gradient(parent, top, bottom, layer, sub)
   return t
 end
 
+-- White shape textures from Media (tools/make_media.py), tinted with SetVertexColor.
+-- Round and Dash are sliced (8 px margins) so the corners keep their shape at any size; Dash
+-- tiles its edges so the dashes keep their length. A client without slicing gets the flat square.
+local MEDIA = "Interface\\AddOns\\FoilKeybinds\\Media\\"
+ns.MEDIA = MEDIA
+local SLICE = Enum and Enum.UITextureSliceMode
+function ns.Shape(parent, file, layer, sub)
+  local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub)
+  local sliced = file == "Round" or file == "Dash"
+  if sliced and not (SLICE and t.SetTextureSliceMargins and t.SetTextureSliceMode) then
+    t:SetTexture(ns.WHITE)
+    if file == "Dash" then t:SetAlpha(0.25) end -- flat stand-in for the dashed line
+    return t
+  end
+  t:SetTexture(MEDIA .. file)
+  if sliced then
+    t:SetTextureSliceMargins(8, 8, 8, 8)
+    t:SetTextureSliceMode(file == "Dash" and SLICE.Tiled or SLICE.Stretched)
+  end
+  return t
+end
+
+-- Rounded box behind a frame: outline at full size, face 1px inside. Recolor with
+-- f.rLine:SetVertexColor / f.rFace:SetVertexColor.
+function ns.RoundSkin(f, bg, border)
+  f.rLine = ns.Shape(f, "Round", "BACKGROUND", -7); f.rLine:SetAllPoints()
+  f.rFace = ns.Shape(f, "Round", "BACKGROUND", -6)
+  f.rFace:SetPoint("TOPLEFT", 1, -1); f.rFace:SetPoint("BOTTOMRIGHT", -1, 1)
+  f.rLine:SetVertexColor(unpack(border or T.line)); f.rFace:SetVertexColor(unpack(bg or T.panel))
+end
+
 -- Dark window: gradient body, title bar with the display font, close button.
 function ns.Panel(name, parent, title)
   local p = CreateFrame("Frame", name, parent, "BackdropTemplate")

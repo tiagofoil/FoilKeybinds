@@ -9,3 +9,4 @@ ignore:
   - .scratch
   - .github
   - install.sh
+  - tools

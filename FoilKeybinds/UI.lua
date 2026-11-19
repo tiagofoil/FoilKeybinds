@@ -171,23 +171,49 @@ local linkGlow, linkCore = links:CreateLine(nil, "ARTWORK"), links:CreateLine(ni
 linkGlow:SetThickness(9); linkGlow:SetColorTexture(T.brass[1], T.brass[2], T.brass[3], 0.12)
 linkCore:SetThickness(2); linkCore:SetColorTexture(T.brass[1], T.brass[2], T.brass[3], 0.8)
 
--- Key face: border, top to bottom gradient, dark bottom edge (the page's 5px key-edge).
+-- Keycap: rounded outline, dark bottom edge, top to bottom gradient face (the page's 5px key-edge).
+-- b.line is the outline: idle, hover and selected colors all go through it.
 local function keyFace(b, top, bottom)
-  ns.Skin(b, T.keyBot, T.line)
-  b.face = ns.Gradient(b, top, bottom); b.face:SetPoint("TOPLEFT", 1, -1); b.face:SetPoint("BOTTOMRIGHT", -1, 5)
-  local edge = b:CreateTexture(nil, "BORDER"); edge:SetColorTexture(unpack(T.keyEdge))
-  edge:SetPoint("BOTTOMLEFT", 1, 1); edge:SetPoint("BOTTOMRIGHT", -1, 1); edge:SetHeight(4)
+  b.line = ns.Shape(b, "Round", "BACKGROUND", -6); b.line:SetAllPoints()
+  local edge = ns.Shape(b, "Round", "BACKGROUND", -5); edge:SetVertexColor(unpack(T.keyEdge))
+  edge:SetPoint("TOPLEFT", 1, -1); edge:SetPoint("BOTTOMRIGHT", -1, 1)
+  b.face = ns.Shape(b, "Round", "BACKGROUND", -4)
+  b.face:SetGradient("VERTICAL", CreateColor(unpack(bottom)), CreateColor(unpack(top)))
+  b.face:SetPoint("TOPLEFT", 1, -1); b.face:SetPoint("BOTTOMRIGHT", -1, 5)
+  b.line:SetVertexColor(unpack(T.line))
+end
+
+-- Keycap tooltip: all five slots in column order, with the not-learned line as before.
+local function keyTooltip(b, key)
+  GameTooltip:SetOwner(b, "ANCHOR_TOP")
+  GameTooltip:SetText(L.KEY:format(L["KEY_" .. key] or key))
+  local setup = FoilKeybindsDB.keys[key]
+  for _, id in ipairs(ns.COLUMNS) do
+    local s = setup and setup.slots[id]
+    if s then
+      local _, name, known, spellID = ns.SlotView(s)
+      GameTooltip:AddDoubleLine(L["SLOT_" .. id], name, 0.84, 0.69, 0.4, 1, 1, 1)
+      if not known then
+        local lv = ns.FutureLevel(spellID)
+        GameTooltip:AddLine(lv and L.NOT_KNOWN_LEVEL:format(lv) or L.NOT_KNOWN, 0.6, 0.6, 0.6)
+      end
+    else
+      GameTooltip:AddDoubleLine(L["SLOT_" .. id], L.EMPTY, 0.84, 0.69, 0.4, 0.5, 0.5, 0.5)
+    end
+  end
+  GameTooltip:Show()
 end
 
 local keyButtons, refreshKeys = {}, nil
+local DOTS = { "shift", "ctrl", "alt", "altshift" } -- ns.COLUMNS without normal
 ns.KEY_ORDER = {} -- editable keys in canvas order, for the cheat sheet
 for _, k in ipairs(LAYOUT) do
   local key = k[1]
-  local b = CreateFrame("Button", nil, board, "BackdropTemplate")
+  local b = CreateFrame("Button", nil, board)
   b:SetSize(K + ((k[4] or 1) - 1) * U, K)
   b:SetPoint("TOPLEFT", k[2] * U, -k[3] * U); b:SetFrameLevel(mouse:GetFrameLevel() + 2)
   b.label = ns.Text(b, "mono", 12)
-  b.label:SetPoint("TOPLEFT", 6, -6); b.label:SetText(L["KEY_" .. key] or key)
+  b.label:SetPoint("TOPLEFT", 8, -6); b.label:SetText(L["KEY_" .. key] or key)
   if k.move then
     keyFace(b, T.moveTop, T.moveBot)
     b.label:SetTextColor(0.44, 0.6, 0.46); b:EnableMouse(false)
@@ -195,41 +221,26 @@ for _, k in ipairs(LAYOUT) do
     keyFace(b, T.keyTop, T.keyBot)
     ns.KEY_ORDER[#ns.KEY_ORDER + 1] = key
     -- Selected glow: a brass ring just outside the key, softly pulsing.
-    b.glow = b:CreateTexture(nil, "BACKGROUND", nil, -8)
+    b.glow = ns.Shape(b, "Round", "BACKGROUND", -8)
     b.glow:SetPoint("TOPLEFT", -4, 4); b.glow:SetPoint("BOTTOMRIGHT", 4, -4)
-    b.glow:SetColorTexture(T.brass[1], T.brass[2], T.brass[3], 0.4); b.glow:Hide()
+    b.glow:SetVertexColor(T.brass[1], T.brass[2], T.brass[3], 0.4); b.glow:Hide()
     b.pulse = b.glow:CreateAnimationGroup(); b.pulse:SetLooping("BOUNCE")
     local a = b.pulse:CreateAnimation("Alpha"); a:SetFromAlpha(1); a:SetToAlpha(0.35); a:SetDuration(1.1); a:SetSmoothing("IN_OUT")
     b:SetScript("OnClick", function() selectKey(key) end)
-    b:SetScript("OnEnter", function(self) if key ~= current then self:SetBackdropBorderColor(unpack(T.brass)) end end)
-    b:SetScript("OnLeave", function(self) self:SetBackdropBorderColor(unpack(self.idle or T.line)) end)
-    b.icons = {}
-    local j = 0
-    for i, id in ipairs(ns.SLOTS) do
-      local ic
-      if id == "normal" then -- the plain press gets the big icon in the middle
-        ic = ns.IconFrame(b, 26); ic:SetPoint("CENTER", 0, 1); b.big = ic
-      else -- modifier slots: small icons along the bottom, card order
-        j = j + 1
-        ic = CreateFrame("Frame", nil, b); ic:SetSize(11, 11); ic:SetPoint("BOTTOM", (j - 2.5) * 12, 6)
-        ic.tex = ic:CreateTexture(nil, "ARTWORK"); ic.tex:SetAllPoints(); ic.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-      end
-      ic:EnableMouse(true)
-      ic:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(L["SLOT_" .. id] .. ": " .. self.name)
-        if not self.known then
-          local lv = ns.FutureLevel(self.spellID)
-          GameTooltip:AddLine(lv and L.NOT_KNOWN_LEVEL:format(lv) or L.NOT_KNOWN, 0.6, 0.6, 0.6)
-        end
-        GameTooltip:Show()
-      end)
-      ic:SetScript("OnLeave", GameTooltip_Hide)
-      ic:SetScript("OnMouseUp", function() selectKey(key) end) -- icon eats the click, forward it
-      ic.badge = ns.Text(ic, "mono", id == "normal" and 10 or 7) -- sequence length
-      ic.badge:SetPoint("BOTTOMRIGHT", id == "normal" and 2 or 3, id == "normal" and -1 or -2)
-      ic.badge:SetShadowColor(0, 0, 0, 1); ic.badge:SetShadowOffset(1, -1)
-      ic.slot = id; b.icons[i] = ic
+    b:SetScript("OnEnter", function(self)
+      if key ~= current then self.line:SetVertexColor(unpack(T.brass)) end
+      keyTooltip(self, key)
+    end)
+    b:SetScript("OnLeave", function(self) self.line:SetVertexColor(unpack(self.idle or T.line)); GameTooltip:Hide() end)
+    -- The plain press: big icon in the middle (the key takes the clicks), count badge for a sequence.
+    b.big = ns.IconFrame(b, 26); b.big:SetPoint("CENTER", 0, 3); b.big:EnableMouse(false)
+    b.big.badge = ns.Text(b.big, "mono", 10)
+    b.big.badge:SetPoint("BOTTOMRIGHT", 2, -1); b.big.badge:SetShadowColor(0, 0, 0, 1); b.big.badge:SetShadowOffset(1, -1)
+    -- Modifier slots: four dots along the bottom, filled when the slot is used.
+    b.dots = {}
+    for j, id in ipairs(DOTS) do
+      local d = ns.Shape(b, "Dot", "ARTWORK"); d:SetSize(9, 9); d:SetPoint("BOTTOM", (j - 2.5) * 13, 9)
+      d.slot = id; b.dots[j] = d
     end
     keyButtons[key] = b
   end
@@ -237,27 +248,28 @@ end
 
 function ns.SetKeyIconSize(n) for _, b in pairs(keyButtons) do b.big:SetSize(n, n) end end
 
--- Redraws every key: filled slots as icons (fixed spot per slot), selected key glows in brass.
+-- Redraws every key: plain press icon, filled dots, selected key glows in brass.
 refreshKeys = function()
   for key, b in pairs(keyButtons) do
     local setup = FoilKeybindsDB.keys[key]
     local filled = setup and next(setup.slots)
     local sel = key == current
     b.idle = sel and T.brass or filled and { T.void[1], T.void[2], T.void[3], 0.75 } or T.line
-    b:SetBackdropBorderColor(unpack(b.idle))
+    b.line:SetVertexColor(unpack(b.idle))
     b.label:SetTextColor(unpack((filled or sel) and T.ink or T.muted))
     b.glow:SetShown(sel)
     if sel then if not b.pulse:IsPlaying() then b.pulse:Play() end else b.pulse:Stop() end
-    for _, ic in ipairs(b.icons) do
-      local s = setup and setup.slots[ic.slot]
-      ic:SetShown(s ~= nil)
-      if s then
-        local tex, count
-        tex, ic.name, ic.known, ic.spellID, count = ns.SlotView(s)
-        ic.tex:SetTexture(tex)
-        ic.tex:SetDesaturated(not ic.known); ic:SetAlpha(ic.known and 1 or 0.4)
-        ic.badge:SetText(count or ""); ic.badge:SetShown(count ~= nil)
-      end
+    local s = setup and setup.slots.normal
+    b.big:SetShown(s ~= nil); b.big.spellID = nil
+    if s then
+      local tex, _, known, spellID, count = ns.SlotView(s)
+      b.big.tex:SetTexture(tex); b.big.spellID = spellID
+      b.big.tex:SetDesaturated(not known); b.big:SetAlpha(known and 1 or 0.4)
+      b.big.badge:SetText(count or ""); b.big.badge:SetShown(count ~= nil)
+    end
+    for _, d in ipairs(b.dots) do
+      local used = setup and setup.slots[d.slot]
+      if used then d:SetVertexColor(unpack(T.void)) else d:SetVertexColor(T.line[1], T.line[2], T.line[3], 0.9) end
     end
   end
   local b = current and keyButtons[current]
@@ -628,9 +640,7 @@ f:SetScript("OnShow", function(self)
 end)
 f:SetScript("OnHide", function(self) for _, e in ipairs(LIVE) do self:UnregisterEvent(e) end end)
 local function loaded(id)
-  for _, b in pairs(keyButtons) do
-    for _, ic in ipairs(b.icons) do if ic.spellID == id then ic.tex:SetTexture(ns.SpellIcon(id)) end end
-  end
+  for _, b in pairs(keyButtons) do if b.big.spellID == id then b.big.tex:SetTexture(ns.SpellIcon(id)) end end
   for _, r in pairs(rows) do if r.spellID == id then r.icon:SetTexture(ns.SpellIcon(id)) end end
   for _, b in ipairs(picker.rows) do
     if b:IsShown() and b.spell and b.spell.spellID == id then b.icon:SetTexture(ns.SpellIcon(id, b.spell.icon)) end
