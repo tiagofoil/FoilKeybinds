@@ -345,9 +345,10 @@ p:SetScript("OnHide", function(self)
   for _, e in ipairs(LIVE) do self:UnregisterEvent(e) end
 end)
 p:RegisterEvent("PLAYER_LOGIN")
-p:SetScript("OnEvent", function(self, event, id)
+p:SetScript("OnEvent", function(self, event, id, ok)
   if event == "MODIFIER_STATE_CHANGED" then return paint() end
-  if event == "SPELL_DATA_LOAD_RESULT" then -- only the cells showing that spell
+  if event == "SPELL_DATA_LOAD_RESULT" then -- only the cells showing that spell; a failed load asks no more
+    if not ok then return end
     for _, cell in ipairs(live) do if cell.spellID == id then cell.tex:SetTexture(ns.SpellIcon(id)) end end
     return
   end

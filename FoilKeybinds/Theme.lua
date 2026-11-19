@@ -203,9 +203,12 @@ function ns.Popup(title, text, buttons, combat)
     dlg:SetPoint("CENTER"); dlg:SetFrameStrata("DIALOG"); dlg:SetClampedToScreen(true)
     dlg:SetMovable(true); dlg:EnableMouse(true); dlg:RegisterForDrag("LeftButton")
     dlg:SetScript("OnDragStart", dlg.StartMoving); dlg:SetScript("OnDragStop", dlg.StopMovingOrSizing)
-    dlg.text = ns.Text(dlg, "body", 13); dlg.text:SetPoint("TOPLEFT", 16, -38); dlg.text:SetWidth(468)
+    dlg.scroll = CreateFrame("ScrollFrame", nil, dlg, "UIPanelScrollFrameTemplate") -- long Apply previews
+    dlg.scroll:SetPoint("TOPLEFT", 16, -38); dlg.scroll:SetPoint("BOTTOMRIGHT", -32, 46)
+    dlg.body = CreateFrame("Frame", nil, dlg.scroll); dlg.body:SetSize(452, 10); dlg.scroll:SetScrollChild(dlg.body)
+    dlg.text = ns.Text(dlg.body, "body", 13); dlg.text:SetPoint("TOPLEFT"); dlg.text:SetWidth(452)
     dlg.text:SetJustifyH("LEFT"); dlg.text:SetSpacing(2)
-    dlg.cache = {} -- one button per label: accents are set at creation
+    dlg.cache = {} -- one button per label and colour: accents are set at creation
     dlg:SetScript("OnEvent", dlg.Hide)
     dlg:SetScript("OnHide", function(self) self:UnregisterEvent("PLAYER_REGEN_DISABLED") end)
     tinsert(UISpecialFrames, "FoilKeybindsPopup")
@@ -215,18 +218,21 @@ function ns.Popup(title, text, buttons, combat)
   for _, b in pairs(dlg.cache) do b:Hide() end
   local prev
   for _, spec in ipairs(buttons) do
-    local b = dlg.cache[spec[1]]
+    local id = spec[1] .. tostring(spec[3])
+    local b = dlg.cache[id]
     if not b then
       b = ns.Button(dlg, 90, 24, spec[1], spec[3])
       b:SetWidth(math.max(90, b:GetFontString():GetStringWidth() + 24))
-      dlg.cache[spec[1]] = b
+      dlg.cache[id] = b
     end
     b:ClearAllPoints()
     if prev then b:SetPoint("RIGHT", prev, "LEFT", -8, 0) else b:SetPoint("BOTTOMRIGHT", -14, 12) end
     b:SetScript("OnClick", function() if not (spec[2] and spec[2]()) then dlg:Hide() end end)
     b:Show(); prev = b
   end
-  dlg:SetSize(500, dlg.text:GetStringHeight() + 90)
+  local h = dlg.text:GetStringHeight()
+  dlg.body:SetHeight(h); dlg.scroll:SetVerticalScroll(0)
+  dlg:SetSize(500, math.min(h, 420) + 90)
   if combat then dlg:RegisterEvent("PLAYER_REGEN_DISABLED") end
   dlg:Show()
 end

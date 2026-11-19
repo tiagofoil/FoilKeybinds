@@ -656,9 +656,9 @@ function FoilKeybinds_Toggle()
 end
 
 f:RegisterEvent("ADDON_LOADED")
-f:SetScript("OnEvent", function(_, event, name)
+f:SetScript("OnEvent", function(_, event, name, ok)
   if event == "SPELLS_CHANGED" then return card:Refresh() end
-  if event == "SPELL_DATA_LOAD_RESULT" then return loaded(name) end
+  if event == "SPELL_DATA_LOAD_RESULT" then if ok then loaded(name) end; return end
   if name ~= "FoilKeybinds" then return end
   FoilKeybindsDB = FoilKeybindsDB or {}
   FoilKeybindsDB.keys = FoilKeybindsDB.keys or {}

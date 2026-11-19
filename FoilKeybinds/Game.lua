@@ -51,6 +51,7 @@ end
 
 -- Best item per category in the bags, refreshed by ScanBags (Apply, login, out-of-combat bag changes).
 ns.best = {}
+local built -- best items the item macros were last written with (Apply or swap); nil until then
 local itemName = C_Item and C_Item.GetItemNameByID or function(id) return (GetItemInfo(id)) end
 local usable = C_Item and C_Item.IsUsableItem or IsUsableItem
 function ns.ScanBags()
@@ -63,7 +64,6 @@ function ns.ScanBags()
     end
   end
   ns.best = ns.BestItems(owned, usable and function(id) return (usable(id)) end)
-  ns.scanned = true
 end
 
 function ns.ItemIcon(cat)
@@ -244,7 +244,7 @@ local function setBind(k, v)
   else SetBinding(k, v) end
 end
 
--- quiet: the preview had nothing to show; snapshots still follow the card.
+-- quiet: the preview had nothing to show; snapshots still follow the card, a pending Copy stays undoable.
 local function run(p, quiet)
   if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
   local db = FoilKeybindsDB
@@ -276,7 +276,8 @@ local function run(p, quiet)
   end
   for _, n in ipairs(p.notes) do ns.Say(n) end
   SaveBindings(GetCurrentBindingSet())
-  db.copyUndo = nil -- the copy is live now; Undo reverts the Apply instead
+  built = ns.best
+  if not quiet then db.copyUndo = nil end -- the copy is live now; Undo reverts the Apply instead
   ns.SaveIndex()
   if quiet then ns.Say(L.NOTHING_TO_CHANGE) else ns.Info((p.manage and L.DONE or L.DONE_MACROS):format(done)) end
   if ns.Refresh then ns.Refresh() end
@@ -338,7 +339,6 @@ local function describe(p)
   return out
 end
 
-local MAX_LINES = 30
 function ns.Apply()
   if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
   ns.MigrateNames()
@@ -347,8 +347,7 @@ function ns.Apply()
   local p = plan()
   local lines = describe(p)
   if #lines == 0 then return run(p, true) end
-  local text = table.concat(lines, "\n", 1, math.min(#lines, MAX_LINES))
-  if #lines > MAX_LINES then text = text .. "\n" .. L.PV_MORE:format(#lines - MAX_LINES) end
+  local text = table.concat(lines, "\n")
   if #p.notes > 0 then text = "|cffef5d55" .. table.concat(p.notes, "\n") .. "|r\n\n" .. text end
   ns.Popup(L.PV_TITLE, text, { { OKAY or "OK", function() run(plan()) end, ns.T.fel }, { CANCEL or "Cancel" } }, true)
 end
@@ -380,7 +379,7 @@ end
 function ns.UndoBars()
   if InCombatLockdown() then ns.Say(L.IN_COMBAT); return false end
   local b = FoilKeybindsDB.backup
-  for k, action in pairs(b.binds) do if action == "" then SetBinding(k) else SetBinding(k, action) end end
+  for k, action in pairs(b.binds) do setBind(k, action) end
   for slot, prev in pairs(b.slots) do restoreSlot(prev, slot) end
   SaveBindings(GetCurrentBindingSet())
   b.binds, b.slots = {}, {}
@@ -398,22 +397,22 @@ function ns.Undo()
   if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
   local b = FoilKeybindsDB.backup
   if not b then return ns.Say(L.NOTHING_TO_UNDO) end
-  for key, action in pairs(b.binds) do
-    if action == "" then SetBinding(key) else SetBinding(key, action) end
-  end
+  local manage = ns.Manages() -- OFF: macros only, bars and keybinds stay as they are
+  if manage then for key, action in pairs(b.binds) do setBind(key, action) end end
   for name, body in pairs(b.macros) do -- bodies first: slot restore below may pick up these macros
     local i = GetMacroIndexByName(name)
     if body and i > 0 then EditMacro(i, name, nil, body) end
   end
-  for slot, prev in pairs(b.slots) do restoreSlot(prev, slot) end
+  if manage then for slot, prev in pairs(b.slots) do restoreSlot(prev, slot) end end
   for name, body in pairs(b.macros) do -- delete last so macro indexes above stay valid
     local i = GetMacroIndexByName(name)
     if body == false and i > 0 then DeleteMacro(i) end
   end
   SaveBindings(GetCurrentBindingSet())
-  FoilKeybindsDB.backup = nil
+  b.macros = {}
+  if manage or not (next(b.binds) or next(b.slots)) then FoilKeybindsDB.backup = nil end
   FoilKeybindsDB.applied = nil -- macros are back to their old bodies, nothing of ours is live
-  ns.Say(L.UNDONE)
+  ns.Say(manage and L.UNDONE or L.UNDONE_MACROS)
   if ns.Refresh then ns.Refresh() end
 end
 
@@ -577,17 +576,20 @@ function ns.SwapItems(manual)
   local any
   for _, setup in pairs(FoilKeybindsDB.applied or {}) do if hasItem(setup) then any = true; break end end
   if not any then if manual then ns.Say(L.ITEMS_NONE) end; return end
-  local old, first = ns.best, not ns.scanned -- first scan of the session: no "before" to compare with
+  local old = built -- nil on the first swap of the session: no "before" to compare with
   ns.ScanBags()
+  local failed = {}
   for key, setup in pairs(FoilKeybindsDB.applied) do
     local why = hasItem(setup) and rebuild(key)
-    if why and (manual or not warned[key .. why]) then
-      warned[key .. why] = true
-      ns.Say(L["SWAP_" .. why]:format(key))
+    if why then
+      failed[key] = true
+      if manual or not warned[key .. why] then warned[key .. why] = true; ns.Say(L["SWAP_" .. why]:format(key)) end
     end
   end
-  local changes = first and {} or ns.ItemChanges(old, ns.best, FoilKeybindsDB.applied)
+  built = ns.best
+  local changes = old and ns.ItemChanges(old, ns.best, FoilKeybindsDB.applied) or {}
   local say = manual and ns.Say or ns.Info
+  for i = #changes, 1, -1 do if failed[changes[i].key] then table.remove(changes, i) end end -- no swap happened there
   for _, c in ipairs(changes) do say(L.ITEM_CHANGE:format(c.key, c.from or L.ITEM_NONE, c.to or L.ITEM_NONE)) end
   if manual and #changes == 0 then ns.Say(L.ITEMS_UP_TO_DATE) end
   if ns.Refresh then ns.Refresh() end
