@@ -328,7 +328,9 @@ do
   local t = ns.Text(card.legend, "body", 12, T.muted); t:SetPoint("LEFT", x, 0); t:SetText(L.DOT_LEGEND)
 end
 card.msg = ns.Text(card, "body", 13, T.blood)
-card.msg:SetPoint("TOPLEFT", 14, -156); card.msg:SetPoint("RIGHT", -14, 0); card.msg:SetJustifyH("LEFT")
+card.swapTip = ns.Text(card, "body", 12, T.muted)
+card.swapTip:SetPoint("TOPLEFT", 14, -152); card.swapTip:SetText(L.SWAP_TIP)
+card.msg:SetPoint("TOPLEFT", 14, -172); card.msg:SetPoint("RIGHT", -14, 0); card.msg:SetJustifyH("LEFT")
 card.hint = ns.Text(card, "body", 12, T.muted) -- switch OFF: Apply only writes the macro
 card.hint:SetPoint("BOTTOMLEFT", 14, 12); card.hint:SetPoint("RIGHT", -14, 0); card.hint:SetJustifyH("LEFT")
 
@@ -358,10 +360,40 @@ end
 -- header (chip, key, trash, mouseover), the steps (one for a plain slot), or a big Choose button.
 local STEP = 22
 local cols = {}
+-- Drag a column onto another: the two slots trade places (Shift's spell to Normal, Normal's to Shift).
+-- The drop target is the column under the mouse on release; no OnUpdate while dragging.
+local dragFrom
+local function swapSlots(a, b)
+  local slots = setupOf(current).slots
+  if not (slots[a] or slots[b]) then return end
+  slots[a], slots[b] = slots[b], slots[a]
+  commit(function() slots[a], slots[b] = slots[b], slots[a] end)
+end
+local function dragStart(c)
+  if not current then return end
+  dragFrom = c.id
+  SetCursor("Interface\\CURSOR\\UI-Cursor-Move")
+  c.rLine:SetVertexColor(unpack(T.brass))
+end
+local function dragStop(c)
+  if not dragFrom then return end
+  local from = dragFrom
+  dragFrom = nil
+  ResetCursor()
+  for _, t in pairs(cols) do t.rLine:SetVertexColor(unpack(T.line)) end
+  for id, t in pairs(cols) do
+    if id ~= from and t:IsMouseOver() then return swapSlots(from, id) end
+  end
+end
 for i, id in ipairs(ns.COLUMNS) do
   local c = CreateFrame("Frame", nil, keysPane)
   c:SetSize(180, 350); c:SetPoint("TOPLEFT", 12 + (i - 1) * 189, -296)
   ns.RoundSkin(c, T.panel, T.line)
+  c:EnableMouse(true); c:RegisterForDrag("LeftButton") -- drag from the header or any empty spot
+  c:SetScript("OnDragStart", dragStart); c:SetScript("OnDragStop", dragStop)
+  c:SetScript("OnHide", dragStop) -- window closed mid-drag: cursor back, no swap
+  c:SetScript("OnEnter", function(self) if dragFrom and dragFrom ~= self.id then self.rLine:SetVertexColor(unpack(T.fel)) end end)
+  c:SetScript("OnLeave", function(self) if dragFrom and dragFrom ~= self.id then self.rLine:SetVertexColor(unpack(T.line)) end end)
   c.id = id
   c.mod = ns.Chip(c, "mono", 9); c.mod:SetPoint("TOPLEFT", 8, -8); c.mod:Set(L["SLOT_" .. id], 8)
   c.key = ns.Text(c, "mono", 11, T.muted); c.key:SetPoint("LEFT", c.mod, "RIGHT", 6, 0)
@@ -577,7 +609,7 @@ function card:Refresh()
   manageBtn.track:SetVertexColor(unpack(on and T.fel or T.line))
   manageBtn.knob:ClearAllPoints(); manageBtn.knob:SetPoint("CENTER", manageBtn.track, on and "RIGHT" or "LEFT", on and -7 or 7, 0)
   self.hint:SetText(current and not on and L.DRAG_HINT:format(ns.MacroName(current)) or "")
-  for _, w in ipairs({ self.count, self.meter, self.target, self.pet, self.show, self.clear, self.legend }) do w:SetShown(current ~= nil) end
+  for _, w in ipairs({ self.count, self.meter, self.target, self.pet, self.show, self.clear, self.legend, self.swapTip }) do w:SetShown(current ~= nil) end
   for _, c in pairs(cols) do c:SetShown(current ~= nil) end
   if not current then
     self.label:SetText(L.PICK_KEY)
