@@ -73,11 +73,13 @@ end
 -- ponytail: no fixed-size variants; add them if a client without slicing ever matters.
 local MEDIA = "Interface\\AddOns\\FoilKeybinds\\Media\\"
 local SLICE = Enum and Enum.UITextureSliceMode
+local warned -- say once in chat when the client cannot slice, so square shapes are not mistaken for the design
 function ns.Shape(parent, file, layer, sub)
   local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub)
   local sliced = file == "Round" or file == "Dash"
   if sliced and not (SLICE and t.SetTextureSliceMargins and t.SetTextureSliceMode) then
     t:SetTexture(file == "Dash" and MEDIA .. file or ns.WHITE)
+    if not warned and ns.Say then warned = true; ns.Say(ns.L.NO_SLICE) end
     return t
   end
   t:SetTexture(MEDIA .. file)
