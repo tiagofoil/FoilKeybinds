@@ -65,7 +65,7 @@ manageBtn:HookScript("OnEnter", function(self)
 end)
 manageBtn:HookScript("OnLeave", GameTooltip_Hide)
 
-local current, card, picker, seqp
+local current, card, picker
 
 local function setupOf(key)
   local keys = FoilKeybindsDB.keys
@@ -91,7 +91,7 @@ local function commit(undo, slot)
   card:Refresh()
 end
 
-local function selectKey(key) current = key; picker:Hide(); seqp:Hide(); card.msg:SetText(""); card:Refresh() end
+local function selectKey(key) current = key; picker:Hide(); card.msg:SetText(""); card:Refresh() end
 
 -- Board: keys near WASD plus the mouse, fixed in the top strip at one scale (no pan, no zoom).
 local BOARD_SCALE = 0.66
@@ -285,6 +285,28 @@ card.msg:SetPoint("TOPLEFT", 14, -156); card.msg:SetPoint("RIGHT", -14, 0); card
 card.hint = ns.Text(card, "body", 12, T.muted) -- switch OFF: Apply only writes the macro
 card.hint:SetPoint("BOTTOMLEFT", 14, 12); card.hint:SetPoint("RIGHT", -14, 0); card.hint:SetJustifyH("LEFT")
 
+-- Edits slot id with fn(old copy) -> new value, then the usual commit (undo = copy from before).
+local function changeSlot(id, fn)
+  local slots = setupOf(current).slots
+  local old = ns.Copy(slots[id])
+  slots[id] = fn(ns.Copy(old))
+  commit(function() slots[id] = old end, id)
+end
+
+-- Small square tool button with an icon texture or a text glyph.
+local function tool(parent, tex, glyph, tip)
+  local b = ns.Button(parent, 18, 18, glyph)
+  if tex then
+    local t = b:CreateTexture(nil, "OVERLAY"); t:SetSize(12, 12); t:SetPoint("CENTER"); t:SetTexture(tex)
+    t:SetVertexColor(unpack(T.muted)); b.tex = t
+  end
+  b:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(tip); GameTooltip:Show()
+  end)
+  b:HookScript("OnLeave", GameTooltip_Hide)
+  return b
+end
+
 -- Columns: one per modifier, Normal first (ns.COLUMNS). Each column edits its slot in place:
 -- header (chip, key, trash, mouseover), the steps (one for a plain slot), or a big Choose button.
 local STEP = 22
@@ -348,11 +370,67 @@ for i, id in ipairs(ns.COLUMNS) do
     r.name = ns.Text(r, "body", 13); r.name:SetPoint("LEFT", r.iconF, "RIGHT", 6, 0); r.name:SetPoint("RIGHT", -4, 0)
     r.name:SetJustifyH("LEFT"); r.name:SetWordWrap(false)
     r.lv = ns.Chip(r, "mono", 9, T.fel); r.lv:SetPoint("RIGHT", -2, 0)
-    r:SetScript("OnClick", function() -- a sequence opens its editor, anything else the picker
+    -- Plain slot: click to replace it. Sequence step: hover shows move up, move down, remove.
+    r:SetScript("OnClick", function()
       local s = setupOf(current).slots[id]
-      if s and s.seq then seqp:Open(id) else picker:Open(id) end
+      if not (s and s.seq) then picker:Open(id) end
     end)
+    r.tools = CreateFrame("Frame", nil, r); r.tools:SetAllPoints(); r.tools:Hide()
+    r.up = tool(r.tools, "Interface\\Buttons\\Arrow-Up-Up", nil, L.SEQ_UP)
+    r.down = tool(r.tools, "Interface\\Buttons\\Arrow-Down-Up", nil, L.SEQ_DOWN)
+    r.del = tool(r.tools, nil, "x", L.SEQ_REMOVE)
+    r.del:SetPoint("RIGHT", -1, 0); r.down:SetPoint("RIGHT", r.del, "LEFT", -2, 0); r.up:SetPoint("RIGHT", r.down, "LEFT", -2, 0)
+    r.up:SetScript("OnClick", function() changeSlot(id, function(x) return ns.MoveStep(x, j, -1) end) end)
+    r.down:SetScript("OnClick", function() changeSlot(id, function(x) return ns.MoveStep(x, j, 1) end) end)
+    r.del:SetScript("OnClick", function() changeSlot(id, function(x) return ns.RemoveStep(x, j) end) end)
+    local function hover() r.tools:SetShown(r.inSeq and r:IsMouseOver() or false) end
+    r:SetScript("OnEnter", hover); r:SetScript("OnLeave", hover)
+    for _, b in ipairs({ r.up, r.down, r.del }) do b:HookScript("OnLeave", hover) end
     c.steps[j] = r
+  end
+  -- "+ Add spell": always there under a spell; one spell plus one added makes a cast sequence.
+  c.add = CreateFrame("Button", nil, c)
+  c.add:SetSize(164, 24)
+  c.add.dash = ns.Shape(c.add, "Dash", "ARTWORK"); c.add.dash:SetAllPoints(); c.add.dash:SetVertexColor(unpack(T.void))
+  c.add.text = ns.Text(c.add, "mono", 11, T.void); c.add.text:SetPoint("CENTER"); c.add.text:SetText(L.SEQ_ADD)
+  c.add:SetScript("OnEnter", function(self) self.dash:SetVertexColor(unpack(T.brass)); self.text:SetTextColor(unpack(T.ink)) end)
+  c.add:SetScript("OnLeave", function(self) self.dash:SetVertexColor(unpack(T.void)); self.text:SetTextColor(unpack(T.void)) end)
+  c.add:SetScript("OnClick", function() picker:Open(id, true) end)
+  c.hint = ns.Text(c, "body", 12, T.muted)
+  c.hint:SetPoint("TOPLEFT", c.add, "BOTTOMLEFT", 2, -6); c.hint:SetWidth(160); c.hint:SetJustifyH("LEFT")
+  c.hint:SetText(L.SEQ_HINT)
+  -- Start over footer (sequences): new target, leave combat, seconds (empty or 0 = off).
+  c.foot = CreateFrame("Frame", nil, c)
+  c.foot:SetPoint("BOTTOMLEFT", 8, 8); c.foot:SetPoint("BOTTOMRIGHT", -8, 8); c.foot:SetHeight(66)
+  local rule = c.foot:CreateTexture(nil, "ARTWORK"); rule:SetColorTexture(unpack(T.line))
+  rule:SetPoint("TOPLEFT"); rule:SetPoint("TOPRIGHT"); rule:SetHeight(1)
+  c.foot.label = ns.Text(c.foot, "mono", 10, T.brass); c.foot.label:SetPoint("TOPLEFT", 2, -8); c.foot.label:SetText(L.SEQ_START_OVER)
+  c.secs = CreateFrame("EditBox", nil, c.foot, "BackdropTemplate")
+  c.secs:SetSize(34, 18); c.secs:SetPoint("TOPRIGHT", -16, -4)
+  ns.Skin(c.secs, T.well, T.line); c.secs:SetFontObject(ns.Font("mono", 11)); c.secs:SetTextInsets(5, 5, 0, 0)
+  c.secs:SetAutoFocus(false); c.secs:SetNumeric(true); c.secs:SetMaxLetters(3)
+  local unit = ns.Text(c.foot, "mono", 10, T.muted); unit:SetPoint("LEFT", c.secs, "RIGHT", 3, 0); unit:SetText(L.SEQ_SECS)
+  local function seqOf() local s = current and setupOf(current).slots[id]; return s and s.seq and s end
+  c.secs:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  c.secs:SetScript("OnEscapePressed", function(self)
+    local s = seqOf()
+    self:SetText(s and s.reset and s.reset.secs and tostring(s.reset.secs) or ""); self:ClearFocus()
+  end)
+  c.secs:SetScript("OnEditFocusLost", function(self)
+    local v = tonumber(self:GetText())
+    if v == 0 then v = nil end
+    local s = seqOf()
+    if s and (s.reset and s.reset.secs) ~= v then
+      changeSlot(id, function(x) x.reset = x.reset or {}; x.reset.secs = v; return x end)
+    end
+  end)
+  c.target, c.combat = ns.Check(c.foot, L.SEQ_NEW_TARGET), ns.Check(c.foot, L.SEQ_LEAVE_COMBAT)
+  c.target:SetPoint("TOPLEFT", 2, -30); c.combat:SetPoint("TOPLEFT", 2, -50)
+  for field, box in pairs({ target = c.target, combat = c.combat }) do
+    box:SetScript("OnClick", function(self)
+      local on = self:GetChecked() and true or false
+      changeSlot(id, function(x) x.reset = x.reset or {}; x.reset[field] = on; return x end)
+    end)
   end
   cols[id] = c
 end
@@ -385,7 +463,22 @@ local function drawColumn(c, setup)
       if lv then r.lv:Set(L.LEVEL:format(lv), 8) end
       r.lv:SetShown(lv and true or false)
       r.name:SetPoint("RIGHT", lv and -(r.lv:GetWidth() + 6) or -4, 0)
+      r.inSeq = seq ~= nil
+      r.up:SetEnabled(j > 1); r.up:SetAlpha(j > 1 and 1 or 0.3)
+      r.down:SetEnabled(j < #list); r.down:SetAlpha(j < #list and 1 or 0.3)
     end
+    r.tools:SetShown(x ~= nil and r.inSeq and r:IsMouseOver() or false)
+  end
+  -- Add under a spell (plain or sequence) while there is room; never for items or pet commands.
+  local canAdd = s ~= nil and (seq or s.name) ~= nil and #list < ns.MAXSEQ
+  c.add:SetShown(canAdd)
+  if canAdd then c.add:ClearAllPoints(); c.add:SetPoint("TOPLEFT", 8, top - #list * STEP - 4) end
+  c.hint:SetShown(canAdd and not seq)
+  c.foot:SetShown(seq ~= nil)
+  if seq then
+    local reset = s.reset or {}
+    c.target:SetChecked(reset.target or false); c.combat:SetChecked(reset.combat or false)
+    if not c.secs:HasFocus() then c.secs:SetText(reset.secs and tostring(reset.secs) or "") end
   end
 end
 
@@ -402,89 +495,7 @@ preview.text:SetJustifyH("LEFT"); preview.text:SetJustifyV("TOP"); preview.text:
 preview.text:SetWordWrap(true); preview.text:SetNonSpaceWrap(true)
 preview.warn = ns.Text(preview, "body", 12, T.blood)
 preview.warn:SetPoint("BOTTOMLEFT", 14, 10); preview.warn:SetPoint("RIGHT", -14, 0); preview.warn:SetJustifyH("LEFT")
-card.show:SetScript("OnClick", function() seqp:Hide(); preview:SetShown(not preview:IsShown()); card:Refresh() end)
-
--- Sequence editor: side panel where the macro preview sits (one of the two at a time).
--- Each spell: < > to move it, x to remove it; down to one spell the slot is a plain spell again.
-local MAXSEQ = ns.MAXSEQ
-seqp = ns.Panel(nil, f, "")
-seqp:SetSize(340, 400); seqp:SetPoint("TOPRIGHT", f, "TOPLEFT", -4, 0); seqp:Hide()
-local function seqOf() local s = current and setupOf(current).slots[seqp.slot]; return s and s.seq and s end
--- Edits the sequence slot with fn(slot, slots, id), then the usual commit (undo = copy from before).
-local function change(fn)
-  local slots, id = setupOf(current).slots, seqp.slot
-  local old = ns.Copy(slots[id])
-  fn(slots[id], slots, id)
-  commit(function() slots[id] = old end, id)
-end
-seqp.rows = {}
-for i = 1, MAXSEQ do
-  local r = CreateFrame("Frame", nil, seqp)
-  r:SetSize(316, 24); r:SetPoint("TOPLEFT", 12, -36 - (i - 1) * 26)
-  r.num = ns.Text(r, "mono", 11, T.muted); r.num:SetPoint("LEFT"); r.num:SetText(i .. ".")
-  r.iconF = ns.IconFrame(r, 20); r.iconF:SetPoint("LEFT", 20, 0)
-  r.name = ns.Text(r, "body", 13); r.name:SetPoint("LEFT", r.iconF, "RIGHT", 6, 0); r.name:SetPoint("RIGHT", -78, 0)
-  r.name:SetJustifyH("LEFT"); r.name:SetWordWrap(false)
-  local function btn(text, x, fn)
-    local b = ns.Button(r, 22, 20, text); b:SetPoint("RIGHT", x, 0); b:SetScript("OnClick", fn); return b
-  end
-  r.left = btn("<", -52, function() change(function(s, slots, id) slots[id] = ns.MoveStep(s, i, -1) end) end)
-  r.right = btn(">", -27, function() change(function(s, slots, id) slots[id] = ns.MoveStep(s, i, 1) end) end)
-  r.del = btn("x", -2, function() change(function(s, slots, id) slots[id] = ns.RemoveStep(s, i) end) end)
-  seqp.rows[i] = r
-end
-seqp.add = ns.Button(seqp, 160, 22, L.SEQ_ADD, T.fel)
-seqp.add:SetScript("OnClick", function() picker:Open(seqp.slot, true) end)
-seqp.target, seqp.combat = ns.Check(seqp, L.SEQ_RESET_TARGET), ns.Check(seqp, L.SEQ_RESET_COMBAT)
-seqp.target:SetPoint("BOTTOMLEFT", 14, 66); seqp.combat:SetPoint("BOTTOMLEFT", 14, 42)
-for field, c in pairs({ target = seqp.target, combat = seqp.combat }) do
-  c:SetScript("OnClick", function(self)
-    local on = self:GetChecked() and true or false
-    change(function(s) s.reset = s.reset or {}; s.reset[field] = on end)
-  end)
-end
-seqp.secsLabel = ns.Text(seqp, "body", 13); seqp.secsLabel:SetPoint("BOTTOMLEFT", 14, 16); seqp.secsLabel:SetText(L.SEQ_RESET_SECS)
-seqp.secs = CreateFrame("EditBox", nil, seqp, "BackdropTemplate")
-seqp.secs:SetSize(44, 20); seqp.secs:SetPoint("LEFT", seqp.secsLabel, "RIGHT", 8, 0)
-ns.Skin(seqp.secs, T.well, T.line); seqp.secs:SetFontObject(ns.Font("mono", 11)); seqp.secs:SetTextInsets(6, 6, 0, 0)
-seqp.secs:SetAutoFocus(false); seqp.secs:SetNumeric(true); seqp.secs:SetMaxLetters(3)
-seqp.secs:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-seqp.secs:SetScript("OnEscapePressed", function(self)
-  local s = seqOf()
-  self:SetText(s and s.reset and s.reset.secs and tostring(s.reset.secs) or ""); self:ClearFocus()
-end)
-seqp.secs:SetScript("OnEditFocusLost", function(self)
-  local v = tonumber(self:GetText())
-  if v == 0 then v = nil end
-  local s = seqOf()
-  if s and (s.reset and s.reset.secs) ~= v then change(function(x) x.reset = x.reset or {}; x.reset.secs = v end) end
-end)
-function seqp:Render()
-  local s = seqOf()
-  if not s then return self:Hide() end
-  self.title:SetText(L.SEQ_TITLE:format(L["SLOT_" .. self.slot]))
-  for i, r in ipairs(self.rows) do
-    local x = s.seq[i]
-    r:SetShown(x ~= nil)
-    if x then
-      local tex, name, known, spellID = ns.SlotView(x)
-      r.iconF.tex:SetTexture(tex); r.iconF.tex:SetDesaturated(not known); r.spellID = spellID
-      r.name:SetText(name); r.name:SetAlpha(known and 1 or 0.5); r.iconF:SetAlpha(known and 1 or 0.5)
-      r.left:SetEnabled(i > 1); r.left:SetAlpha(i > 1 and 1 or 0.3)
-      r.right:SetEnabled(i < #s.seq); r.right:SetAlpha(i < #s.seq and 1 or 0.3)
-    end
-  end
-  self.add:ClearAllPoints(); self.add:SetPoint("TOPLEFT", 12, -40 - math.min(#s.seq, MAXSEQ) * 26)
-  self.add:SetShown(#s.seq < MAXSEQ)
-  local reset = s.reset or {}
-  self.target:SetChecked(reset.target or false); self.combat:SetChecked(reset.combat or false)
-  if not self.secs:HasFocus() then self.secs:SetText(reset.secs and tostring(reset.secs) or "") end
-end
-function seqp:Open(slot) self.slot = slot; preview:Hide(); self:Show(); card:Refresh() end
-function ns.RefreshSeq(id)
-  if not seqp:IsShown() then return end
-  for _, r in ipairs(seqp.rows) do if r:IsShown() and r.spellID == id then r.iconF.tex:SetTexture(ns.SpellIcon(id)) end end
-end
+card.show:SetScript("OnClick", function() preview:SetShown(not preview:IsShown()); card:Refresh() end)
 
 function card:Refresh()
   ns.ResetLearned()
@@ -499,7 +510,7 @@ function card:Refresh()
   for _, c in pairs(cols) do c:SetShown(current ~= nil) end
   if not current then
     self.label:SetText(L.PICK_KEY)
-    preview:Hide(); seqp:Hide()
+    preview:Hide()
     return
   end
   local setup = setupOf(current)
@@ -514,7 +525,6 @@ function card:Refresh()
   self.target:SetChecked(setup.targetEnemy or false)
   self.pet:SetChecked(setup.petAttack or false)
   self.show:SetText(preview:IsShown() and L.HIDE_MACRO or L.SHOW_MACRO)
-  if seqp:IsShown() then seqp:Render() end
   if preview:IsShown() then
     -- One clause per line for reading; the real macro keeps "; " on one line.
     preview.text:SetText(text and ns.ColorMacro((text:gsub(";%s*", ";\n    "))) or "")
@@ -629,7 +639,6 @@ function picker:Choose(s)
   end
   self:Hide()
   commit(function() slots[slot] = old end, slot)
-  if slots[slot] and slots[slot].seq then seqp:Open(slot) end
 end
 
 -- While shown: spells learned redraw the window, loaded spell data updates the icons of that spell.
@@ -647,7 +656,6 @@ local function loaded(id)
   for _, b in ipairs(picker.rows) do
     if b:IsShown() and b.spell and b.spell.spellID == id then b.icon:SetTexture(ns.SpellIcon(id, b.spell.icon)) end
   end
-  if ns.RefreshSeq then ns.RefreshSeq(id) end
 end
 function ns.Refresh()
   if f:IsShown() then card:Refresh() end
