@@ -342,6 +342,7 @@ do
   x = dot(0, -20, T.void, L.DOT_SPELL, "body")
   dot(x, -20, T.brass, L.DOT_SPECIAL, "body")
 end
+card.msg = ns.Text(card, "body", 13, T.blood)
 card.swapTip = ns.Text(card, "body", 12, T.muted)
 card.swapTip:SetPoint("TOPLEFT", 14, -172); card.swapTip:SetText(L.SWAP_TIP)
 card.msg:SetPoint("TOPLEFT", 14, -192); card.msg:SetPoint("RIGHT", -14, 0); card.msg:SetJustifyH("LEFT")
