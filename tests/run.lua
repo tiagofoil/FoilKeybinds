@@ -541,6 +541,33 @@ test("can add step: a spell or a sequence under 9 steps; not empty, items, pet c
   eq(core.CanAddStep(nil), false); eq(core.CanAddStep({ item = "HS" }), false)
   eq(core.CanAddStep({ pet = "follow" }), false); eq(core.CanAddStep(nine), false)
 end)
+test("cast with: extra spells fire first on their own line, only on that press", function()
+  local sb = sp("Shadow Bolt"); sb.with = { step(9, "Eureka!") }
+  eq(core.MacroText({ slots = { normal = sb } }), T .. "/cast [nomod] Eureka!\n/cast Shadow Bolt")
+  local w = sp("Wrack"); w.with = { step(9, "Eureka!"), step(8, "Blood Fury") }
+  eq(core.MacroText({ targetEnemy = true, slots = { normal = sp("N"), shift = w } }),
+    T .. "/targetenemy [noharm][dead]\n/cast [mod:shift,nomod:alt,nomod:ctrl] Eureka!\n/cast [mod:shift,nomod:alt,nomod:ctrl] Blood Fury\n/cast [mod:shift] Wrack; N")
+end)
+test("cast with: up to 2 per spell or sequence, removed by place, kept through step edits and a new spell", function()
+  local a = step(1, "A")
+  eq(core.CanAddWith(a), true); eq(core.CanAddWith(nil), false); eq(core.CanAddWith({ item = "HS" }), false)
+  local s = core.AddWith(core.AddWith(a, step(9, "E")), step(8, "F"))
+  eq(#s.with, 2); eq(s.with[1].name, "E"); eq(a.with, nil); eq(core.CanAddWith(s), false)
+  eq(#core.AddWith(s, step(7, "G")).with, 2)
+  eq(core.RemoveWith(s, 1).with[1].name, "F"); eq(core.RemoveWith(core.RemoveWith(s, 1), 1).with, nil)
+  local q = core.AddStep(s, step(2, "B"))
+  eq(#q.with, 2); eq(core.CanAddWith(q), false)
+  eq(#core.RemoveStep(q, 2).with, 2)
+  eq(#core.NewSlot(3, "C", "harm", s).with, 2)
+end)
+test("repair: cast with spells are renamed or dropped, the slot stays", function()
+  local s = ids(1, "A"); s.with = { ids(2, "E"), ids(3, "F") }
+  local out, ch = core.Repair({ Q = { slots = { normal = s } } }, names({ [1] = "A", [2] = "E2", [3] = false }))
+  local q = out.Q.slots.normal
+  eq(q.name, "A"); eq(#q.with, 1); eq(q.with[1].name, "E2"); eq(#ch, 2)
+  s = ids(1, "A"); s.with = { ids(3, "F") }
+  eq(core.Repair({ Q = { slots = { normal = s } } }, names({ [1] = "A", [3] = false })).Q.slots.normal.with, nil)
+end)
 local function order(s) local l = {}; for i, x in ipairs(s.seq) do l[i] = x.name end; return table.concat(l) end
 test("move step: swaps with the neighbor, past either end unchanged, input untouched", function()
   local old = { seq = { step(1, "A"), step(2, "B"), step(3, "C") }, reset = TC }

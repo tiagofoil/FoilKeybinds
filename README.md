@@ -15,9 +15,9 @@ A WoW Forever addon that puts your whole layout on the keys near WASD. Each key 
 
 ## How to use
 
-Type `/fkb` (or left click the addon compartment entry) to open the editor. Set your keys, then click Apply. Undo puts back what the first Apply changed.
+Type `/fkb` (or left click the addon compartment entry) to open the editor. Set your keys, then click Apply. Undo takes back your last edit, one step per click. Reset all puts back what the first Apply changed (bindings, bar slots and macros); your key setups stay.
 
-Commands: `/fkb`, `/fkb set Q Shadow Bolt`, `/fkb apply`, `/fkb undo`, `/fkb cheat` (or `/fkb cola`) to show or hide the cheat sheet, `/fkb config` (or `/fkb settings`, `/fkb opcoes`) for the settings.
+Commands: `/fkb`, `/fkb set Q Shadow Bolt`, `/fkb apply`, `/fkb undo` (one edit back), `/fkb reset` (Reset all), `/fkb cheat` (or `/fkb cola`) to show or hide the cheat sheet, `/fkb config` (or `/fkb settings`, `/fkb opcoes`) for the settings.
 
 Settings also open from the gear in the editor's title bar, a right click on the compartment entry, and Options > AddOns > Foil Keybinds. They are account-wide; the cheat sheet position and whether it is shown stay per character.
 

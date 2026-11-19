@@ -104,13 +104,15 @@ function ns.SaveIndex()
   FoilKeybindsAccount[class][me] = ns.Copy(FoilKeybindsDB.keys)
 end
 
--- Replaces this character's keys with another's. Not applied; Undo brings the old keys back.
+-- Replaces this character's keys with another's. Not applied; Undo brings the old keys back
+-- (edit steps made after the copy come back first; the ones before it are dropped).
 function ns.CopyFrom(name)
   local me, class = ns.Me()
   local src = FoilKeybindsAccount[class] and FoilKeybindsAccount[class][name]
   if not src or name == me then return end
   FoilKeybindsDB.copyUndo = ns.Copy(FoilKeybindsDB.keys)
   FoilKeybindsDB.keys = ns.Copy(src)
+  if ns.ClearHistory then ns.ClearHistory() end
   if ns.Refresh then ns.Refresh() end
   ns.Say(L.COPIED:format(name))
 end
@@ -388,15 +390,20 @@ function ns.UndoBars()
   return true
 end
 
-function ns.Undo()
-  if FoilKeybindsDB.copyUndo then -- a pending copy is undone first, it touched nothing in game
-    FoilKeybindsDB.keys, FoilKeybindsDB.copyUndo = FoilKeybindsDB.copyUndo, nil
-    if ns.Refresh then ns.Refresh() end
-    return ns.Say(L.COPY_UNDONE)
-  end
+-- A pending Copy from: its old keys come back. It touched nothing in game. False when none.
+function ns.UndoCopy()
+  if not FoilKeybindsDB.copyUndo then return false end
+  FoilKeybindsDB.keys, FoilKeybindsDB.copyUndo = FoilKeybindsDB.copyUndo, nil
+  if ns.Refresh then ns.Refresh() end
+  ns.Say(L.COPY_UNDONE)
+  return true
+end
+
+-- Reset all: bindings, bar slots and macros go back to how they were before Apply. Key setups stay.
+function ns.ResetAll()
   if InCombatLockdown() then return ns.Say(L.IN_COMBAT) end
   local b = FoilKeybindsDB.backup
-  if not b then return ns.Say(L.NOTHING_TO_UNDO) end
+  if not b then return ns.Say(L.NOTHING_TO_RESET) end
   local manage = ns.Manages() -- OFF: macros only, bars and keybinds stay as they are
   if manage then for key, action in pairs(b.binds) do setBind(key, action) end end
   for name, body in pairs(b.macros) do -- bodies first: slot restore below may pick up these macros

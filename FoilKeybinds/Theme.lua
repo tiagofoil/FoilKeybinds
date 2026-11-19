@@ -17,7 +17,7 @@ ns.WHITE = "Interface\\Buttons\\WHITE8X8"
 
 local DIR = "Interface\\AddOns\\FoilKeybinds\\Media\\Fonts\\"
 local FILES = {
-  display = DIR .. "GrenzeGotisch-Bold.ttf", body = DIR .. "AlegreyaSans-Medium.ttf",
+  display = DIR .. "AlegreyaSans-Bold.ttf", body = DIR .. "AlegreyaSans-Medium.ttf",
   bold = DIR .. "AlegreyaSans-Bold.ttf", mono = DIR .. "JetBrainsMono-Bold.ttf",
 }
 local fonts, offset = {}, 0

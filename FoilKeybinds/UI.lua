@@ -7,6 +7,7 @@ f:SetSize(960, 700); f:SetPoint("CENTER")
 f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
 f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
 f:Hide()
+f:SetFrameStrata("HIGH"); f:SetToplevel(true) -- above quest arrows and other addons; popups use DIALOG
 tinsert(UISpecialFrames, "FoilKeybindsFrame") -- Esc closes it
 function ns.SetMainScale(v) f:SetScale(v) end
 
@@ -35,7 +36,7 @@ applyBtn:SetPoint("BOTTOMRIGHT", -16, 14)
 applyBtn:SetScript("OnClick", function() ns.Apply() end)
 local undoBtn = ns.Button(keysPane, 100, 26, L.UNDO)
 undoBtn:SetPoint("RIGHT", applyBtn, "LEFT", -8, 0)
-undoBtn:SetScript("OnClick", function() ns.Undo() end)
+undoBtn:SetScript("OnClick", function() ns.UndoStep() end)
 
 local copyBtn = ns.Button(keysPane, 120, 26, L.COPY_FROM)
 copyBtn:SetPoint("RIGHT", undoBtn, "LEFT", -8, 0)
@@ -53,7 +54,7 @@ itemsBtn:SetPoint("RIGHT", copyBtn, "LEFT", -8, 0)
 itemsBtn:SetScript("OnClick", function() ns.SwapItems(true) end)
 
 -- Master switch: bars and keybinds ON/OFF, always in sight next to Apply.
-local manageBtn = ns.Button(keysPane, 236, 26)
+local manageBtn = ns.Button(keysPane, 176, 26)
 manageBtn:SetPoint("RIGHT", itemsBtn, "LEFT", -8, 0)
 manageBtn:GetFontString():ClearAllPoints(); manageBtn:GetFontString():SetPoint("LEFT", 42, 0)
 manageBtn.track = ns.Shape(manageBtn, "Pill", "ARTWORK"); manageBtn.track:SetSize(26, 14); manageBtn.track:SetPoint("LEFT", 9, 0)
@@ -76,6 +77,10 @@ end
 -- Runs after every card change: trims mouseover into saved data, or reverts the change
 -- with undo() when the macro cannot fit. Then redraws the card. slot = the slot the player
 -- just changed (nil for key toggles): the error names it, falling back to the core's pick.
+-- Edit history for Undo: the key's setup before each saved edit, newest last, this session only.
+-- card:Refresh keeps "before" = the setup on screen, so it is the state from before the next edit.
+local history, before, beforeKey, MAXHIST = {}, nil, nil, 30
+function ns.ClearHistory() wipe(history) end
 local function commit(undo, slot)
   local setup = setupOf(current)
   local text, n, trimmed, errSlot = ns.FitMacro(setup, ns.best)
@@ -87,6 +92,10 @@ local function commit(undo, slot)
   else
     for _, id in ipairs(trimmed) do setup.slots[id].mouseover = false end
     if #trimmed > 0 then card.msg:SetText(L.TRIMMED) end
+    if before and beforeKey == current then
+      history[#history + 1] = { key = current, setup = before }
+      if #history > MAXHIST then table.remove(history, 1) end
+    end
   end
   card:Refresh()
 end
@@ -96,6 +105,20 @@ local function selectKey(key)
   local box = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
   if box then box:ClearFocus() end
   current = key; picker:Hide(); card.msg:SetText(""); card:Refresh()
+end
+
+-- Undo: one edit back (like Ctrl+Z). Then a pending Copy from. Never touches the game.
+function ns.UndoStep()
+  local box = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+  if box then box:ClearFocus() end -- a seconds box commits first, so its edit is undone too
+  local h = table.remove(history)
+  if not h then
+    if not ns.UndoCopy() then ns.Say(L.NOTHING_TO_UNDO) end
+    return
+  end
+  FoilKeybindsDB.keys[h.key] = h.setup
+  current = h.key; picker:Hide(); card.msg:SetText("")
+  if f:IsShown() then card:Refresh() end
 end
 
 -- Board: keys near WASD plus the mouse, fixed in the top strip at one scale (no pan, no zoom).
@@ -109,6 +132,11 @@ board:SetPoint("TOPLEFT", view, "TOPLEFT", 12 / BOARD_SCALE, -10 / BOARD_SCALE)
 local cheatBtn = ns.Button(keysPane, 110, 26, L.CHEAT_TITLE)
 cheatBtn:SetPoint("BOTTOMLEFT", 12, 14)
 cheatBtn:SetScript("OnClick", function() ns.ToggleCheat() end)
+local resetBtn = ns.Button(keysPane, 110, 26, L.RESET_ALL, T.blood)
+resetBtn:SetPoint("LEFT", cheatBtn, "RIGHT", 8, 0)
+resetBtn:SetScript("OnClick", function()
+  ns.Popup(L.RESET_ALL, L.RESET_CONFIRM, { { L.RESET_ALL, ns.ResetAll, T.blood }, { CANCEL or "Cancel" } })
+end)
 
 local K, U = 64, 70 -- key size and grid step
 -- { binding key, column, row [, width in units] }. move = shown but not editable (movement keys).
@@ -164,6 +192,7 @@ local function keyTooltip(b, key)
     if s then
       local _, name, known, spellID = ns.SlotView(s)
       GameTooltip:AddDoubleLine(L["SLOT_" .. id], name, 0.84, 0.69, 0.4, 1, 1, 1)
+      for _, w in ipairs(s.with or {}) do GameTooltip:AddDoubleLine(" ", "+ " .. w.name, 1, 1, 1, 0.7, 0.6, 0.8) end
       if not known then
         local lv = ns.FutureLevel(spellID)
         GameTooltip:AddLine(lv and L.NOT_KNOWN_LEVEL:format(lv) or L.NOT_KNOWN, 0.6, 0.6, 0.6)
@@ -273,6 +302,19 @@ card.target = toggle("targetEnemy", L.TARGET_ENEMY, -50)
 card.pet = toggle("petAttack", L.PET_ATTACK, -74)
 card.show = ns.Button(card, 130, 24)
 card.show:SetPoint("TOPLEFT", 14, -98)
+card.clear = ns.Button(card, 120, 24, L.CLEAR_KEY, T.blood)
+card.clear:SetPoint("LEFT", card.show, "RIGHT", 8, 0)
+card.clear:SetScript("OnClick", function() -- all five slots; Apply then removes the macro and keybind
+  local setup = setupOf(current)
+  local old = setup.slots
+  setup.slots = {}
+  commit(function() setup.slots = old end)
+end)
+card.clear:HookScript("OnEnter", function(self)
+  GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(L.CLEAR_KEY); GameTooltip:AddLine(L.CLEAR_HINT, 0.8, 0.8, 0.8)
+  GameTooltip:Show()
+end)
+card.clear:HookScript("OnLeave", GameTooltip_Hide)
 -- Dot legend: what the four dots on a key mean.
 card.legend = CreateFrame("Frame", nil, card)
 card.legend:SetPoint("TOPLEFT", 14, -134); card.legend:SetSize(420, 14)
@@ -323,30 +365,47 @@ for i, id in ipairs(ns.COLUMNS) do
   c.id = id
   c.mod = ns.Chip(c, "mono", 9); c.mod:SetPoint("TOPLEFT", 8, -8); c.mod:Set(L["SLOT_" .. id], 8)
   c.key = ns.Text(c, "mono", 11, T.muted); c.key:SetPoint("LEFT", c.mod, "RIGHT", 6, 0)
-  c.key:SetWidth(90); c.key:SetJustifyH("LEFT"); c.key:SetWordWrap(false)
-  -- Trash: same path as the picker's Clear slot.
-  c.del = CreateFrame("Button", nil, c)
-  c.del:SetSize(18, 18); c.del:SetPoint("TOPRIGHT", -8, -8)
-  -- SetNormalAtlas does not error on a missing atlas, so check it exists first.
-  if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("common-icon-delete") then
-    c.del:SetNormalAtlas("common-icon-delete")
-  else
-    c.del:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
-  end
-  local trash = c.del:GetNormalTexture()
-  trash:SetDesaturated(true); trash:SetVertexColor(unpack(T.muted))
+  c.key:SetWidth(54); c.key:SetJustifyH("LEFT"); c.key:SetWordWrap(false)
+  -- Clear: same path as the picker's Clear slot.
+  c.del = ns.Button(c, 54, 18, L.CLEAR_SHORT, T.blood)
+  c.del:SetPoint("TOPRIGHT", -8, -8)
   c.del:SetScript("OnClick", function() picker.slot = id; picker:Choose(nil) end)
-  c.del:SetScript("OnEnter", function(self)
-    trash:SetDesaturated(false); trash:SetVertexColor(unpack(T.blood))
+  c.del:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(L.CLEAR); GameTooltip:AddLine(L.CLEAR_HINT, 0.8, 0.8, 0.8)
     GameTooltip:Show()
   end)
-  c.del:SetScript("OnLeave", function()
-    trash:SetDesaturated(true); trash:SetVertexColor(unpack(T.muted)); GameTooltip:Hide()
+  c.del:HookScript("OnLeave", GameTooltip_Hide)
+  -- Cast with: up to 2 spells that fire first on the same press (racials with no global cooldown).
+  -- Their icons sit left of the "+ Cast with" button; click an icon to remove it.
+  c.with = {}
+  for k = 1, ns.MAXWITH do
+    local w = CreateFrame("Button", nil, c)
+    w:SetSize(20, 20); w:SetPoint("TOPLEFT", 8 + (k - 1) * 24, -34)
+    w.iconF = ns.IconFrame(w, 20); w.iconF:SetAllPoints()
+    w:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(self.name or "")
+      GameTooltip:AddLine(L.WITH_REMOVE, 0.8, 0.8, 0.8); GameTooltip:Show()
+    end)
+    w:SetScript("OnLeave", GameTooltip_Hide)
+    w:SetScript("OnClick", function() changeSlot(id, function(x) return ns.RemoveWith(x, k) end) end)
+    c.with[k] = w
+  end
+  c.withAdd = CreateFrame("Button", nil, c)
+  c.withAdd:SetSize(100, 20)
+  c.withAdd.dash = ns.Shape(c.withAdd, "Dash", "ARTWORK"); c.withAdd.dash:SetAllPoints(); c.withAdd.dash:SetVertexColor(unpack(T.muted))
+  c.withAdd.text = ns.Text(c.withAdd, "mono", 10, T.muted); c.withAdd.text:SetPoint("CENTER"); c.withAdd.text:SetText(L.WITH_ADD)
+  c.withAdd:SetScript("OnEnter", function(self)
+    self.dash:SetVertexColor(unpack(T.brass)); self.text:SetTextColor(unpack(T.ink))
+    GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(L.WITH_ADD)
+    GameTooltip:AddLine(L.WITH_HINT, 0.8, 0.8, 0.8, true); GameTooltip:Show()
   end)
+  c.withAdd:SetScript("OnLeave", function(self)
+    self.dash:SetVertexColor(unpack(T.muted)); self.text:SetTextColor(unpack(T.muted)); GameTooltip:Hide()
+  end)
+  c.withAdd:SetScript("OnClick", function() picker:Open(id, "with") end)
   c.mo = ns.Check(c, L.MOUSEOVER)
-  c.mo:SetPoint("TOPLEFT", 10, -34)
+  c.mo:SetPoint("TOPLEFT", 10, -60)
   c.mo:SetScript("OnClick", function(self)
     local s = setupOf(current).slots[id]
     if not s then return end
@@ -449,8 +508,16 @@ local function drawColumn(c, setup)
   c.mo:SetShown(s ~= nil and not seq)
   c.mo:SetChecked(s and s.mouseover or false); c.mo:SetEnabled(s ~= nil and not item and not pet) -- no mouseover on items/pet
   c.choose:SetShown(s == nil)
+  local with = s and s.with or {}
+  for k, w in ipairs(c.with) do
+    local x = with[k]
+    w:SetShown(x ~= nil)
+    if x then w.iconF.tex:SetTexture(ns.SpellIcon(x.spellID)); w.name = x.name; w.spellID = x.spellID end
+  end
+  c.withAdd:SetShown(ns.CanAddWith(s))
+  c.withAdd:ClearAllPoints(); c.withAdd:SetPoint("TOPLEFT", 8 + #with * 24, -34)
   local list = seq or (s and { s }) or {}
-  local top = seq and -40 or -58
+  local top = seq and -60 or -82
   for j, r in ipairs(c.steps) do
     local x = list[j]
     r:SetShown(x ~= nil)
@@ -505,12 +572,12 @@ function card:Refresh()
   ns.ResetLearned()
   refreshKeys()
   local on = ns.Manages()
-  manageBtn:SetText(L.MANAGE_BTN:format(on and L.ON or L.OFF))
+  manageBtn:SetText(L.MANAGE_BTN)
   manageBtn:GetFontString():SetTextColor(unpack(on and T.fel or T.muted))
   manageBtn.track:SetVertexColor(unpack(on and T.fel or T.line))
   manageBtn.knob:ClearAllPoints(); manageBtn.knob:SetPoint("CENTER", manageBtn.track, on and "RIGHT" or "LEFT", on and -7 or 7, 0)
   self.hint:SetText(current and not on and L.DRAG_HINT:format(ns.MacroName(current)) or "")
-  for _, w in ipairs({ self.count, self.meter, self.target, self.pet, self.show, self.legend }) do w:SetShown(current ~= nil) end
+  for _, w in ipairs({ self.count, self.meter, self.target, self.pet, self.show, self.clear, self.legend }) do w:SetShown(current ~= nil) end
   for _, c in pairs(cols) do c:SetShown(current ~= nil) end
   if not current then
     self.label:SetText(L.PICK_KEY)
@@ -518,6 +585,7 @@ function card:Refresh()
     return
   end
   local setup = setupOf(current)
+  before, beforeKey = ns.Copy(setup), current
   local name = ns.MacroName(current)
   self.label:SetText(L.KEY:format(L["KEY_" .. current] or current) .. "   |cffa99bb7" .. L.MACRO:format(name) .. "|r")
   local text, n = ns.FitMacro(setup, ns.best)
@@ -575,7 +643,7 @@ picker:SetScript("OnMouseWheel", function(self, d)
   self.offset = math.max(0, math.min(self.offset - d * 3, #self.shown - ROWS)); self:Render()
 end)
 
--- append: adding to a cast sequence, so spells only (no items, no pet commands) and no Clear.
+-- append: true adds a sequence step, "with" a cast-with spell; both spells only (no items, no pet commands), no Clear.
 function picker:Open(slot, append)
   ns.ScanBags() -- read only, fine in combat; icons show what is in the bags now
   self.slot, self.append, self.offset, self.all = slot, append, 0, {}
@@ -630,7 +698,9 @@ end
 function picker:Choose(s)
   local slots, slot = setupOf(current).slots, self.slot
   local old = slots[slot]
-  if s and self.append and old then -- append: spell goes to the end (AddStep keeps a slot that cannot grow)
+  if s and self.append == "with" and old then -- cast with: fires first on the same press
+    slots[slot] = ns.AddWith(old, { spellID = s.spellID, name = s.name })
+  elseif s and self.append and old then -- append: spell goes to the end (AddStep keeps a slot that cannot grow)
     slots[slot] = ns.AddStep(old, { spellID = s.spellID, name = s.name, kind = ns.SpellKind(s.spellID) })
   elseif s and (s.pet or s.petSpecial) then
     slots[slot] = { pet = s.pet, petSpecial = s.petSpecial }
@@ -656,6 +726,7 @@ local function loaded(id)
   for _, b in pairs(keyButtons) do if b.big.spellID == id then b.big.tex:SetTexture(ns.SpellIcon(id)) end end
   for _, c in pairs(cols) do
     for _, r in ipairs(c.steps) do if r:IsShown() and r.spellID == id then r.icon:SetTexture(ns.SpellIcon(id)) end end
+    for _, w in ipairs(c.with) do if w:IsShown() and w.spellID == id then w.iconF.tex:SetTexture(ns.SpellIcon(id)) end end
   end
   for _, b in ipairs(picker.rows) do
     if b:IsShown() and b.spell and b.spell.spellID == id then b.icon:SetTexture(ns.SpellIcon(id, b.spell.icon)) end
@@ -708,7 +779,8 @@ SlashCmdList.FOILKEYBINDS = function(msg)
     end
     ns.Say(L.UNKNOWN_SPELL:format(spell))
   elseif word == "apply" then ns.Apply()
-  elseif word == "undo" then ns.Undo()
+  elseif word == "undo" then ns.UndoStep()
+  elseif word == "reset" then ns.ResetAll()
   elseif word == "items" or word == "itens" then ns.SwapItems(true)
   elseif word == "cheat" or word == "cola" then ns.ToggleCheat()
   elseif CONFIG[word] then ns.OpenWindow("settings")

@@ -71,7 +71,7 @@ end
 function ns.NewSlot(spellID, name, kind, old)
   local mo = kind == "harm" or kind == "help"
   if old and old.name then mo = old.mouseover or false end
-  return { spellID = spellID, name = name, kind = kind, mouseover = mo }
+  return { spellID = spellID, name = name, kind = kind, mouseover = mo, with = old and ns.Copy(old.with) }
 end
 
 -- With an item (or a sequence) on the key, /use, /castsequence and /cast all run on one press,
@@ -115,6 +115,21 @@ function ns.MacroText(setup, best, class)
   local conds = hasItem and EXCL or COND
   local sl, sep, sp = setup.slots, "; ", " "
   if setup.compact then sep, sp = ";", "" end
+  -- Cast with: extra spells (racials, no global cooldown) on their own line before the rest, so they
+  -- fire on the same press. Exclusive conditions: the line must not fire on another modifier.
+  -- ponytail: #showtooltip shows the first castable spell, so the bar icon may show the extra; a
+  -- conditional #showtooltip copying the main clauses would fix it at the cost of macro length.
+  for _, id in ipairs(ns.SLOTS) do
+    local s = sl[id]
+    for _, w in ipairs(s and s.with or {}) do
+      local cond = EXCL[id]
+      if setup.compact then
+        if not sl.ctrl then cond = cond:gsub(",nomod:ctrl", "") end
+        if not sl.altshift then cond = cond:gsub(",nomod:shift", ""):gsub(",nomod:alt", "") end
+      end
+      lines[#lines + 1] = "/cast [" .. cond .. "]" .. sp .. w.name
+    end
+  end
   for _, id in ipairs(ns.SLOTS) do
     local s = setup.slots[id]
     local cond = conds[id]
@@ -198,7 +213,9 @@ end
 -- A sequence counts with its whole spell list.
 local function textLen(s)
   if s.seq then local n = 0; for _, x in ipairs(s.seq) do n = n + #x.name + 2 end; return n end
-  return s.name and #s.name
+  local n = s.name and #s.name
+  for _, w in ipairs(s.with or {}) do n = (n or 0) + #w.name + 20 end -- "/cast [cond] " per extra
+  return n
 end
 function ns.FitMacro(setup, best, class)
   local slots = {}
@@ -384,10 +401,16 @@ function ns.Repair(keys, lookup, byName)
         local kept = {}
         for i, x in ipairs(s.seq) do if fix(key, id, x, i) then kept[#kept + 1] = x end end
         if #kept == 0 then setup.slots[id] = nil
-        elseif #kept == 1 then setup.slots[id] = ns.Unseq(kept[1])
+        elseif #kept == 1 then setup.slots[id] = ns.Unseq(kept[1]); setup.slots[id].with = s.with
         else s.seq = kept end
       elseif s and s.name and not fix(key, id, s) then
         setup.slots[id] = nil
+      end
+      local left = setup.slots and setup.slots[id]
+      if left and left.with then -- cast with spells: renamed or dropped, the slot stays
+        local kept = {}
+        for _, w in ipairs(left.with) do if fix(key, id, w) then kept[#kept + 1] = w end end
+        left.with = #kept > 0 and kept or nil
       end
     end
   end
@@ -409,7 +432,8 @@ function ns.AddStep(s, entry)
   if s.seq then
     local new = ns.Copy(s); new.seq[#new.seq + 1] = ns.Copy(entry); return new
   end
-  return { seq = { { spellID = s.spellID, name = s.name, kind = s.kind }, ns.Copy(entry) }, reset = { target = true, combat = true } }
+  return { seq = { { spellID = s.spellID, name = s.name, kind = s.kind }, ns.Copy(entry) }, reset = { target = true, combat = true },
+    with = ns.Copy(s.with) }
 end
 -- Swaps step i with step i + delta (delta -1 = up, 1 = down) when both exist.
 function ns.MoveStep(s, i, delta)
@@ -421,7 +445,27 @@ end
 function ns.RemoveStep(s, i)
   local new = ns.Copy(s)
   table.remove(new.seq, i)
-  return #new.seq == 1 and ns.Unseq(new.seq[1]) or new
+  if #new.seq > 1 then return new end
+  local plain = ns.Unseq(new.seq[1]); plain.with = new.with
+  return plain
+end
+
+-- Cast with: spells that fire first on the same press (racials with no global cooldown), up to 2,
+-- on a plain spell or a sequence. entry = { spellID, name }.
+ns.MAXWITH = 2
+function ns.CanAddWith(s)
+  return s ~= nil and (s.seq or s.name) ~= nil and #(s.with or {}) < ns.MAXWITH
+end
+function ns.AddWith(s, entry)
+  local new = ns.Copy(s)
+  if ns.CanAddWith(s) then new.with = new.with or {}; new.with[#new.with + 1] = ns.Copy(entry) end
+  return new
+end
+function ns.RemoveWith(s, i)
+  local new = ns.Copy(s)
+  table.remove(new.with, i)
+  if #new.with == 0 then new.with = nil end
+  return new
 end
 
 -- A stored spell counts as known when its ID is known or any spell with its name is learned
