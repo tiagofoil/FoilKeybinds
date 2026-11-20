@@ -133,6 +133,8 @@ FoilKeybindsGuides.PRIEST = {
     [11622] = {
       name = "Shadow Magic",
       priority = {
+        { spellID = 17, level = 6, en = "Shield yourself before the pull so hits do not slow your casts.",
+          ptBR = "Escudo em você antes do combate, para os golpes não atrasarem seus feitiços." },
         { spellID = 589, level = 4, en = "Shadow DoT. Put it on every target first.",
           ptBR = "DoT de Sombra. Aplique primeiro em todos os alvos." },
         { spellID = 15286, level = 30, talent = true, en = "Your Shadow damage heals you and your party. Put it on before your nukes.",
@@ -144,8 +146,6 @@ FoilKeybindsGuides.PRIEST = {
           ptBR = "Preenchimento canalizado. Seu dano principal depois que os DoTs estiverem ativos." },
         { spellID = 1309595, level = 32, en = "Instant finisher. If the target lives, you take damage back.",
           ptBR = "Finalizador instantâneo. Se o alvo sobreviver, você sofre dano de volta." },
-        { spellID = 17, level = 6, en = "Shield yourself before the pull so hits do not slow your casts.",
-          ptBR = "Escudo em você antes do combate, para os golpes não atrasarem seus feitiços." },
       },
       templates = {
         [2] = {

@@ -94,6 +94,8 @@ FoilKeybindsGuides.DRUID = {
       priority = {
         { spellID = 5215, level = 20, en = "Stealth before the pull, then open from behind.",
           ptBR = "Furtividade antes do combate, para abrir pelas costas do alvo." },
+        { spellID = 6785, level = 32, en = "Big opener from stealth, behind the target.",
+          ptBR = "Abertura forte saindo da furtividade, pelas costas do alvo." },
         { spellID = 1822, level = 24, en = "Bleed plus a combo point. Put it on first.",
           ptBR = "Sangramento mais um ponto de combo. Aplique primeiro." },
         { spellID = 3029, level = 28, en = "Main combo builder. On Forever it needs a Feral talent.",
@@ -104,8 +106,6 @@ FoilKeybindsGuides.DRUID = {
           ptBR = "Finalizador de sangramento. Use com 3 a 5 pontos de combo em alvos que vão durar." },
         { spellID = 1328618, level = 24, en = "Direct finisher. Use it when the target is about to die.",
           ptBR = "Finalizador direto. Use quando o alvo estiver quase morrendo." },
-        { spellID = 6785, level = 32, en = "Big opener from stealth, behind the target.",
-          ptBR = "Abertura forte saindo da furtividade, pelas costas do alvo." },
         { spellID = 407995, level = 40, talent = true, en = "Bear form: a strong hit that holds threat. Use it when you tank.",
           ptBR = "Na forma de urso: golpe forte que segura a ameaça. Use quando estiver tanqueando." },
       },
