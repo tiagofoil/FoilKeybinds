@@ -35,9 +35,8 @@ local FEAR2 = { normal = FEAR, alt = BOMB, altshift = BANISH }
 local FEAR3 = { normal = FEAR, shift = HOWL, alt = BOMB, altshift = BANISH }
 local ARMOR2 = { normal = DEMON_ARMOR, shift = HEALTHSTONE, alt = SOULSTONE, altshift = BREATH }
 local ARMOR3 = { normal = DEMON_ARMOR, shift = HEALTHSTONE, alt = SOULSTONE, altshift = SPELLSTONE, ctrl = BREATH }
-local DEMONS = { normal = VOIDWALKER, shift = SUCCUBUS, alt = FELHUNTER, altshift = SUMMON_IMP }
+local DEMONS = { normal = VOIDWALKER, shift = SUCCUBUS, alt = FELHUNTER, altshift = SUMMON_IMP, ctrl = HEALTH_FUNNEL } -- pet key: Health Funnel heals the demon
 local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
-local FUNNEL = { normal = HEALTH_FUNNEL }
 local TAP = { normal = LIFE_TAP, shift = DRAIN_SOUL, alt = DRAIN_MANA }
 
 FoilKeybindsGuides.WARLOCK = {
@@ -53,9 +52,8 @@ FoilKeybindsGuides.WARLOCK = {
     Q = { normal = WEAKNESS, shift = RECKLESSNESS },
     R = { normal = SHADOW_BOLT, altshift = SEARING_PAIN },
     V = ITEMS,
-    ["3"] = FUNNEL,
     ["4"] = { normal = DEMON_SKIN, shift = HEALTHSTONE, alt = SOULSTONE, altshift = BREATH },
-    G = { normal = VOIDWALKER, shift = SUMMON_IMP },
+    G = { normal = VOIDWALKER, shift = SUMMON_IMP, ctrl = HEALTH_FUNNEL },
     X = { normal = LIFE_TAP, shift = DRAIN_SOUL },
   },
   specs = {
@@ -93,7 +91,6 @@ FoilKeybindsGuides.WARLOCK = {
           Q = CURSES,
           R = NUKES,
           V = ITEMS,
-          ["3"] = FUNNEL,
           ["4"] = ARMOR2,
           G = DEMONS,
           X = TAP,
@@ -107,7 +104,6 @@ FoilKeybindsGuides.WARLOCK = {
           R = NUKES3,
           V = ITEMS,
           ["2"] = { normal = DEATH_COIL },
-          ["3"] = FUNNEL,
           ["4"] = ARMOR3,
           G = DEMONS,
           X = TAP,
@@ -146,7 +142,6 @@ FoilKeybindsGuides.WARLOCK = {
           Q = CURSES,
           R = NUKES,
           V = ITEMS,
-          ["3"] = FUNNEL,
           ["4"] = ARMOR2,
           G = DEMONS,
           X = TAP,
@@ -160,7 +155,6 @@ FoilKeybindsGuides.WARLOCK = {
           R = NUKES3,
           V = ITEMS,
           ["2"] = { normal = DEATH_COIL },
-          ["3"] = FUNNEL,
           ["4"] = ARMOR3,
           G = DEMONS,
           X = TAP,
@@ -198,7 +192,6 @@ FoilKeybindsGuides.WARLOCK = {
           Q = CURSES,
           R = NUKES,
           V = ITEMS,
-          ["3"] = FUNNEL,
           ["4"] = ARMOR2,
           G = DEMONS,
           X = TAP,
@@ -212,7 +205,6 @@ FoilKeybindsGuides.WARLOCK = {
           R = NUKES3,
           V = ITEMS,
           ["2"] = { normal = DEATH_COIL },
-          ["3"] = FUNNEL,
           ["4"] = ARMOR3,
           G = DEMONS,
           X = TAP,

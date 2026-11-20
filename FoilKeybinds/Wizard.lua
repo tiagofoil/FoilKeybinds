@@ -173,7 +173,7 @@ show = function()
   end
   for i = n + 1, #page.icons do page.icons[i]:Hide() end
   page.key:SetText(k and L.WIZARD_KEY:format(keyName(k)) or L.WIZARD_KEY_OUT)
-  local side = ({ BUTTON4 = "1", BUTTON5 = "2" })[st.key]
+  local side = ({ BUTTON4 = "1", BUTTON5 = "2" })[k] -- the key this step suggests now (a saved pick may differ)
   page.side:SetText(side and L.WIZARD_NO_SIDE:format(side) or "")
   page.all:SetText(wz.saved and L.WIZARD_ALL_MINE or L.WIZARD_ALL)
   page.all:SetWidth(math.max(200, page.all:GetFontString():GetStringWidth() + 24))

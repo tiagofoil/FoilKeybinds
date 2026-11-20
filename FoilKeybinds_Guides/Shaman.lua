@@ -20,7 +20,7 @@ local CHAIN_LIGHTNING, CHAIN_HEAL, MANA_TIDE = S(421, "Chain Lightning"), S(1064
 local STORMSTRIKE, RIPTIDE = T(17364, "Stormstrike"), T(408521, "Riptide")
 
 -- Home keys (docs/spec-v6.md). No castsequence: the shocks share a cooldown and the totems are dropped once
--- per pull. Earth Shock on 1 (it interrupts) and on a mouse button when it is also an attack; Frost Shock and
+-- per pull. Earth Shock interrupts: on 1, or only on the mouse button when it is also the attack there; Frost Shock and
 -- Earthbind on E, Flame Shock and Searing Totem on F, Purge on Q, Ghost Wolf on C.
 -- Totems by job, not by element: buff totems go on T (a far buff key: dropped before the pull, rarely pressed
 -- again), damage totems on F and R (Fire Nova and Magma are the area damage), Stoneclaw and Grounding on 2
@@ -53,7 +53,6 @@ FoilKeybindsGuides.SHAMAN = {
     Q = DEBUFF,
     R = { shift = FIRE_NOVA },
     V = ITEMS,
-    ["1"] = KICK,
     ["2"] = { normal = STONECLAW },
     ["3"] = { normal = HW },
     ["4"] = { normal = SHIELD, shift = ROCKBITER, alt = FLAMETONGUE },
@@ -88,7 +87,6 @@ FoilKeybindsGuides.SHAMAN = {
           Q = DEBUFF,
           R = { normal = CHAIN_LIGHTNING, shift = FIRE_NOVA, alt = MAGMA },
           V = ITEMS,
-          ["1"] = KICK,
           ["2"] = GUARD,
           ["3"] = SELF_HEALS2,
           ["4"] = SELF,
@@ -105,7 +103,6 @@ FoilKeybindsGuides.SHAMAN = {
           Q = DEBUFF,
           R = { normal = CHAIN_LIGHTNING, shift = FIRE_NOVA, alt = MAGMA },
           V = ITEMS,
-          ["1"] = KICK,
           ["2"] = GUARD,
           ["3"] = SELF_HEALS3,
           ["4"] = SELF,
@@ -144,7 +141,6 @@ FoilKeybindsGuides.SHAMAN = {
           Q = DEBUFF,
           R = AREA,
           V = ITEMS,
-          ["1"] = KICK,
           ["2"] = GUARD,
           ["3"] = SELF_HEALS2,
           ["4"] = { normal = SHIELD, shift = WINDFURY, alt = FLAMETONGUE, altshift = ROCKBITER, ctrl = FROSTBRAND },
@@ -161,7 +157,6 @@ FoilKeybindsGuides.SHAMAN = {
           Q = DEBUFF,
           R = AREA,
           V = ITEMS,
-          ["1"] = KICK,
           ["2"] = GUARD,
           ["3"] = SELF_HEALS2,
           ["4"] = { normal = SHIELD, shift = WINDFURY, alt = FLAMETONGUE, altshift = ROCKBITER, ctrl = FROSTBRAND },
@@ -192,8 +187,9 @@ FoilKeybindsGuides.SHAMAN = {
         -- Heals on the plain press, solo damage on Shift (Lightning Bolt on Mouse 4, Chain Lightning on Mouse 5).
         -- From 40 Chain Heal is the main heal on Mouse 4 and Lesser Healing Wave moves to 3.
         [2] = {
-          BUTTON4 = { normal = LHW, shift = BOLT },
-          BUTTON5 = { normal = STREAM, shift = CHAIN_LIGHTNING },
+          BUTTON4 = { normal = LHW },
+          BUTTON5 = { normal = BOLT, shift = CHAIN_LIGHTNING },
+          ["3"] = { normal = STREAM },
           E = CC,
           F = SHOCKS,
           Q = DEBUFF,

@@ -349,7 +349,7 @@ local w = ns.WizardState()
 local M4, M5 = L.KEY_BUTTON4, L.KEY_BUTTON5
 assert(w and ns.InPreview() and f.tab == "keys", "Build my layout did not start the wizard")
 assert(db.wizard.picks == nil and not w.saved, "old picks not dropped")
-assert(#w.steps == 11 and w.steps[1].key == "BUTTON4" and w.steps[2].key == "BUTTON5" and showing(L.WIZARD_STEP:format(2, 12)), "steps")
+assert(#w.steps == 10 and w.steps[1].key == "BUTTON4" and w.steps[2].key == "BUTTON5" and showing(L.WIZARD_STEP:format(2, 11)), "steps")
 assert(showing(L.MEANING_main) and showing(L.WHY_main) and showing(L.WIZARD_ALL), "step bar texts")
 assert(showing(L.WIZARD_NO_SIDE:format("1")), "no side buttons line on the main step")
 assert(label():find(L.KEY:format(M4), 1, true), "current group not selected")
@@ -378,7 +378,7 @@ assert(w.map.E == "E" and showing(L.WIZARD_BLOCKED_move), "W not blocked")
 clickKey(L.KEY_SPACE)
 assert(w.map.E == "E" and showing(L.WIZARD_BLOCKED_space), "blocked key")
 click(L.WIZARD_ALL)
-assert(w.i == 12 and ns.InPreview(), "use all suggestions ended the preview")
+assert(w.i == 11 and ns.InPreview(), "use all suggestions ended the preview")
 -- The done page lists the macros Apply will write, and the left-out group.
 local function showingPart(part)
   for _, t in ipairs(frames) do local v = rawget(t, "__text"); if type(v) == "string" and v:find(part, 1, true) then return true end end
@@ -387,8 +387,8 @@ assert(showing(L.WIZARD_DONE) and showing(L.WIZARD_DONE_STEP) and showingPart("#
 assert(showing(L.WIZARD_LEFT_OUT:format(L.MEANING_wand)), "left-out group not listed")
 clickKey("Z") -- past the last step: read only
 assert(w.map.X == "X" and w.map.BUTTON4 == "BUTTON5" and sameKeys(own, db.keys))
-click(L.WIZARD_BACK); assert(w.i == 11 and showing(L.WIZARD_STEP:format(12, 12)), "back from the done page")
-click(L.WIZARD_NEXT); assert(w.i == 12)
+click(L.WIZARD_BACK); assert(w.i == 10 and showing(L.WIZARD_STEP:format(11, 11)), "back from the done page")
+click(L.WIZARD_NEXT); assert(w.i == 11)
 -- Use while spell names load: nothing saved, the preview stays.
 local nameFn = G.C_Spell.GetSpellName
 G.C_Spell.GetSpellName = function() end
@@ -442,7 +442,7 @@ ev.__scripts.OnEvent(ev, "PLAYER_LEVEL_UP", 40) -- the item swap may add its own
 assert((said[n0 + 1] or ""):find(L.WIZARD_LEVELUP:format(40, "Affliction", "40-60"), 1, true), "no wizard level-up line")
 
 -- Apply writes a sequence with the steps the character knows (one known: a plain cast); the stored keys
--- keep every step, and a spell learned later comes in on SPELLS_CHANGED (the macro rebuilt from the snapshot).
+-- keep every step, and a spell learned later comes in on LEARNED_SPELL_IN_SKILL_LINE (the macro rebuilt from the snapshot).
 local macros, byName = {}, {}
 G.GetMacroIndexByName = function(n) return byName[n] or 0 end
 G.CreateMacro = function(n, _, body) macros[#macros + 1] = body; byName[n] = #macros; return #macros end
@@ -458,7 +458,7 @@ local body = macros[byName[ns.MacroName("BUTTON4")]]
 assert(body and body:find("/cast Immolate", 1, true) and not body:find("castsequence", 1, true), "one known step: " .. tostring(body))
 assert(#db.keys.BUTTON4.slots.normal.seq == 3 and #db.applied.BUTTON4.slots.normal.seq == 3, "Apply cut the stored sequence")
 known[172] = true
-ev.__scripts.OnEvent(ev, "SPELLS_CHANGED")
+ev.__scripts.OnEvent(ev, "LEARNED_SPELL_IN_SKILL_LINE")
 body = macros[byName[ns.MacroName("BUTTON4")]]
 assert(body:find("reset=target/combat Immolate, Corruption", 1, true) and not body:find("Agony", 1, true), "learned step not in: " .. body)
 G.GetMacroIndexByName, G.C_SpellBook.IsSpellKnown = function() return 0 end, nil

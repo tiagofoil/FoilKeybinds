@@ -823,15 +823,18 @@ end
 local ev = CreateFrame("Frame")
 -- PLAYER_LEVEL_UP: a potion can become usable. ponytail: if the usable check still sees the old
 -- level at this event, the swap waits for the next bag change or the Refresh items button.
--- SPELLS_CHANGED: a spell learned at the trainer goes into the sequences that hold it (rebuild skips unchanged macros).
-for _, e in ipairs({ "PLAYER_LOGIN", "PLAYER_LOGOUT", "BAG_UPDATE_DELAYED", "PLAYER_REGEN_ENABLED", "PLAYER_LEVEL_UP", "SPELLS_CHANGED" }) do
-  ev:RegisterEvent(e)
+-- A learned spell (trainer, talent) goes into the sequences that hold it (rebuild skips unchanged macros).
+-- Not SPELLS_CHANGED: it also fires on every form and stance change. The two learn events are tried by name
+-- (pcall), since a client without one of them errors on RegisterEvent.
+for _, e in ipairs({ "PLAYER_LOGIN", "PLAYER_LOGOUT", "BAG_UPDATE_DELAYED", "PLAYER_REGEN_ENABLED", "PLAYER_LEVEL_UP",
+  "LEARNED_SPELL_IN_SKILL_LINE", "LEARNED_SPELL_IN_TAB" }) do
+  pcall(ev.RegisterEvent, ev, e)
 end
 local repairPending
 ev:SetScript("OnEvent", function(_, event, arg)
   if event == "PLAYER_LOGOUT" then return ns.SaveIndex() end
   -- Spells load before login, when bags and macros may not be ready: wait for the login swap (or an Apply).
-  if event == "SPELLS_CHANGED" and not built then return end
+  if event:find("^LEARNED_SPELL") and not built then return end
   if event == "PLAYER_LEVEL_UP" then ns.TellBracket(arg) end
   if event == "PLAYER_LOGIN" then repairPending = true; ns.ImportOnLogin() end
   ns.SwapItems()
