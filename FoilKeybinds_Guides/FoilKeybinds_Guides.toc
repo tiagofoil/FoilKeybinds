@@ -12,3 +12,7 @@ Druid.lua
 Hunter.lua
 Paladin.lua
 Priest.lua
+Mage.lua
+Rogue.lua
+Shaman.lua
+Warrior.lua
