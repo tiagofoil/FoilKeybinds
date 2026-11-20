@@ -155,7 +155,7 @@ FoilKeybindsGuides.SHAMAN = {
         { spellID = 5675, level = 26, en = "Water totem that gives mana back over time. Drop it before the pull.",
           ptBR = "Totem de água que devolve mana aos poucos. Coloque antes de puxar." },
         { spellID = 408521, level = 40, talent = true, en = "Heal over time. It also makes your Chain Heal stronger on that target.",
-          ptBR = "Cura ao longo do tempo. Também deixa a sua cura em cadeia mais forte nesse alvo." },
+          ptBR = "Cura ao longo do tempo. Também deixa mais forte, nesse alvo, a sua cura que pula entre aliados." },
         { spellID = 1064, level = 40, en = "Heal that jumps to hurt allies nearby. Your main group heal.",
           ptBR = "Cura que pula para aliados feridos por perto. Sua cura principal em grupo." },
         { spellID = 8004, level = 20, en = "Fast heal for when damage spikes.", ptBR = "Cura rápida para quando o dano aperta." },

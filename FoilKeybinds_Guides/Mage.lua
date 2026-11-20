@@ -157,9 +157,8 @@ FoilKeybindsGuides.MAGE = {
         { spellID = 2136, level = 6, en = "Instant hit to finish a target or to cast on the move.",
           ptBR = "Golpe instantâneo para finalizar um alvo ou atacar andando." },
         { spellID = 120, level = 26, en = "Frost cone in front of you that slows. Good when enemies get close.",
-          ptBR = "Cone de Gelo à sua frente que deixa os inimigos lentos. Bom quando eles chegam perto." },
-        { spellID = 10, level = 20, en = "Channeled area damage for packs. It slows them too.",
-          ptBR = "Dano em área canalizado para grupos. Também deixa os inimigos lentos." },
+          ptBR = "Rajada de frio em cone à sua frente que deixa os inimigos lentos. Boa quando eles chegam perto." },
+        { spellID = 10, level = 20, en = "Channeled area damage for packs.", ptBR = "Dano em área canalizado para grupos de inimigos." },
       },
       templates = {
         [2] = {
