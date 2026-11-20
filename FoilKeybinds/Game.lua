@@ -111,7 +111,7 @@ function ns.CopyFrom(name)
   local me, class = ns.Me()
   local src = FoilKeybindsAccount[class] and FoilKeybindsAccount[class][name]
   if not src or name == me then return end
-  FoilKeybindsDB.copyUndo = ns.Copy(FoilKeybindsDB.keys)
+  FoilKeybindsDB.copyUndo, FoilKeybindsDB.copyUndoGuide = ns.Copy(FoilKeybindsDB.keys), nil
   FoilKeybindsDB.keys = ns.Copy(src)
   if ns.ClearHistory then ns.ClearHistory() end
   if ns.Refresh then ns.Refresh() end
@@ -280,7 +280,7 @@ local function run(p, quiet)
   for _, n in ipairs(p.notes) do ns.Say(n) end
   SaveBindings(GetCurrentBindingSet())
   built = ns.best
-  if not quiet then db.copyUndo = nil end -- the copy is live now; Undo reverts the Apply instead
+  if not quiet then db.copyUndo, db.copyUndoGuide = nil, nil end -- the copy is live now; Undo reverts the Apply instead
   ns.SaveIndex()
   if quiet then ns.Say(L.NOTHING_TO_CHANGE) else ns.Info((p.manage and L.DONE or L.DONE_MACROS):format(done)) end
   if ns.Refresh then ns.Refresh() end
@@ -391,13 +391,68 @@ function ns.UndoBars()
   return true
 end
 
--- A pending Copy from: its old keys come back. It touched nothing in game. False when none.
+-- A pending Copy from or "Use this layout": its old keys come back. It touched nothing in game. False when none.
+-- copyUndoGuide set (the used template from before, or false) means the keys came from a template.
 function ns.UndoCopy()
-  if not FoilKeybindsDB.copyUndo then return false end
-  FoilKeybindsDB.keys, FoilKeybindsDB.copyUndo = FoilKeybindsDB.copyUndo, nil; if ns.ClearHistory then ns.ClearHistory() end
+  local db = FoilKeybindsDB
+  if not db.copyUndo then return false end
+  local template = db.copyUndoGuide ~= nil
+  if template then db.guide = db.copyUndoGuide or nil end -- no level-up line for an undone layout
+  db.keys, db.copyUndo, db.copyUndoGuide = db.copyUndo, nil, nil; if ns.ClearHistory then ns.ClearHistory() end
   if ns.Refresh then ns.Refresh() end
-  ns.Say(L.COPY_UNDONE)
+  ns.Say(template and L.TEMPLATE_UNDONE or L.COPY_UNDONE)
   return true
+end
+
+-- Guide: localized name and kind of a spell ID (nil when the client cannot tell yet).
+function ns.SpellLookup(id)
+  local n = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id) or GetSpellInfo and (GetSpellInfo(id))
+  if n then return n, ns.SpellKind(id) end
+end
+
+-- The class's specs from the talent API (Forever: one tree, one group per spec); every step may answer
+-- nil, and then GuideSpecs falls back to the guide's own specs. class = FoilKeybindsGuides[CLASS].
+function ns.ReadSpecs(class)
+  local ok, groups = pcall(function()
+    local config = C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+    local info = config and C_Traits and C_Traits.GetConfigInfo(config)
+    local tree = info and info.treeIDs and info.treeIDs[1]
+    local list = tree and C_Traits.GetGroupDisplayInfoByTreeID(tree)
+    for _, g in ipairs(list or {}) do
+      local c = C_Traits.GetGroupCurrencyInfo(config, { g.groupID })
+      local ci = c and c[1] and c[1].currencyInfos and c[1].currencyInfos[1]
+      g.spent = ci and ci.spent or 0
+    end
+    return list
+  end)
+  return ns.GuideSpecs(ok and groups or nil, class)
+end
+
+-- "Use this layout": keys (fresh TemplateKeys output) become this character's keys. The old ones wait in
+-- the Copy from undo slot; nothing reaches the game until Apply. used = { groupID, bracket, name }.
+function ns.UseTemplate(keys, used)
+  local db = FoilKeybindsDB
+  ns.ScanBags()
+  local dropped = ns.FitKeys(keys, ns.best)
+  db.copyUndo, db.copyUndoGuide = ns.Copy(db.keys), db.guide or false
+  db.keys = keys
+  -- told starts at the current bracket: a level 30 using the 1-19 layout hears nothing until 40.
+  used.told = math.max(used.bracket, ns.BracketOf(UnitLevel("player") or 1))
+  db.guide = used
+  if ns.ClearHistory then ns.ClearHistory() end
+  if ns.Refresh then ns.Refresh() end
+  for _, key in ipairs(dropped) do ns.Say(L.TEMPLATE_SKIP:format(L["KEY_" .. key] or key)) end
+  ns.Say(L.TEMPLATE_USED:format(used.name, ns.BracketRange(used.bracket)))
+end
+
+-- PLAYER_LEVEL_UP: one line when a used template's next bracket is here. level = the event's new level
+-- (UnitLevel can still answer the old one). Needs no guide data, only the saved spec name.
+function ns.TellBracket(level)
+  local g = FoilKeybindsDB and FoilKeybindsDB.guide
+  local b = level and ns.LevelUpBracket(g, level)
+  if not b then return end
+  g.told = b
+  ns.Say(L.GUIDE_LEVELUP:format(level, g.name, ns.BracketRange(b)))
 end
 
 -- Reset all: bindings, bar slots and macros go back to how they were before Apply. Key setups stay.
@@ -689,8 +744,9 @@ for _, e in ipairs({ "PLAYER_LOGIN", "PLAYER_LOGOUT", "BAG_UPDATE_DELAYED", "PLA
   ev:RegisterEvent(e)
 end
 local repairPending
-ev:SetScript("OnEvent", function(_, event)
+ev:SetScript("OnEvent", function(_, event, arg)
   if event == "PLAYER_LOGOUT" then return ns.SaveIndex() end
+  if event == "PLAYER_LEVEL_UP" then ns.TellBracket(arg) end
   if event == "PLAYER_LOGIN" then repairPending = true; ns.ImportOnLogin() end
   ns.SwapItems()
   if repairPending and not InCombatLockdown() then repairPending = false; ns.MigrateNames(); ns.RepairOnLogin() end

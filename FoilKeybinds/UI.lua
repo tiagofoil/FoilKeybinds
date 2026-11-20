@@ -11,24 +11,28 @@ f:SetFrameStrata("HIGH"); f:SetToplevel(true) -- above quest arrows and other ad
 tinsert(UISpecialFrames, "FoilKeybindsFrame") -- Esc closes it
 function ns.SetMainScale(v) f:SetScale(v) end
 
--- Tabs at the top: Keys | Settings. One window, so closing it closes both.
+-- Tabs at the top: Keys | Guide | Settings. One window, so closing it closes all.
 local keysPane = CreateFrame("Frame", nil, f); keysPane:SetAllPoints()
 ns.settingsPane = CreateFrame("Frame", nil, f) -- Settings.lua builds the page in it
 ns.settingsPane:SetPoint("TOPLEFT", 0, -28); ns.settingsPane:SetPoint("BOTTOMRIGHT"); ns.settingsPane:Hide()
+ns.guidePane = CreateFrame("Frame", nil, f) -- Guide.lua builds the tab in it
+ns.guidePane:SetPoint("TOPLEFT", 0, -28); ns.guidePane:SetPoint("BOTTOMRIGHT"); ns.guidePane:Hide()
 local tabs = {}
 local function showTab(name)
+  if name ~= "keys" and ns.CancelPreview then ns.CancelPreview() end -- leaving the Keys tab cancels a preview
   f.tab = name
-  keysPane:SetShown(name == "keys"); ns.settingsPane:SetShown(name == "settings")
+  keysPane:SetShown(name == "keys"); ns.settingsPane:SetShown(name == "settings"); ns.guidePane:SetShown(name == "guide")
   for n, b in pairs(tabs) do b:GetFontString():SetTextColor(unpack(n == name and T.brass or T.muted)) end
+  if name == "guide" and ns.ShowGuide then ns.ShowGuide() end -- loads the guide package on the first open
 end
-for i, t in ipairs({ { "keys", L.TAB_KEYS }, { "settings", L.SETTINGS } }) do
+for i, t in ipairs({ { "keys", L.TAB_KEYS }, { "guide", L.TAB_GUIDE }, { "settings", L.SETTINGS } }) do
   local b = ns.Button(f, 90, 20, t[2])
   b:SetPoint("LEFT", f.title, "RIGHT", 18 + (i - 1) * 96, 0)
   b:SetScript("OnClick", function() showTab(t[1]) end)
   tabs[t[1]] = b
 end
 showTab("keys")
--- Opens the window on a tab (keys or settings).
+-- Opens the window on a tab (keys, guide or settings).
 function ns.OpenWindow(tab) f:Show(); showTab(tab) end
 
 local applyBtn = ns.Button(keysPane, 140, 26, L.APPLY, T.fel)
@@ -73,6 +77,10 @@ local function setupOf(key)
   keys[key] = keys[key] or { slots = {} }
   return keys[key]
 end
+-- Template preview (pv, see ns.StartPreview): the board draws pv.keys instead of the live keys.
+-- Drawing reads through viewKeys, never setupOf, so a preview creates no live key.
+local pv
+local function viewKeys() return pv and pv.keys or FoilKeybindsDB.keys end
 
 -- Runs after every card change: trims mouseover into saved data, or reverts the change
 -- with undo() when the macro cannot fit. Then redraws the card. slot = the slot the player
@@ -102,6 +110,7 @@ end
 
 -- A seconds box with focus commits on focus loss, so it must lose focus while current is still its key.
 local function selectKey(key)
+  if pv then return end -- preview is read-only
   local box = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
   if box then box:ClearFocus() end
   current = key; picker:Hide(); card.msg:SetText(""); card:Refresh()
@@ -186,7 +195,7 @@ end
 local function keyTooltip(b, key)
   GameTooltip:SetOwner(b, "ANCHOR_TOP")
   GameTooltip:SetText(L.KEY:format(L["KEY_" .. key] or key))
-  local setup = FoilKeybindsDB.keys[key]
+  local setup = viewKeys()[key]
   for _, id in ipairs(ns.COLUMNS) do
     local s = setup and setup.slots[id]
     if s then
@@ -206,7 +215,7 @@ end
 
 local keyButtons, refreshKeys = {}, nil
 local DOTS = { "shift", "ctrl", "alt", "altshift" } -- ns.COLUMNS without normal
-ns.KEY_ORDER = {} -- editable keys in canvas order, for the cheat sheet
+ns.KEY_ORDER = {} -- editable keys in canvas order, for the cheat sheet. Same list as Core's ns.BOARD (the smoke test checks it).
 for _, k in ipairs(LAYOUT) do
   local key = k[1]
   local b = CreateFrame("Button", nil, board)
@@ -256,7 +265,7 @@ function ns.SetKeyIconSize(n) for _, b in pairs(keyButtons) do b.big:SetSize(n, 
 -- Redraws every key: plain press icon, filled dots, selected key glows in brass.
 refreshKeys = function()
   for key, b in pairs(keyButtons) do
-    local setup = FoilKeybindsDB.keys[key]
+    local setup = viewKeys()[key]
     local filled = setup and next(setup.slots)
     local sel = key == current
     b.idle = sel and T.brass or filled and { T.void[1], T.void[2], T.void[3], 0.75 } or T.line
@@ -667,8 +676,8 @@ function card:Refresh()
     preview:Hide()
     return
   end
-  local setup = setupOf(current)
-  before, beforeKey = ns.Copy(setup), current
+  local setup = pv and (pv.keys[current] or { slots = {} }) or setupOf(current)
+  if not pv then before, beforeKey = ns.Copy(setup), current end
   local name = ns.MacroName(current)
   self.label:SetText(L.KEY:format(L["KEY_" .. current] or current) .. "   |cffa99bb7" .. L.MACRO:format(name) .. "|r")
   local text, n = ns.FitMacro(setup, ns.best)
@@ -798,6 +807,65 @@ function picker:Choose(s)
   commit(function() slots[slot] = old end, slot)
 end
 
+-- Preview of a guide template on this tab: banner in the title bar strip (spec, bracket, Use, Cancel),
+-- board and columns show the template, card and columns take no clicks, Apply/Undo/Copy/Refresh items
+-- are off. The cheat sheet keeps showing the live (applied) keys. Nothing here writes FoilKeybindsDB.keys.
+local banner = CreateFrame("Frame", nil, keysPane)
+banner:SetHeight(22); banner:Hide()
+banner:SetPoint("LEFT", tabs.settings, "RIGHT", 14, 0); banner:SetPoint("RIGHT", f.close, "LEFT", -6, 0)
+ns.RoundSkin(banner, { T.brass[1], T.brass[2], T.brass[3], 0.16 }, T.brass)
+banner.cancel = ns.Button(banner, 80, 18, L.PREVIEW_CANCEL)
+banner.cancel:SetWidth(math.max(80, banner.cancel:GetFontString():GetStringWidth() + 20)); banner.cancel:SetPoint("RIGHT", -2, 0)
+banner.use = ns.Button(banner, 120, 18, L.PREVIEW_USE, T.fel)
+banner.use:SetWidth(math.max(120, banner.use:GetFontString():GetStringWidth() + 20)); banner.use:SetPoint("RIGHT", banner.cancel, "LEFT", -6, 0)
+banner.text = ns.Text(banner, "bold", 13, T.brass)
+banner.text:SetPoint("LEFT", 10, 0); banner.text:SetPoint("RIGHT", banner.use, "LEFT", -8, 0)
+banner.text:SetJustifyH("LEFT"); banner.text:SetWordWrap(false)
+local cardShield = CreateFrame("Frame", nil, card) -- covers the card: nothing to edit in a preview
+cardShield:SetAllPoints(); cardShield:SetFrameLevel(card:GetFrameLevel() + 30); cardShield:EnableMouse(true); cardShield:Hide()
+ns.RoundSkin(cardShield, T.panel, { T.brass[1], T.brass[2], T.brass[3], 0.6 })
+cardShield.text = ns.Text(cardShield, "body", 14, T.muted)
+cardShield.text:SetPoint("LEFT", 28, 0); cardShield.text:SetPoint("RIGHT", -28, 0); cardShield.text:SetText(L.PREVIEW_READONLY)
+local colShield = CreateFrame("Frame", nil, keysPane) -- see-through: the columns show, clicks and drags stop here
+colShield:SetPoint("TOPLEFT", cols.normal, "TOPLEFT"); colShield:SetPoint("BOTTOMRIGHT", cols.altshift, "BOTTOMRIGHT")
+colShield:SetFrameLevel(cols.normal:GetFrameLevel() + 30); colShield:EnableMouse(true); colShield:Hide()
+local function previewLook(on)
+  for _, b in ipairs({ applyBtn, undoBtn, copyBtn, itemsBtn }) do b:SetEnabled(not on); b:SetAlpha(on and 0.4 or 1) end
+  banner:SetShown(on); cardShield:SetShown(on); colShield:SetShown(on)
+  view.rLine:SetVertexColor(unpack(on and T.brass or T.line))
+end
+-- keys: a fresh table (ns.TemplateKeys output), never the guide data. use(keys) runs on "Use this layout".
+-- The columns show the selected key when the template has it, else its first key in board order.
+function ns.StartPreview(keys, title, use)
+  local box = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+  if box then box:ClearFocus() end -- a seconds box commits to the live keys first
+  picker:Hide(); preview:Hide() -- the macro panel would say "Live macro differs" about a template key
+  showTab("keys")
+  local was = pv and pv.was or current
+  pv = { keys = keys, use = use, was = was }
+  if not (current and keys[current]) then
+    current = nil
+    for _, k in ipairs(ns.BOARD) do if keys[k] then current = k; break end end
+  end
+  banner.text:SetText(title)
+  previewLook(true)
+  card:Refresh()
+end
+-- Back to the live keys and the key selected before (no live key is created for the preview's pick).
+function ns.CancelPreview()
+  if not pv then return end
+  current, pv = pv.was, nil
+  previewLook(false)
+  card:Refresh()
+end
+function ns.InPreview() return pv ~= nil end
+banner.cancel:SetScript("OnClick", ns.CancelPreview)
+banner.use:SetScript("OnClick", function()
+  local p = pv
+  ns.CancelPreview()
+  p.use(p.keys)
+end)
+
 -- While shown: spells learned redraw the window, loaded spell data updates the icons of that spell.
 local LIVE = { "SPELLS_CHANGED", "SPELL_DATA_LOAD_RESULT" }
 f:SetScript("OnShow", function(self)
@@ -805,7 +873,10 @@ f:SetScript("OnShow", function(self)
   self:Raise() -- on top of other HIGH frames (SetToplevel only raises on click)
   ns.ScanBags(); card:Refresh()
 end)
-f:SetScript("OnHide", function(self) for _, e in ipairs(LIVE) do self:UnregisterEvent(e) end end)
+f:SetScript("OnHide", function(self)
+  for _, e in ipairs(LIVE) do self:UnregisterEvent(e) end
+  ns.CancelPreview() -- closing the window cancels a preview
+end)
 local function loaded(id)
   for _, b in pairs(keyButtons) do
     if b.big.spellID == id then b.big.tex:SetTexture(ns.SpellIcon(id)) end
@@ -818,6 +889,7 @@ local function loaded(id)
   for _, b in ipairs(picker.rows) do
     if b:IsShown() and b.spell and b.spell.spellID == id then b.icon:SetTexture(ns.SpellIcon(id, b.spell.icon)) end
   end
+  if ns.GuideSpellLoaded then ns.GuideSpellLoaded(id) end
 end
 function ns.Refresh()
   if f:IsShown() then card:Refresh() end
@@ -830,7 +902,7 @@ end
 
 f:RegisterEvent("ADDON_LOADED")
 f:SetScript("OnEvent", function(_, event, name, ok)
-  if event == "SPELLS_CHANGED" then return card:Refresh() end
+  if event == "SPELLS_CHANGED" then if ns.RefreshGuide then ns.RefreshGuide() end; return card:Refresh() end
   if event == "SPELL_DATA_LOAD_RESULT" then if ok then loaded(name) end; return end
   if name ~= "FoilKeybinds" then return end
   FoilKeybindsDB = FoilKeybindsDB or {}
@@ -847,7 +919,8 @@ f:SetScript("OnEvent", function(_, event, name, ok)
   ns.ApplySettings()
 end)
 
--- /fkb toggles the window. /fkb set <KEY> <Spell> fills a key's normal slot from the spellbook.
+-- /fkb toggles the window. /fkb set <KEY> <Spell> fills a key's normal slot from the spellbook (live keys,
+-- even during a preview). /fkb guide (guia) opens the Guide tab.
 SLASH_FOILKEYBINDS1 = "/fkb"
 local CONFIG = { config = true, settings = true, opcoes = true, ["opções"] = true }
 SlashCmdList.FOILKEYBINDS = function(msg)
@@ -871,5 +944,6 @@ SlashCmdList.FOILKEYBINDS = function(msg)
   elseif word == "items" or word == "itens" then ns.SwapItems(true)
   elseif word == "cheat" or word == "cola" then ns.ToggleCheat()
   elseif CONFIG[word] then ns.OpenWindow("settings")
+  elseif word == "guide" or word == "guia" then ns.OpenWindow("guide")
   else FoilKeybinds_Toggle() end
 end

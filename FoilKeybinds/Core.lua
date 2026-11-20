@@ -567,6 +567,14 @@ function ns.BracketOf(level)
   for i, b in ipairs(ns.BRACKETS) do if level <= b[2] then return i end end
   return #ns.BRACKETS
 end
+function ns.BracketRange(b) return ns.BRACKETS[b][1] .. "-" .. ns.BRACKETS[b][2] end
+-- used = the saved used template { bracket, told } (nil: never used one). Returns the bracket of level
+-- when it is above both the used and the told bracket (time for the one chat line), else nil.
+function ns.LevelUpBracket(used, level)
+  if not used then return end
+  local b = ns.BracketOf(level)
+  if b > used.bracket and b > (used.told or 0) then return b end
+end
 
 -- groups = { { groupID, spent }, ... } in the game's order (nil when the talent API answered nothing).
 -- Returns the group with the most points (first one on a tie) and true, or suggested and false.
@@ -597,6 +605,20 @@ function ns.TemplateKeys(template, lookup)
   return keys
 end
 
+-- Use safety: fits every key of keys (fresh TemplateKeys output, changed in place) in 255 with the real
+-- names: mouseover off where it had to go, a key that still does not fit is removed. Returns the removed keys, sorted.
+function ns.FitKeys(keys, best)
+  local dropped = {}
+  for key, setup in pairs(keys) do
+    local text, _, trimmed = ns.FitMacro(setup, best)
+    if text then for _, id in ipairs(trimmed) do setup.slots[id].mouseover = false end
+    else dropped[#dropped + 1] = key end
+  end
+  for _, key in ipairs(dropped) do keys[key] = nil end
+  table.sort(dropped)
+  return dropped
+end
+
 -- Board keys a layout may use, in board order (UI.lua LAYOUT without W A S D).
 ns.BOARD = { "1", "2", "3", "4", "5", "Q", "E", "R", "T", "F", "G", "Z", "X", "C", "V", "SPACE", "BUTTON3", "BUTTON4", "BUTTON5" }
 
@@ -617,12 +639,35 @@ function ns.KeyOf(keys, spellID, name)
   end
 end
 
+-- "Shift+Q" for a key and slot (KeyOf's answer); labels = the locale table (SLOT_*, KEY_*).
+function ns.KeyLabel(key, slot, labels)
+  local k = labels["KEY_" .. key] or key
+  return slot == "normal" and k or labels["SLOT_" .. slot] .. "+" .. k
+end
+
 -- class = FoilKeybindsGuides[CLASS]. The spec's own template for the bracket, else for bracket 1 the
 -- class's shared template (class.shared), else nil.
 function ns.TemplateFor(class, groupID, bracket)
   local spec = class.specs[groupID]
   if not spec then return end
   return (spec.templates or {})[bracket] or (bracket == 1 and class.shared or nil)
+end
+
+-- groups = what the talent API gave ({ groupID, displayName, orderIndex, spent }, nil when it answered
+-- nothing); class = FoilKeybindsGuides[CLASS]. Returns the specs the guide knows in the game's order:
+-- { groupID, name (game name, else the data's English one), spent }. No known group: the data's specs by
+-- group ID with no points. ponytail: group ID order is not the game order for every class (Hunter, Druid).
+function ns.GuideSpecs(groups, class)
+  local l = {}
+  for _, g in ipairs(groups or {}) do
+    local spec = class.specs[g.groupID]
+    if spec then l[#l + 1] = { groupID = g.groupID, name = g.displayName or spec.name, spent = g.spent or 0, order = g.orderIndex or 0 } end
+  end
+  if #l == 0 then
+    for gid, spec in pairs(class.specs) do l[#l + 1] = { groupID = gid, name = spec.name, spent = 0, order = gid } end
+  end
+  table.sort(l, function(a, b) return a.order < b.order end)
+  return l
 end
 
 -- Guide data check: every problem in one class table (FoilKeybindsGuides[CLASS]), as text, sorted.

@@ -13,5 +13,6 @@ Theme.lua
 Core.lua
 Game.lua
 UI.lua
+Guide.lua
 Cheat.lua
 Settings.lua
