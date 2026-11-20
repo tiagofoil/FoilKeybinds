@@ -18,32 +18,40 @@ local JADE, FROSTFIRE = S(3552, "Conjure Mana Jade"), S(401502, "Frostfire Bolt"
 local PYRO, BLAST_WAVE, COMBUSTION = T(11366, "Pyroblast"), T(11113, "Blast Wave"), T(11129, "Combustion")
 local ICE_LANCE, BARRIER = T(1312002, "Ice Lance"), T(11426, "Ice Barrier")
 local ARCANE_BLAST, ARCANE_WRATH = T(400574, "Arcane Blast"), T(1326079, "Arcane Wrath")
+local SHOOT = S(5019, "Shoot")
 
--- Keys every spec shares from 20 on: defense on Q, control on E, wards on R, armor on F, conjures on G.
+-- Home keys (docs/spec-v6.md): main nuke on Mouse 4, wand on Mouse 5, Frost Nova and Polymorph on E,
+-- the most pressed spells on F and Q, big damage on R with area on Shift and Alt.
+-- No castsequence: every spec spams one nuke, and the spells around it (Fire Blast, Combustion, Ice Lance
+-- on a frozen target, Arcane Blast stacks) have a cooldown or wait for the moment.
+-- Keys every spec shares from 20 on: wand, control, interrupt, defense, buffs, conjures, consumables.
+local WAND = { normal = SHOOT }
+local CONTROL = { normal = NOVA, shift = POLY }
+local COUNTERSPELL = { normal = COUNTER }
+local DEFENSE2 = { normal = BLINK, shift = MANA_SHIELD, alt = FIRE_WARD, altshift = FROST_WARD }
+local ARMOR = { normal = FROST_ARMOR, shift = ICE_ARMOR, alt = MAGE_ARMOR, altshift = INTELLECT }
+local MAGIC = { normal = DAMPEN, shift = AMPLIFY, alt = SLOW_FALL }
+local CONJURE2 = { normal = WATER, shift = FOOD, alt = AGATE }
+local CONJURE3 = { normal = WATER, shift = FOOD, alt = AGATE, altshift = JADE }
+local EVOKE = { normal = EVOCATION, shift = DECURSE }
 local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
-local CONTROL = { normal = POLY, shift = DECURSE }
-local ESCAPE = { normal = NOVA, shift = BLINK }
-local WARDS = { normal = MANA_SHIELD, shift = FIRE_WARD, alt = FROST_WARD }
-local ARMOR = { normal = FROST_ARMOR, shift = ICE_ARMOR, alt = MAGE_ARMOR }
-local CONJURE2 = { normal = WATER, shift = FOOD, alt = INTELLECT, altshift = AGATE }
-local CONJURE3 = { normal = WATER, shift = FOOD, alt = INTELLECT, altshift = JADE }
-local EVOKE = { normal = EVOCATION, shift = SLOW_FALL }
 
 FoilKeybindsGuides.MAGE = {
   suggested = 11601, -- Frost levels best: slows and Frost Nova keep enemies off you, so you rest less
   tested = false,
   -- Levels 1-19, every spec: no talent spell yet, the same core spells for all three.
+  -- Fireball (level 1) on Mouse 4, so the main key casts from the first level.
   shared = {
-    ["1"] = { normal = FROSTBOLT, shift = FIREBALL },
-    ["2"] = { normal = FIRE_BLAST },
-    ["3"] = { normal = MISSILES },
-    ["4"] = { normal = EXPLOSION, shift = FLAMESTRIKE },
-    Q = { normal = NOVA },
-    E = { normal = POLY, shift = DECURSE },
-    T = { normal = DAMPEN, shift = AMPLIFY, alt = SLOW_FALL },
-    F = { normal = FROST_ARMOR, shift = INTELLECT },
-    G = { normal = WATER, shift = FOOD },
+    BUTTON4 = { normal = FIREBALL, shift = FROSTBOLT },
+    BUTTON5 = WAND,
+    E = CONTROL,
+    F = { normal = FIRE_BLAST },
+    R = { normal = MISSILES, shift = EXPLOSION, alt = FLAMESTRIKE },
     V = ITEMS,
+    ["4"] = { normal = FROST_ARMOR, shift = INTELLECT },
+    T = MAGIC,
+    X = { normal = WATER, shift = FOOD },
+    Z = { normal = DECURSE },
   },
   specs = {
     [11582] = {
@@ -66,32 +74,34 @@ FoilKeybindsGuides.MAGE = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = ARCANE_BLAST, shift = FROSTBOLT },
-          ["2"] = { normal = MISSILES, shift = FIREBALL },
-          ["3"] = { normal = ARCANE_WRATH, shift = FIRE_BLAST },
-          ["4"] = { normal = EXPLOSION, shift = FLAMESTRIKE, alt = BLIZZARD, altshift = CONE },
-          ["5"] = { normal = COUNTER },
-          Q = ESCAPE,
+          BUTTON4 = { normal = ARCANE_BLAST, shift = FROSTBOLT },
+          BUTTON5 = WAND,
           E = CONTROL,
-          R = WARDS,
-          T = EVOKE,
-          F = ARMOR,
-          G = CONJURE2,
+          F = { normal = MISSILES, shift = FIREBALL },
+          Q = { normal = FIRE_BLAST, shift = CONE },
+          R = { normal = ARCANE_WRATH, shift = EXPLOSION, alt = FLAMESTRIKE, altshift = BLIZZARD },
           V = ITEMS,
+          ["1"] = COUNTERSPELL,
+          ["2"] = DEFENSE2,
+          ["4"] = ARMOR,
+          T = MAGIC,
+          X = CONJURE2,
+          Z = EVOKE,
         },
         [3] = {
-          ["1"] = { normal = ARCANE_BLAST, shift = FROSTBOLT, alt = FROSTFIRE },
-          ["2"] = { normal = MISSILES, shift = FIREBALL },
-          ["3"] = { normal = ARCANE_WRATH, shift = FIRE_BLAST },
-          ["4"] = { normal = EXPLOSION, shift = FLAMESTRIKE, alt = BLIZZARD, altshift = CONE },
-          ["5"] = { normal = COUNTER },
-          Q = ESCAPE,
+          BUTTON4 = { normal = ARCANE_BLAST, shift = FROSTBOLT, alt = FROSTFIRE },
+          BUTTON5 = WAND,
           E = CONTROL,
-          R = WARDS,
-          T = EVOKE,
-          F = ARMOR,
-          G = CONJURE3,
+          F = { normal = MISSILES, shift = FIREBALL },
+          Q = { normal = FIRE_BLAST, shift = CONE },
+          R = { normal = ARCANE_WRATH, shift = EXPLOSION, alt = FLAMESTRIKE, altshift = BLIZZARD },
           V = ITEMS,
+          ["1"] = COUNTERSPELL,
+          ["2"] = DEFENSE2,
+          ["4"] = ARMOR,
+          T = MAGIC,
+          X = CONJURE3,
+          Z = EVOKE,
         },
       },
     },
@@ -115,32 +125,34 @@ FoilKeybindsGuides.MAGE = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = FIREBALL, shift = FROSTBOLT },
-          ["2"] = { normal = FIRE_BLAST, shift = SCORCH },
-          ["3"] = { normal = PYRO, shift = MISSILES },
-          ["4"] = { normal = BLAST_WAVE, shift = FLAMESTRIKE, alt = EXPLOSION, altshift = CONE },
-          ["5"] = { normal = COUNTER },
-          Q = ESCAPE,
+          BUTTON4 = { normal = FIREBALL, shift = FROSTBOLT },
+          BUTTON5 = WAND,
           E = CONTROL,
-          R = WARDS,
-          T = EVOKE,
-          F = ARMOR,
-          G = CONJURE2,
+          F = { normal = FIRE_BLAST, shift = MISSILES },
+          Q = { normal = SCORCH, shift = CONE },
+          R = { normal = PYRO, shift = BLAST_WAVE, alt = FLAMESTRIKE, altshift = EXPLOSION },
           V = ITEMS,
+          ["1"] = COUNTERSPELL,
+          ["2"] = DEFENSE2,
+          ["4"] = ARMOR,
+          T = MAGIC,
+          X = CONJURE2,
+          Z = EVOKE,
         },
         [3] = {
-          ["1"] = { normal = FIREBALL, shift = FROSTBOLT, alt = FROSTFIRE },
-          ["2"] = { normal = FIRE_BLAST, shift = SCORCH },
-          ["3"] = { normal = PYRO, shift = COMBUSTION, alt = MISSILES },
-          ["4"] = { normal = BLAST_WAVE, shift = FLAMESTRIKE, alt = EXPLOSION, altshift = CONE },
-          ["5"] = { normal = COUNTER },
-          Q = ESCAPE,
+          BUTTON4 = { normal = FIREBALL, shift = FROSTBOLT, alt = FROSTFIRE },
+          BUTTON5 = WAND,
           E = CONTROL,
-          R = WARDS,
-          T = EVOKE,
-          F = ARMOR,
-          G = CONJURE3,
+          F = { normal = FIRE_BLAST, shift = MISSILES },
+          Q = { normal = SCORCH, shift = CONE },
+          R = { normal = PYRO, shift = BLAST_WAVE, alt = FLAMESTRIKE, altshift = EXPLOSION, ctrl = COMBUSTION },
           V = ITEMS,
+          ["1"] = COUNTERSPELL,
+          ["2"] = DEFENSE2,
+          ["4"] = ARMOR,
+          T = MAGIC,
+          X = CONJURE3,
+          Z = EVOKE,
         },
       },
     },
@@ -162,32 +174,34 @@ FoilKeybindsGuides.MAGE = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = FROSTBOLT, shift = FIREBALL },
-          ["2"] = { normal = ICE_LANCE, shift = FIRE_BLAST },
-          ["3"] = { normal = CONE, shift = MISSILES },
-          ["4"] = { normal = BLIZZARD, shift = EXPLOSION, alt = FLAMESTRIKE },
-          ["5"] = { normal = COUNTER },
-          Q = ESCAPE,
+          BUTTON4 = { normal = FROSTBOLT, shift = FIREBALL },
+          BUTTON5 = WAND,
           E = CONTROL,
-          R = WARDS,
-          T = EVOKE,
-          F = ARMOR,
-          G = CONJURE2,
+          F = { normal = ICE_LANCE, shift = MISSILES },
+          Q = { normal = FIRE_BLAST },
+          R = { normal = CONE, shift = BLIZZARD, alt = EXPLOSION, altshift = FLAMESTRIKE },
           V = ITEMS,
+          ["1"] = COUNTERSPELL,
+          ["2"] = DEFENSE2,
+          ["4"] = ARMOR,
+          T = MAGIC,
+          X = CONJURE2,
+          Z = EVOKE,
         },
         [3] = {
-          ["1"] = { normal = FROSTBOLT, shift = FROSTFIRE, alt = FIREBALL },
-          ["2"] = { normal = ICE_LANCE, shift = FIRE_BLAST },
-          ["3"] = { normal = CONE, shift = MISSILES },
-          ["4"] = { normal = BLIZZARD, shift = EXPLOSION, alt = FLAMESTRIKE },
-          ["5"] = { normal = COUNTER },
-          Q = ESCAPE,
+          BUTTON4 = { normal = FROSTBOLT, shift = FROSTFIRE, alt = FIREBALL },
+          BUTTON5 = WAND,
           E = CONTROL,
-          R = { normal = BARRIER, shift = MANA_SHIELD, alt = FIRE_WARD, altshift = FROST_WARD },
-          T = EVOKE,
-          F = ARMOR,
-          G = CONJURE3,
+          F = { normal = ICE_LANCE, shift = MISSILES },
+          Q = { normal = FIRE_BLAST },
+          R = { normal = CONE, shift = BLIZZARD, alt = EXPLOSION, altshift = FLAMESTRIKE },
           V = ITEMS,
+          ["1"] = COUNTERSPELL,
+          ["2"] = { normal = BARRIER, shift = BLINK, alt = MANA_SHIELD, altshift = FIRE_WARD, ctrl = FROST_WARD },
+          ["4"] = ARMOR,
+          T = MAGIC,
+          X = CONJURE3,
+          Z = EVOKE,
         },
       },
     },
