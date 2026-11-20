@@ -221,6 +221,7 @@ end
 
 local function plan()
   local db = FoilKeybindsDB
+  ns.ResetLearned() -- a trainer visit since the last pass: the sequences see the new spells
   local keys, applied = db.keys, db.applied or {}
   local b = db.backup or { binds = {}, slots = {}, macros = {} }
   local manage = ns.Manages()
@@ -251,7 +252,7 @@ local function plan()
     local setup = keys[key]
     if next(setup.slots) then -- clicked but empty keys are skipped
       local name = ns.MacroName(key)
-      local text, n, trimmed = ns.FitMacro(setup, ns.best)
+      local text, n, trimmed = ns.FitMacro(ns.MacroSetup(setup), ns.best)
       local i = GetMacroIndexByName(name)
       if not text then p.notes[#p.notes + 1] = L.SKIP_LONG:format(key, n, ns.MAX)
       elseif i == 0 and nChar >= (MAX_CHARACTER_MACROS or 18) then p.notes[#p.notes + 1] = L.MACRO_LIMIT:format(name)
@@ -607,6 +608,9 @@ local function learned()
   return learnedNames
 end
 function ns.IsKnownSlot(s) return ns.Known(s.spellID, s.name, ns.IsKnown, learned()) end
+-- What a key's macro is written from (Apply, the rebuild after a swap or a learned spell, the wizard's
+-- done page): sequence steps not learned yet left out. The stored keys and snapshots keep the full sequence.
+function ns.MacroSetup(setup) return ns.KnownSteps(setup, ns.IsKnownSlot) end
 
 -- What a slot shows: texture, name (tooltip), known, spellID, sequence length. A spell stored
 -- without an ID (GrimorioSetup import) gets it here once the spellbook has it.
@@ -698,30 +702,31 @@ local function rebuild(key)
   local name = ns.MacroName(key)
   local i = GetMacroIndexByName(name)
   if i == 0 then return "missing" end
-  local text = ns.FitMacro(setup, ns.best)
+  local text = ns.FitMacro(ns.MacroSetup(setup), ns.best)
   if not text then return "long" end
   if not ns.SameMacro(GetMacroBody(i), text) then EditMacro(i, name, nil, text) end
 end
 
--- Out of combat item swap: only macros of keys with an item slot. Uses the applied
--- snapshot, so card edits not yet applied stay off the live macro.
+-- Out of combat item swap: only macros of keys with an item slot, or a sequence (a step learned since
+-- comes in). Uses the applied snapshot, so card edits not yet applied stay off the live macro.
 -- manual (Refresh items button, /fkb items): always says what happened. Automatic swaps
--- (login, bags, combat end, level-up) warn once per key and reason per session.
-local function hasItem(setup)
-  for _, s in pairs(setup.slots) do if s.item then return true end end
+-- (login, bags, combat end, level-up, spells learned) warn once per key and reason per session.
+local function swaps(setup)
+  for _, s in pairs(setup.slots) do if s.item or s.seq then return true end end
 end
 local warned = {}
 function ns.SwapItems(manual)
   if not FoilKeybindsDB then return end
   if InCombatLockdown() then if manual then ns.Say(L.IN_COMBAT) end; return end -- macros are locked in combat
   local any
-  for _, setup in pairs(FoilKeybindsDB.applied or {}) do if hasItem(setup) then any = true; break end end
+  for _, setup in pairs(FoilKeybindsDB.applied or {}) do if swaps(setup) then any = true; break end end
   if not any then if manual then ns.Say(L.ITEMS_NONE) end; return end
   local old = built -- nil on the first swap of the session: no "before" to compare with
   ns.ScanBags()
+  ns.ResetLearned()
   local failed = {}
   for key, setup in pairs(FoilKeybindsDB.applied) do
-    local why = hasItem(setup) and rebuild(key)
+    local why = swaps(setup) and rebuild(key)
     if why then
       failed[key] = true
       if manual or not warned[key .. why] then warned[key .. why] = true; ns.Say(L["SWAP_" .. why]:format(key)) end
@@ -818,12 +823,15 @@ end
 local ev = CreateFrame("Frame")
 -- PLAYER_LEVEL_UP: a potion can become usable. ponytail: if the usable check still sees the old
 -- level at this event, the swap waits for the next bag change or the Refresh items button.
-for _, e in ipairs({ "PLAYER_LOGIN", "PLAYER_LOGOUT", "BAG_UPDATE_DELAYED", "PLAYER_REGEN_ENABLED", "PLAYER_LEVEL_UP" }) do
+-- SPELLS_CHANGED: a spell learned at the trainer goes into the sequences that hold it (rebuild skips unchanged macros).
+for _, e in ipairs({ "PLAYER_LOGIN", "PLAYER_LOGOUT", "BAG_UPDATE_DELAYED", "PLAYER_REGEN_ENABLED", "PLAYER_LEVEL_UP", "SPELLS_CHANGED" }) do
   ev:RegisterEvent(e)
 end
 local repairPending
 ev:SetScript("OnEvent", function(_, event, arg)
   if event == "PLAYER_LOGOUT" then return ns.SaveIndex() end
+  -- Spells load before login, when bags and macros may not be ready: wait for the login swap (or an Apply).
+  if event == "SPELLS_CHANGED" and not built then return end
   if event == "PLAYER_LEVEL_UP" then ns.TellBracket(arg) end
   if event == "PLAYER_LOGIN" then repairPending = true; ns.ImportOnLogin() end
   ns.SwapItems()

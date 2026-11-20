@@ -28,9 +28,6 @@ local ARMOR = { normal = FROST_ARMOR, shift = ICE_ARMOR, alt = MAGE_ARMOR }
 local CONJURE2 = { normal = WATER, shift = FOOD, alt = INTELLECT, altshift = AGATE }
 local CONJURE3 = { normal = WATER, shift = FOOD, alt = INTELLECT, altshift = JADE }
 local EVOKE = { normal = EVOCATION, shift = SLOW_FALL }
--- One meaning per key in every range (the 1-19 buffs sit on T, the utility key, so R stays defense).
-local MEANINGS = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "aoe", ["5"] = "interrupt", Q = "defense", E = "cc",
-  R = "defense", T = "utility", F = "buff", G = "utility", V = "items" }
 
 FoilKeybindsGuides.MAGE = {
   suggested = 11601, -- Frost levels best: slows and Frost Nova keep enemies off you, so you rest less
@@ -51,7 +48,6 @@ FoilKeybindsGuides.MAGE = {
   specs = {
     [11582] = {
       name = "Arcane",
-      meanings = MEANINGS,
       priority = {
         { spellID = 400574, level = 20, talent = true, en = "Main nuke. Each cast hits harder and costs more mana. Stop when mana runs low.",
           ptBR = "Ataque principal. Cada conjuração bate mais forte e custa mais mana. Pare quando a mana estiver baixa." },
@@ -101,7 +97,6 @@ FoilKeybindsGuides.MAGE = {
     },
     [11594] = {
       name = "Fire",
-      meanings = MEANINGS,
       priority = {
         { spellID = 11366, level = 20, talent = true, en = "Slow, heavy opener. Cast it before the enemy reaches you.",
           ptBR = "Abertura lenta e pesada. Lance antes de o inimigo chegar até você." },
@@ -151,7 +146,6 @@ FoilKeybindsGuides.MAGE = {
     },
     [11601] = {
       name = "Frost",
-      meanings = MEANINGS,
       priority = {
         { spellID = 11426, level = 40, talent = true, en = "Shield that absorbs damage. Put it up before the pull.",
           ptBR = "Escudo que absorve dano. Aplique antes de puxar." },

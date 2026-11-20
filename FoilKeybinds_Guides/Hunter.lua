@@ -41,7 +41,6 @@ FoilKeybindsGuides.HUNTER = {
   specs = {
     [11372] = {
       name = "Beast Mastery",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "cc", ["4"] = "dot", ["5"] = "buff", Q = "utility", E = "pet", R = "utility", T = "aoe", F = "buff", G = "defense", V = "items" },
       priority = {
         { spellID = 1130, level = 6, en = "Mark the target first: your shots and your pet hit it harder.",
           ptBR = "Marque o alvo primeiro: seus tiros e o seu pet causam mais dano nele." },
@@ -92,7 +91,6 @@ FoilKeybindsGuides.HUNTER = {
     },
     [11371] = {
       name = "Marksmanship",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "cc", ["4"] = "dot", ["5"] = "main", Q = "utility", E = "pet", R = "utility", T = "aoe", F = "buff", G = "defense", V = "items" },
       priority = {
         { spellID = 1130, level = 6, en = "Mark the target first: every shot hits it harder.",
           ptBR = "Marque o alvo primeiro: todos os tiros causam mais dano nele." },
@@ -142,7 +140,6 @@ FoilKeybindsGuides.HUNTER = {
     },
     [11370] = {
       name = "Survival",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "cc", ["4"] = "dot", ["5"] = "buff", Q = "utility", E = "pet", R = "utility", T = "aoe", F = "buff", G = "defense", V = "items" },
       priority = {
         { spellID = 1130, level = 6, en = "Mark the target first: you and your pet hit it harder.",
           ptBR = "Marque o alvo primeiro: você e o seu pet causam mais dano nele." },

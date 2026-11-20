@@ -41,7 +41,6 @@ FoilKeybindsGuides.PRIEST = {
   specs = {
     [11608] = {
       name = "Discipline",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "main", ["4"] = "cc", ["5"] = "buff", Q = "heal", E = "heal", R = "utility", F = "buff", V = "items" },
       priority = {
         { spellID = 17, level = 6, en = "Absorb shield. Put it on whoever will take damage, before it lands.",
           ptBR = "Escudo que absorve dano. Aplique em quem vai apanhar, antes do dano chegar." },
@@ -85,7 +84,6 @@ FoilKeybindsGuides.PRIEST = {
     },
     [11615] = {
       name = "Holy",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "main", ["4"] = "cc", ["5"] = "aoe", Q = "heal", E = "heal", R = "utility", T = "heal", F = "buff", V = "items" },
       priority = {
         { spellID = 139, level = 8, en = "Heal over time. Keep it on the tank.", ptBR = "Cura ao longo do tempo. Mantenha no tanque." },
         { spellID = 2061, level = 20, en = "Fast heal for sudden damage. Costs a lot of mana.",
@@ -133,7 +131,6 @@ FoilKeybindsGuides.PRIEST = {
     },
     [11622] = {
       name = "Shadow Magic",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "main", ["4"] = "cc", ["5"] = "utility", Q = "heal", E = "heal", R = "utility", F = "buff", V = "items" },
       priority = {
         { spellID = 17, level = 6, en = "Shield yourself before the pull so hits do not slow your casts.",
           ptBR = "Escudo em você antes do combate, para os golpes não atrasarem seus feitiços." },

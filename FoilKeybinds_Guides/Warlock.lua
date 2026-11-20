@@ -6,7 +6,9 @@ FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
 local function T(id, name) return { spellID = id, name = name, talent = true } end
-local HSPOT, HEAL, EAT = { item = "HSPOT" }, { item = "HEAL" }, { item = "EAT" }
+local HSPOT, HEAL, EAT, BOMB = { item = "HSPOT" }, { item = "HEAL" }, { item = "EAT" }, { item = "BOMB" }
+-- One-button rotation: a castsequence that starts over on a new target and after combat.
+local function SEQ(...) return { seq = { ... }, reset = { target = true, combat = true } } end
 
 local IMMOLATE, SHADOW_BOLT, DEMON_SKIN, SUMMON_IMP = S(348, "Immolate"), S(686, "Shadow Bolt"), S(687, "Demon Skin"), S(688, "Summon Imp")
 local CORRUPTION, WEAKNESS, LIFE_TAP = S(172, "Corruption"), S(702, "Curse of Weakness"), S(1454, "Life Tap")
@@ -20,33 +22,45 @@ local HELLFIRE, FELHUNTER, SHADOW_WARD, SPELLSTONE = S(1949, "Hellfire"), S(691,
 local HOWL, DEATH_COIL, SOUL_FIRE, DOOM = S(5484, "Howl of Terror"), S(6789, "Death Coil"), S(6353, "Soul Fire"), S(603, "Bane of Doom")
 local SHADOWBURN, CONFLAGRATE, SIPHON_LIFE = T(17877, "Shadowburn"), T(1293817, "Conflagrate"), T(18265, "Siphon Life")
 local WRACK, INCINERATE = T(1316697, "Wrack"), T(412758, "Incinerate")
+local SHOOT = S(5019, "Shoot")
 
--- Keys every bracket shares from 20 on: curses on 3, demons on G, consumables on V.
-local CURSES = { normal = ELEMENTS, shift = WEAKNESS, alt = RECKLESSNESS, altshift = TONGUES }
+-- Home keys (docs/spec-v6.md), close to Tiago's own setup (docs/key-placement.md): rotation on Mouse 4,
+-- wand on Mouse 5, crowd control on E, DoTs on F, curses on Q, Shadow Bolt and area on R.
+-- Keys every bracket shares from 20 on: wand, curses, demons, consumables, mana.
+local WAND = { normal = SHOOT, shift = CORRUPTION, alt = DRAIN_LIFE, altshift = SHADOW_WARD }
+local CURSES = { normal = WEAKNESS, shift = RECKLESSNESS, alt = ELEMENTS, ctrl = TONGUES }
+local NUKES = { normal = SHADOW_BOLT, shift = HELLFIRE, alt = RAIN, altshift = SEARING_PAIN }
+local NUKES3 = { normal = SHADOW_BOLT, shift = HELLFIRE, alt = RAIN, altshift = SEARING_PAIN, ctrl = SOUL_FIRE }
+local FEAR2 = { normal = FEAR, alt = BOMB, altshift = BANISH }
+local FEAR3 = { normal = FEAR, shift = HOWL, alt = BOMB, altshift = BANISH }
+local ARMOR2 = { normal = DEMON_ARMOR, shift = HEALTHSTONE, alt = SOULSTONE, altshift = BREATH }
+local ARMOR3 = { normal = DEMON_ARMOR, shift = HEALTHSTONE, alt = SOULSTONE, altshift = SPELLSTONE, ctrl = BREATH }
 local DEMONS = { normal = VOIDWALKER, shift = SUCCUBUS, alt = FELHUNTER, altshift = SUMMON_IMP }
 local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
+local FUNNEL = { normal = HEALTH_FUNNEL }
+local TAP = { normal = LIFE_TAP, shift = DRAIN_SOUL, alt = DRAIN_MANA }
 
 FoilKeybindsGuides.WARLOCK = {
   suggested = 11629, -- Affliction levels best: DoTs and drains, little downtime
   tested = true,
   -- Levels 1-19, every spec: no talent spell yet, the same core spells for all three.
+  -- Immolate (level 1) starts the sequence, so Mouse 4 casts from the first level.
   shared = {
-    ["1"] = { normal = IMMOLATE },
-    ["2"] = { normal = CORRUPTION },
-    ["3"] = { normal = AGONY, shift = WEAKNESS, alt = RECKLESSNESS },
-    ["4"] = { normal = SHADOW_BOLT, shift = SEARING_PAIN },
-    Q = { normal = DRAIN_LIFE, shift = DRAIN_SOUL },
-    E = { normal = LIFE_TAP, shift = HEALTH_FUNNEL },
-    R = { normal = FEAR },
-    F = { normal = DEMON_SKIN, shift = HEALTHSTONE, alt = SOULSTONE },
-    G = { normal = VOIDWALKER, shift = SUMMON_IMP, alt = BREATH },
+    BUTTON4 = { normal = SEQ(IMMOLATE, CORRUPTION, AGONY), shift = RECKLESSNESS },
+    BUTTON5 = { normal = SHOOT, shift = CORRUPTION, alt = DRAIN_LIFE },
+    E = { normal = FEAR },
+    F = { normal = AGONY, alt = IMMOLATE },
+    Q = { normal = WEAKNESS, shift = RECKLESSNESS },
+    R = { normal = SHADOW_BOLT, altshift = SEARING_PAIN },
     V = ITEMS,
+    ["3"] = FUNNEL,
+    ["4"] = { normal = DEMON_SKIN, shift = HEALTHSTONE, alt = SOULSTONE, altshift = BREATH },
+    G = { normal = VOIDWALKER, shift = SUMMON_IMP },
+    X = { normal = LIFE_TAP, shift = DRAIN_SOUL },
   },
   specs = {
     [11629] = {
       name = "Affliction",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "dot", Q = "heal", E = "utility", R = "cc", T = "aoe",
-        F = "buff", G = "pet", V = "items", C = "defense" },
       priority = {
         { spellID = 172, level = 4, en = "Main DoT. Keep it on every target.", ptBR = "DoT principal. Mantenha em todos os alvos." },
         { spellID = 980, level = 8, en = "Long Shadow DoT that grows over time. Let it run out before you cast it again.",
@@ -72,39 +86,36 @@ FoilKeybindsGuides.WARLOCK = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = CORRUPTION, shift = IMMOLATE },
-          ["2"] = { normal = AGONY, shift = SIPHON_LIFE },
-          ["3"] = CURSES,
-          ["4"] = { normal = SHADOW_BOLT, shift = SEARING_PAIN },
-          Q = { normal = DRAIN_LIFE, shift = DRAIN_SOUL, alt = DRAIN_MANA },
-          E = { normal = LIFE_TAP, shift = HEALTH_FUNNEL },
-          R = { normal = FEAR, shift = BANISH },
-          T = { normal = RAIN, shift = HELLFIRE },
-          F = { normal = DEMON_ARMOR, shift = HEALTHSTONE, alt = SOULSTONE, altshift = BREATH },
-          G = DEMONS,
+          BUTTON4 = { normal = SEQ(AGONY, SIPHON_LIFE, CORRUPTION, ELEMENTS), shift = RECKLESSNESS },
+          BUTTON5 = WAND,
+          E = FEAR2,
+          F = { normal = SIPHON_LIFE, alt = IMMOLATE },
+          Q = CURSES,
+          R = NUKES,
           V = ITEMS,
-          C = { normal = SHADOW_WARD },
+          ["3"] = FUNNEL,
+          ["4"] = ARMOR2,
+          G = DEMONS,
+          X = TAP,
         },
         [3] = {
-          ["1"] = { normal = CORRUPTION, shift = IMMOLATE },
-          ["2"] = { normal = AGONY, shift = SIPHON_LIFE, alt = DOOM },
-          ["3"] = CURSES,
-          ["4"] = { normal = WRACK, shift = SHADOW_BOLT },
-          Q = { normal = DRAIN_LIFE, shift = DRAIN_SOUL, alt = DRAIN_MANA },
-          E = { normal = LIFE_TAP, shift = HEALTH_FUNNEL },
-          R = { normal = FEAR, shift = BANISH, alt = HOWL },
-          T = { normal = RAIN, shift = HELLFIRE },
-          F = { normal = DEMON_ARMOR, shift = HEALTHSTONE, alt = SOULSTONE, altshift = SPELLSTONE },
-          G = DEMONS,
+          BUTTON4 = { normal = SEQ(AGONY, SIPHON_LIFE, CORRUPTION, ELEMENTS), shift = RECKLESSNESS },
+          BUTTON5 = WAND,
+          E = FEAR3,
+          F = { normal = SIPHON_LIFE, shift = WRACK, alt = IMMOLATE, altshift = DOOM },
+          Q = CURSES,
+          R = NUKES3,
           V = ITEMS,
-          C = { normal = DEATH_COIL, shift = SHADOW_WARD },
+          ["2"] = { normal = DEATH_COIL },
+          ["3"] = FUNNEL,
+          ["4"] = ARMOR3,
+          G = DEMONS,
+          X = TAP,
         },
       },
     },
     [11636] = {
       name = "Demonology",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "main", Q = "heal", E = "utility", R = "cc", T = "aoe",
-        F = "buff", G = "pet", V = "items", C = "defense" },
       priority = {
         { spellID = 172, level = 4, en = "Main DoT. Put it up first while your demon holds the target.",
           ptBR = "DoT principal. Aplique primeiro enquanto o seu demônio segura o alvo." },
@@ -128,39 +139,36 @@ FoilKeybindsGuides.WARLOCK = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = CORRUPTION, shift = IMMOLATE },
-          ["2"] = { normal = AGONY },
-          ["3"] = { normal = WEAKNESS, shift = ELEMENTS, alt = RECKLESSNESS, altshift = TONGUES },
-          ["4"] = { normal = SHADOW_BOLT, shift = SEARING_PAIN },
-          Q = { normal = DRAIN_LIFE, shift = DRAIN_SOUL, alt = DRAIN_MANA },
-          E = { normal = HEALTH_FUNNEL, shift = LIFE_TAP },
-          R = { normal = FEAR, shift = BANISH },
-          T = { normal = RAIN, shift = HELLFIRE },
-          F = { normal = DEMON_ARMOR, shift = HEALTHSTONE, alt = SOULSTONE, altshift = BREATH },
-          G = DEMONS,
+          BUTTON4 = { normal = SEQ(CORRUPTION, AGONY, IMMOLATE, WEAKNESS), shift = RECKLESSNESS },
+          BUTTON5 = WAND,
+          E = FEAR2,
+          F = { normal = AGONY, alt = IMMOLATE },
+          Q = CURSES,
+          R = NUKES,
           V = ITEMS,
-          C = { normal = SHADOW_WARD },
+          ["3"] = FUNNEL,
+          ["4"] = ARMOR2,
+          G = DEMONS,
+          X = TAP,
         },
         [3] = {
-          ["1"] = { normal = CORRUPTION, shift = IMMOLATE },
-          ["2"] = { normal = AGONY, alt = DOOM },
-          ["3"] = { normal = WEAKNESS, shift = ELEMENTS, alt = RECKLESSNESS, altshift = TONGUES },
-          ["4"] = { normal = SHADOW_BOLT, shift = SEARING_PAIN, alt = SOUL_FIRE },
-          Q = { normal = DRAIN_LIFE, shift = DRAIN_SOUL, alt = DRAIN_MANA },
-          E = { normal = HEALTH_FUNNEL, shift = LIFE_TAP },
-          R = { normal = FEAR, shift = BANISH, alt = HOWL },
-          T = { normal = RAIN, shift = HELLFIRE },
-          F = { normal = DEMON_ARMOR, shift = HEALTHSTONE, alt = SOULSTONE, altshift = SPELLSTONE },
-          G = DEMONS,
+          BUTTON4 = { normal = SEQ(CORRUPTION, AGONY, IMMOLATE, WEAKNESS), shift = RECKLESSNESS },
+          BUTTON5 = WAND,
+          E = FEAR3,
+          F = { normal = AGONY, alt = IMMOLATE, altshift = DOOM },
+          Q = CURSES,
+          R = NUKES3,
           V = ITEMS,
-          C = { normal = DEATH_COIL, shift = SHADOW_WARD },
+          ["2"] = { normal = DEATH_COIL },
+          ["3"] = FUNNEL,
+          ["4"] = ARMOR3,
+          G = DEMONS,
+          X = TAP,
         },
       },
     },
     [11637] = {
       name = "Destruction",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "main", ["5"] = "dot", Q = "heal", E = "utility", R = "cc",
-        T = "aoe", F = "buff", G = "pet", V = "items", C = "defense" },
       priority = {
         { spellID = 348, level = 1, en = "Fire DoT. Keep it up: your Fire spells hit harder with it.",
           ptBR = "DoT de Fogo. Mantenha ativo: seus feitiços de Fogo batem mais forte com ele." },
@@ -183,34 +191,31 @@ FoilKeybindsGuides.WARLOCK = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = IMMOLATE, shift = CORRUPTION },
-          ["2"] = { normal = CONFLAGRATE, shift = SHADOWBURN },
-          ["3"] = CURSES,
-          ["4"] = { normal = SHADOW_BOLT, shift = SEARING_PAIN },
-          ["5"] = { normal = AGONY },
-          Q = { normal = DRAIN_LIFE, shift = DRAIN_SOUL },
-          E = { normal = LIFE_TAP, shift = HEALTH_FUNNEL },
-          R = { normal = FEAR, shift = BANISH },
-          T = { normal = RAIN, shift = HELLFIRE },
-          F = { normal = DEMON_ARMOR, shift = HEALTHSTONE, alt = SOULSTONE, altshift = BREATH },
-          G = DEMONS,
+          BUTTON4 = { normal = SEQ(IMMOLATE, CORRUPTION, ELEMENTS), shift = RECKLESSNESS },
+          BUTTON5 = WAND,
+          E = FEAR2,
+          F = { normal = CONFLAGRATE, shift = SHADOWBURN, alt = IMMOLATE },
+          Q = CURSES,
+          R = NUKES,
           V = ITEMS,
-          C = { normal = SHADOW_WARD },
+          ["3"] = FUNNEL,
+          ["4"] = ARMOR2,
+          G = DEMONS,
+          X = TAP,
         },
         [3] = {
-          ["1"] = { normal = IMMOLATE, shift = CORRUPTION },
-          ["2"] = { normal = CONFLAGRATE, shift = SHADOWBURN },
-          ["3"] = CURSES,
-          ["4"] = { normal = SHADOW_BOLT, shift = INCINERATE, alt = SOUL_FIRE },
-          ["5"] = { normal = AGONY, shift = SEARING_PAIN },
-          Q = { normal = DRAIN_LIFE, shift = DRAIN_SOUL },
-          E = { normal = LIFE_TAP, shift = HEALTH_FUNNEL },
-          R = { normal = FEAR, shift = BANISH, alt = HOWL },
-          T = { normal = RAIN, shift = HELLFIRE },
-          F = { normal = DEMON_ARMOR, shift = HEALTHSTONE, alt = SOULSTONE, altshift = SPELLSTONE },
-          G = DEMONS,
+          BUTTON4 = { normal = SEQ(IMMOLATE, CORRUPTION, ELEMENTS), shift = RECKLESSNESS },
+          BUTTON5 = WAND,
+          E = FEAR3,
+          F = { normal = CONFLAGRATE, shift = SHADOWBURN, alt = IMMOLATE, altshift = INCINERATE },
+          Q = CURSES,
+          R = NUKES3,
           V = ITEMS,
-          C = { normal = DEATH_COIL, shift = SHADOW_WARD },
+          ["2"] = { normal = DEATH_COIL },
+          ["3"] = FUNNEL,
+          ["4"] = ARMOR3,
+          G = DEMONS,
+          X = TAP,
         },
       },
     },

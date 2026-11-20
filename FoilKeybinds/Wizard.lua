@@ -9,7 +9,7 @@ local _, ns = ...
 local L, T = ns.L, ns.T
 local card, pane = ns.keyCard, ns.keysPane
 
--- The running wizard (nil: none): t = guide template, meanings, steps, i = step, map = picks,
+-- The running wizard (nil: none): t = guide template, class = class token, steps, i = step, map = picks,
 -- saved = picks came from an earlier run, tested, title, used = the used-template record for Use.
 local wz
 function ns.WizardState() return wz end
@@ -54,8 +54,10 @@ end
 page.key = ns.Text(page, "bold", 18, T.ink); page.key:SetPoint("TOPLEFT", 18, -208)
 page.click = ns.Text(page, "body", 13, T.muted); page.click:SetPoint("LEFT", page.key, "RIGHT", 10, 0)
 page.click:SetText(L.WIZARD_CLICK)
+page.side = ns.Text(page, "body", 13, T.muted) -- Mouse 4 or 5 suggested: the key to click without side buttons
+page.side:SetPoint("TOPLEFT", 18, -236)
 page.msg = ns.Text(page, "body", 13, T.blood) -- why a clicked key is blocked
-page.msg:SetPoint("TOPLEFT", 18, -236); page.msg:SetPoint("RIGHT", -18, 0); page.msg:SetJustifyH("LEFT")
+page.msg:SetPoint("TOPLEFT", 18, -260); page.msg:SetPoint("RIGHT", -18, 0); page.msg:SetJustifyH("LEFT")
 page.note = ns.Text(page, "body", 11, T.muted) -- class not tested in game yet
 page.note:SetPoint("BOTTOMLEFT", 18, 54); page.note:SetPoint("RIGHT", -18, 0); page.note:SetJustifyH("LEFT")
 page.note:SetText(L.WIZARD_UNTESTED)
@@ -91,7 +93,7 @@ local function row(i)
 end
 
 local function keyName(k) return L["KEY_" .. k] or k end
-local function nameOf(gk) local m = wz.meanings[gk]; return m and L["MEANING_" .. m] or keyName(gk) end
+local function nameOf(gk) local m = ns.MeaningOf(gk, wz.class); return m and L["MEANING_" .. m] or keyName(gk) end
 
 -- Preview end (Use, Cancel, leaving the Keys tab, closing the window): the wizard is gone, nothing saved here.
 local function stop() wz = nil; dim:Hide() end
@@ -104,7 +106,7 @@ local function use()
   local db = FoilKeybindsDB
   db.guide.wizard = true -- the level-up line names /fkb wizard
   db.wizard = db.wizard or {}
-  db.wizard.picks = db.wizard.picks or {}
+  db.wizard.picks = ns.WizardPicks(db.wizard) or {}
   db.wizard.picks[w.used.groupID] = ns.MergePicks(db.wizard.picks[w.used.groupID], w.map)
   db.wizard.cheatOnce = true
   ns.guide.hint = nil -- the "Step 1" or new-player line is done
@@ -114,12 +116,13 @@ local show, click
 -- The done page: every kept group with its key and macro, then the left-out groups.
 local function fillDone(keys)
   local y, n, out = 0, 0, {}
+  ns.ResetLearned()
   for _, st in ipairs(wz.steps) do
     local k = wz.map[st.key]
     if k then
       n = n + 1
       local r = row(n)
-      local text = ns.FitMacro(keys[k], ns.best)
+      local text = ns.FitMacro(ns.MacroSetup(keys[k]), ns.best)
       r.key:Set(keyName(k), 12)
       r.name:SetText(L["MEANING_" .. st.meaning] .. (st.of > 1 and "  " .. L.WIZARD_OF:format(st.n, st.of) or ""))
       r.macro:SetText(text and ns.ColorMacro((text:gsub(";%s*", ";\n    "))) or L.WIZARD_TOO_LONG)
@@ -170,6 +173,8 @@ show = function()
   end
   for i = n + 1, #page.icons do page.icons[i]:Hide() end
   page.key:SetText(k and L.WIZARD_KEY:format(keyName(k)) or L.WIZARD_KEY_OUT)
+  local side = ({ BUTTON4 = "1", BUTTON5 = "2" })[st.key]
+  page.side:SetText(side and L.WIZARD_NO_SIDE:format(side) or "")
   page.all:SetText(wz.saved and L.WIZARD_ALL_MINE or L.WIZARD_ALL)
   page.all:SetWidth(math.max(200, page.all:GetFontString():GetStringWidth() + 24))
   page.note:SetShown(not wz.tested)
@@ -199,14 +204,14 @@ page.skip:SetScript("OnClick", function() ns.Skip(wz.map, wz.steps[wz.i].key); w
 page.next:SetScript("OnClick", function() wz.i = wz.i + 1; show() end)
 page.all:SetScript("OnClick", function() wz.i = #wz.steps + 1; show() end)
 
--- "Build my layout" on the Guide tab. class = FoilKeybindsGuides[CLASS]; the spec needs a meanings map.
--- The saved picks of that spec preselect every step.
+-- "Build my layout" on the Guide tab. class = FoilKeybindsGuides[CLASS]; meanings come from the home keys
+-- (Core ns.MeaningOf). The saved picks of that spec preselect every step.
 function ns.StartWizard(class, groupID, bracket, name)
-  local t, spec = ns.TemplateFor(class, groupID, bracket), class.specs[groupID]
-  if not (t and spec.meanings) then return end
-  local picks = FoilKeybindsDB.wizard and FoilKeybindsDB.wizard.picks
+  local t = ns.TemplateFor(class, groupID, bracket)
+  if not t then return end
+  local picks = ns.WizardPicks(FoilKeybindsDB.wizard)
   local saved = picks and picks[groupID]
-  wz = { t = t, meanings = spec.meanings, steps = ns.WizardSteps(t, spec.meanings), map = ns.WizardMap(t, saved), i = 1,
+  wz = { t = t, class = ns.playerClass, steps = ns.WizardSteps(t, ns.playerClass), map = ns.WizardMap(t, saved), i = 1,
     saved = saved ~= nil, tested = class.tested, title = L.WIZARD_TITLE:format(name, ns.BracketRange(bracket)),
     used = { groupID = groupID, bracket = bracket, name = name } }
   show()

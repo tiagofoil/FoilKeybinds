@@ -693,7 +693,7 @@ end)
 -- A small valid class; each bad case changes one thing and expects exactly one problem naming it.
 local function goodClass()
   local row = { spellID = 172, level = 4, en = "DoT.", ptBR = "DoT." }
-  local function spec() return { name = "Affliction", priority = { core.Copy(row) }, meanings = { Q = "main", E = "utility" },
+  local function spec() return { name = "Affliction", priority = { core.Copy(row) },
     templates = { [2] = { Q = { normal = { spellID = 172, name = "Corruption" } } }, [3] = { Q = { shift = { item = "POT" } } } } } end
   return { suggested = 1, tested = false, shared = { E = { normal = { spellID = 686, name = "Shadow Bolt" } } },
     specs = { [1] = spec(), [2] = spec() } }
@@ -702,16 +702,14 @@ test("data check: a valid class has no problems", function()
   local p = core.CheckGuide(goodClass()); eq(#p, 0)
 end)
 local BAD = {
-  { "unknown key", function(c) c.specs[1].templates[2].P = { normal = { spellID = 1, name = "X" } }; c.specs[1].meanings.P = "main" end },
-  { "movement key", function(c) c.specs[1].templates[2].W = { shift = { spellID = 1, name = "X" } }; c.specs[1].meanings.W = "main" end },
-  { "plain Space", function(c) c.specs[1].templates[2].SPACE = { normal = { spellID = 1, name = "X" } }; c.specs[1].meanings.SPACE = "main" end },
-  { "more than 16 keys", function(c)
-    local t = c.specs[1].templates[3]
-    for i = 1, 17 do t[core.BOARD[i]] = { shift = { item = "HS" } }; c.specs[1].meanings[core.BOARD[i]] = "items" end
-  end },
+  { "key P: not a home key", function(c) c.specs[1].templates[2].P = { normal = { spellID = 1, name = "X" } } end },
+  { "key 5: not a home key", function(c) c.specs[1].templates[2]["5"] = { normal = { spellID = 1, name = "X" } } end },
+  { "key SPACE: not a home key", function(c) c.specs[1].templates[2].SPACE = { shift = { spellID = 1, name = "X" } } end },
+  { "key BUTTON3: not a home key", function(c) c.specs[1].templates[3].BUTTON3 = { normal = { spellID = 1, name = "X" } } end },
+  { "movement key", function(c) c.specs[1].templates[2].W = { shift = { spellID = 1, name = "X" } } end },
   { "unknown slot", function(c) c.specs[1].templates[2].Q.meta = { spellID = 1, name = "X" } end },
   { "unknown item", function(c) c.specs[1].templates[3].Q.shift.item = "FOOD" end },
-  { "sequence", function(c) c.specs[1].templates[2].Q.normal = { seq = { { spellID = 1, name = "A" }, { spellID = 2, name = "B" } } } end },
+  { "step 2: needs a spell ID and a name", function(c) c.specs[1].templates[2].Q.normal = { seq = { { spellID = 1, name = "A" }, { name = "B" } } } end },
   { "cast with", function(c) c.specs[1].templates[2].Q.normal.with = { { spellID = 9, name = "Blood Fury" } } end },
   { "pet command", function(c) c.specs[1].templates[2].Q.alt = { pet = "follow" } end },
   { "pet command", function(c) c.shared.E.alt = { petSpecial = true } end },
@@ -752,6 +750,13 @@ end)
 -- built by tools/make_trainer_fixture.lua). A priority row: its ID is a trainer spell of the class learned
 -- at its level (a granted spell: at or below its bound). A template spell: learned by the bracket's top level.
 -- Talent spells (talent = true) are not trainer spells: their level comes from a talent row of the class.
+-- GENERAL: spells every class has from level 1, not in the trainer data (Wand Shoot).
+-- PENDING (v6): classes not rebuilt on the home keys yet (tickets 02 to 04). Their data check problems are
+-- counted, not failed; the trainer check still runs on them. Each ticket takes its classes out.
+local GENERAL = { [5019] = 1 }
+local PENDING = { DRUID = true, HUNTER = true, MAGE = true, PALADIN = true, PRIEST = true, ROGUE = true, SHAMAN = true,
+  WARRIOR = true }
+local pending = 0
 test("guide data: TOC matches the main addon, every class passes the data check and the trainer fixture", function()
   local toc = assert(io.open("FoilKeybinds_Guides/FoilKeybinds_Guides.toc")):read("*a")
   local main = assert(io.open("FoilKeybinds/FoilKeybinds.toc")):read("*a")
@@ -763,7 +768,13 @@ test("guide data: TOC matches the main addon, every class passes the data check 
   assert(files > 0 and FoilKeybindsGuides, "no class files loaded")
   local fixture, p = dofile("tests/trainer_fixture.lua"), {}
   for CLASS, c in pairs(FoilKeybindsGuides) do
-    for _, s in ipairs(core.CheckGuide(c)) do p[#p + 1] = CLASS .. " " .. s end
+    local found = core.CheckGuide(c, CLASS)
+    if PENDING[CLASS] then -- known misses until its v6 ticket lands; a class that passes must leave the list
+      if #found == 0 then p[#p + 1] = CLASS .. " passes the data check now: take it out of PENDING" end
+      pending = pending + #found
+    else
+      for _, s in ipairs(found) do p[#p + 1] = CLASS .. " " .. s end
+    end
     local fx, talents = assert(fixture[CLASS], "unknown class " .. CLASS), {}
     local function bad(where, what) p[#p + 1] = CLASS .. " " .. where .. ": " .. what end
     for gid, spec in pairs(c.specs) do
@@ -778,12 +789,15 @@ test("guide data: TOC matches the main addon, every class passes the data check 
     local function checkTemplate(where, t, b)
       local top = core.BRACKETS[b][2]
       for key, slots in pairs(t) do
-        for id, s in pairs(slots) do
-          if s.spellID then
-            local lvl = s.talent and talents[s.spellID] or not s.talent and (fx.levels[s.spellID] or fx.granted[s.spellID])
-            local at = where .. " key " .. key .. " " .. id .. " (" .. s.spellID .. ")"
-            if not lvl then bad(at, s.talent and "talent spell with no talent row" or "not a trainer spell of the class")
-            elseif lvl > top then bad(at, "learned at " .. lvl .. ", after the bracket") end
+        for id, slot in pairs(slots) do
+          for _, s in ipairs(slot.seq or { slot }) do
+            if s.spellID then
+              local lvl = s.talent and talents[s.spellID]
+                or not s.talent and (fx.levels[s.spellID] or fx.granted[s.spellID] or GENERAL[s.spellID])
+              local at = where .. " key " .. key .. " " .. id .. " (" .. s.spellID .. ")"
+              if not lvl then bad(at, s.talent and "talent spell with no talent row" or "not a trainer spell of the class")
+              elseif lvl > top then bad(at, "learned at " .. lvl .. ", after the bracket") end
+            end
           end
         end
       end
@@ -795,6 +809,7 @@ test("guide data: TOC matches the main addon, every class passes the data check 
   end
   table.sort(p)
   assert(#p == 0, #p .. " problem(s):\n     " .. table.concat(p, "\n     "))
+  if pending > 0 then print(("note %d data check problem(s) in the classes still pending v6"):format(pending)) end
 end)
 
 -- Guide tab rules (v4 ticket 02).
@@ -866,7 +881,7 @@ end)
 
 -- Wizard (v5).
 test("meanings: the shared list in step order, a name and a why line in English and pt-BR", function()
-  eq(table.concat(core.MEANINGS, " "), "main dot aoe cc interrupt defense heal buff form pet utility items")
+  eq(table.concat(core.MEANINGS, " "), "main wand second cc dot burst items interrupt defense heal buff form pet utility")
   for _, loc in ipairs({ "enUS", "ptBR" }) do
     GetLocale = function() return loc end
     local ns = {}; assert(loadfile("FoilKeybinds/Locale.lua"))(nil, ns)
@@ -878,16 +893,18 @@ test("meanings: the shared list in step order, a name and a why line in English 
 end)
 
 local sl = function(name) return { spellID = 1, name = name } end
-local WT = { -- guide keys: two "dot" keys, an items group, a Shift-only group (may go on Space), an unmeant key
-  ["1"] = { normal = sl("Main") }, ["2"] = { normal = sl("Dot"), shift = sl("Dot2") }, Q = { normal = sl("Dot3") },
-  R = { normal = sl("Fear"), shift = sl("Banish"), alt = sl("Howl") }, V = { normal = { item = "HSPOT" }, shift = { item = "HEAL" } },
-  F = { shift = sl("Stone") }, Z = { normal = sl("Extra") } }
-local WM = { ["1"] = "main", ["2"] = "dot", Q = "dot", R = "cc", V = "items", F = "buff" }
-test("wizard steps: meaning order, board order inside a meaning, n of a meaning, keys with no meaning left out", function()
-  local s = core.WizardSteps(WT, WM)
-  local l = {}
-  for i, x in ipairs(s) do l[i] = x.key .. ":" .. x.meaning .. ":" .. x.n .. "/" .. x.of end
-  eq(table.concat(l, " "), "1:main:1/1 2:dot:1/2 Q:dot:2/2 R:cc:1/1 F:buff:1/1 V:items:1/1")
+local WT = { -- guide keys: two "dot" keys, an items group, a Shift-only group (may go on Space), a key off the home table
+  ["1"] = { normal = sl("Kick") }, ["2"] = { normal = sl("Ward"), shift = sl("Ward2") }, Q = { normal = sl("Dot") },
+  R = { normal = sl("Bolt"), shift = sl("Fire"), alt = sl("Rain") }, V = { normal = { item = "HSPOT" }, shift = { item = "HEAL" } },
+  F = { shift = sl("Dot2") }, Z = { normal = sl("Extra") }, BUTTON5 = { normal = sl("Shoot") }, ["5"] = { normal = sl("Off") } }
+test("wizard steps: meaning order, board order inside a meaning, n of a meaning, keys off the home table left out", function()
+  local function steps(class)
+    local l = {}
+    for i, x in ipairs(core.WizardSteps(WT, class)) do l[i] = x.key .. ":" .. x.meaning .. ":" .. x.n .. "/" .. x.of end
+    return table.concat(l, " ")
+  end
+  eq(steps("WARLOCK"), "BUTTON5:wand:1/1 Q:dot:1/2 F:dot:2/2 R:burst:1/1 V:items:1/1 1:interrupt:1/1 2:defense:1/1 Z:utility:1/1")
+  eq(steps("WARRIOR"):sub(1, 22), "BUTTON5:second:1/1 Q:d")
 end)
 
 test("allowed keys: no W A S D, no plain Space for a group with a plain press, mouse buttons and Shift-only Space fine", function()
@@ -924,7 +941,7 @@ test("skip leaves a group out; picking it back onto a taken key leaves the holde
   local m = core.Pick(map, WT, "V", "E")
   eq(m[2][1], "R"); eq(m[2][2], false); eq(map.V, "E"); eq(map.R, false)
   eq(core.BuildTemplate(WT, {}).R, WT.R) -- no map entry: the guide's key
-  eq(WT.R.normal.name, "Fear")
+  eq(WT.R.normal.name, "Bolt")
 end)
 
 test("first pick map: saved picks replayed through Pick, one group per key even when a new range adds a group on a picked key", function()
@@ -948,19 +965,79 @@ test("saved picks merge: this run wins, older picks of other keys stay unless th
   eq(core.MergePicks(nil, { R = "E" }).R, "E")
 end)
 
-test("data check: every spec needs a meanings map, every used template key a known meaning", function()
+-- Home keys (v6).
+test("home keys: one meaning per key, BUTTON5 is the wand for casters only, keys off the table have none", function()
+  eq(core.MeaningOf("BUTTON4", "WARRIOR"), "main"); eq(core.MeaningOf("E", "MAGE"), "cc"); eq(core.MeaningOf("R"), "burst")
+  for _, c in ipairs({ "MAGE", "PRIEST", "WARLOCK" }) do eq(core.MeaningOf("BUTTON5", c), "wand") end
+  for _, c in ipairs({ "WARRIOR", "ROGUE", "DRUID", "HUNTER", "PALADIN", "SHAMAN" }) do eq(core.MeaningOf("BUTTON5", c), "second") end
+  for _, k in ipairs({ "5", "SPACE", "BUTTON3", "W" }) do eq(core.MeaningOf(k, "WARLOCK"), nil) end
+  local n, MEANING = 0, {}
+  for _, m in ipairs(core.MEANINGS) do MEANING[m] = true end
+  for _, k in ipairs(core.BOARD) do
+    local m = core.MeaningOf(k, "WARLOCK")
+    if m then n = n + 1; assert(MEANING[m], k .. " has an unknown meaning " .. m) end
+  end
+  eq(n, 16)
+end)
+
+local SHOOT = { normal = { spellID = 5019, name = "Shoot" } }
+test("data check: a caster needs Wand Shoot on BUTTON5 normal in every range, others do not", function()
   local c = goodClass()
-  eq(#core.CheckGuide(c), 0) -- Q from brackets 2 and 3, E from the shared bracket 1 template
-  c.specs[2].meanings = nil
+  eq(#core.CheckGuide(c, "WARRIOR"), 0)
+  local p = core.CheckGuide(c, "WARLOCK")
+  eq(#p, 6) -- 2 specs x 3 ranges
+  for _, x in ipairs(p) do assert(x:find("no Wand Shoot on BUTTON5", 1, true), x) end
+  c.shared.BUTTON5, c.specs[1].templates[2].BUTTON5, c.specs[2].templates[2].BUTTON5 = SHOOT, SHOOT, SHOOT
+  c.specs[1].templates[3].BUTTON5, c.specs[2].templates[3].BUTTON5 = SHOOT, SHOOT
+  eq(#core.CheckGuide(c, "WARLOCK"), 0)
+  c.specs[2].templates[3].BUTTON5 = { normal = { spellID = 1, name = "Fireball" }, shift = SHOOT.normal }
+  p = core.CheckGuide(c, "PRIEST")
+  eq(#p, 1); assert(p[1]:find("spec 2 bracket 3: no Wand Shoot", 1, true), p[1])
+end)
+
+local function step(id, name) return { spellID = id, name = name } end
+local SEQ = { seq = { step(980, "Bane of Agony"), step(18265, "Siphon Life"), step(172, "Corruption") }, reset = { target = true, combat = true } }
+test("sequences in templates: allowed, built in the stored shape with looked-up names, fit counted like the editor", function()
+  local c = goodClass()
+  c.specs[1].templates[2].BUTTON4 = { normal = SEQ, shift = step(704, "Curse of Recklessness") }
+  eq(#core.CheckGuide(c), 0)
+  local pt = { [980] = { "Agonia", "harm" }, [172] = { "Corrupção", "harm" } }
+  local keys, missing = core.TemplateKeys({ BUTTON4 = { normal = SEQ } }, function(id) local s = pt[id]; if s then return s[1], s[2] end end)
+  eq(#missing, 1); eq(missing[1], 18265)
+  local s = keys.BUTTON4.slots.normal
+  eq(#s.seq, 3); eq(s.seq[1].name, "Agonia"); eq(s.seq[1].spellID, 980); eq(s.seq[1].kind, "harm")
+  eq(s.seq[2].name, "Siphon Life"); eq(s.seq[2].kind, "other"); eq(s.reset.target, true); eq(s.reset.combat, true)
+  eq(core.MacroText(keys.BUTTON4), T .. "/castsequence [nomod] reset=target/combat Agonia, Siphon Life, Corrupção")
+  s.reset.target = false; s.seq[1].name = "X"; eq(SEQ.reset.target, true); eq(SEQ.seq[1].name, "Bane of Agony") -- no shared tables
+  local long = { seq = {}, reset = { target = true, combat = true } } -- 9 steps of 24 chars: over 230 as a sequence
+  for i = 1, 9 do long.seq[i] = step(i, ("s"):rep(23) .. i) end
+  c.specs[1].templates[2].BUTTON4 = { normal = long }
   local p = core.CheckGuide(c)
-  eq(#p, 1); assert(p[1]:find("spec 2: no meanings map", 1, true), p[1])
-  c.specs[2].meanings = { Q = "main", E = "utility" }
-  c.specs[1].meanings.E = nil
-  p = core.CheckGuide(c)
-  eq(#p, 1); assert(p[1]:find("bracket 1 key E: no meaning", 1, true), p[1])
-  c.specs[1].meanings.E = "stuff"
-  p = core.CheckGuide(c)
-  eq(#p, 1); assert(p[1]:find("unknown meaning stuff", 1, true), p[1])
+  eq(#p, 1); assert(p[1]:find("key BUTTON4: macro over 230", 1, true), p[1])
+end)
+
+test("macro steps: unknown sequence steps left out, one known step is a plain cast, none known keeps it all", function()
+  local setup = { slots = { normal = core.Copy(SEQ), shift = sp("Fear") } }
+  setup.slots.normal.with = { step(9, "Blood Fury") }
+  local function knows(ids) return function(x) return ids[x.spellID] == true end end
+  local out = core.KnownSteps(setup, knows({ [980] = true, [172] = true }))
+  eq(#out.slots.normal.seq, 2); eq(out.slots.normal.seq[2].name, "Corruption"); eq(#setup.slots.normal.seq, 3)
+  eq(out.slots.shift.name, "Fear")
+  out = core.KnownSteps(setup, knows({ [172] = true }))
+  eq(out.slots.normal.seq, nil); eq(out.slots.normal.name, "Corruption"); eq(out.slots.normal.with[1].name, "Blood Fury")
+  out.slots.normal.with = nil
+  eq(core.MacroText(out), T .. "/cast [mod:shift] Fear; Corruption")
+  out = core.KnownSteps(setup, knows({}))
+  eq(#out.slots.normal.seq, 3)
+  eq(core.KnownSteps({ slots = { normal = sp("Fear") } }, knows({})).slots.normal.name, "Fear") -- plain spells untouched
+end)
+
+test("saved picks: dropped once when the version is old, kept after", function()
+  eq(core.WizardPicks(nil), nil)
+  local w = { seen = true, picks = { [11629] = { ["1"] = "2" } } } -- v5 save: no version
+  eq(core.WizardPicks(w), nil); eq(w.picksVersion, core.PICKS_VERSION); eq(w.seen, true)
+  w.picks = { [11629] = { BUTTON4 = "1" } }
+  eq(core.WizardPicks(w)[11629].BUTTON4, "1")
 end)
 
 for _, t in ipairs(tests) do

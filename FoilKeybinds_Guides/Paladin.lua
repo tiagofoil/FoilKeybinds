@@ -44,7 +44,6 @@ FoilKeybindsGuides.PALADIN = {
   specs = {
     [11486] = {
       name = "Holy",
-      meanings = { ["1"] = "main", ["2"] = "main", ["3"] = "dot", ["4"] = "cc", ["5"] = "aoe", Q = "heal", E = "defense", R = "buff", T = "utility", F = "buff", V = "items" },
       priority = {
         { spellID = 19750, level = 20, en = "Main heal: fast and cheap.", ptBR = "Cura principal: rápida e barata." },
         { spellID = 635, level = 2, en = "Big heal for heavy damage. Slower and costs more.",
@@ -90,7 +89,6 @@ FoilKeybindsGuides.PALADIN = {
     },
     [11541] = {
       name = "Protection",
-      meanings = { ["1"] = "main", ["2"] = "main", ["3"] = "dot", ["4"] = "cc", ["5"] = "aoe", Q = "heal", E = "defense", R = "buff", T = "utility", F = "buff", V = "items" },
       priority = {
         { spellID = 25780, level = 10, en = "More threat from Holy damage. Keep it on while you tank.",
           ptBR = "Mais ameaça com dano Sagrado. Mantenha ativo enquanto tanqueia." },
@@ -137,7 +135,6 @@ FoilKeybindsGuides.PALADIN = {
     },
     [11559] = {
       name = "Retribution",
-      meanings = { ["1"] = "main", ["2"] = "main", ["3"] = "dot", ["4"] = "cc", ["5"] = "dot", Q = "heal", E = "defense", R = "buff", T = "utility", F = "buff", V = "items" },
       priority = {
         { spellID = 20375, level = 20, talent = true, en = "Your seal while leveling: extra Holy hits on your swings. Keep it up.",
           ptBR = "Seu selo para subir de nível: golpes extras de dano Sagrado. Mantenha ativo." },

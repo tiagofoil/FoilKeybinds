@@ -182,10 +182,8 @@ draw = function()
   end
   for i = #prio + 1, #rows do rows[i]:Hide() end
   list.note:SetShown(not class.tested); list.url:SetShown(not class.tested)
-  local meanings = class.specs[state.spec].meanings ~= nil
-  buildBtn:SetEnabled(meanings); buildBtn:SetAlpha(meanings and 1 or 0.4)
-  hint:SetText(not meanings and L.WIZARD_NO_MEANINGS or state.hint or L.GUIDE_PREVIEW_HINT)
-  hint:SetTextColor(unpack(state.hint and meanings and T.brass or T.muted))
+  hint:SetText(state.hint or L.GUIDE_PREVIEW_HINT)
+  hint:SetTextColor(unpack(state.hint and T.brass or T.muted))
 end
 
 previewBtn:SetScript("OnClick", function()

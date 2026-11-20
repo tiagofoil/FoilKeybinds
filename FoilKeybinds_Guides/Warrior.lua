@@ -30,11 +30,6 @@ local RAGE3 = { normal = BLOODRAGE, shift = BERSERKER_RAGE, alt = RETALIATION, a
 local STANCES = { normal = DEFENSIVE, shift = BERSERKER, alt = DISARM, altshift = SHIELD_BLOCK }
 local THREAT = { normal = SUNDER, shift = TAUNT, alt = SHIELD_BASH }
 local FINISH = { normal = EXECUTE, shift = VICTORY_RUSH }
--- One meaning per key in every range: area hits on 5, taunts and slows on T, defense on 4 for Protection.
-local MEANINGS = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "dot", ["5"] = "aoe", Q = "utility", E = "buff",
-  R = "buff", T = "utility", F = "form", V = "items" }
-local PROT_MEANINGS = { ["1"] = "main", ["2"] = "main", ["3"] = "dot", ["4"] = "defense", ["5"] = "aoe", Q = "utility", E = "buff",
-  R = "buff", T = "utility", F = "form", G = "dot", V = "items" }
 
 FoilKeybindsGuides.WARRIOR = {
   suggested = 11650, -- Arms levels best: big two-handed hits and the most healing from Victory Rush per kill
@@ -55,7 +50,6 @@ FoilKeybindsGuides.WARRIOR = {
   specs = {
     [11650] = {
       name = "Arms",
-      meanings = MEANINGS,
       priority = {
         { spellID = 100, level = 4, en = "Opener: rush to the target and gain rage.",
           ptBR = "Abertura: avance até o alvo e ganhe raiva." },
@@ -104,7 +98,6 @@ FoilKeybindsGuides.WARRIOR = {
     },
     [11657] = {
       name = "Fury",
-      meanings = MEANINGS,
       priority = {
         { spellID = 100, level = 4, en = "Opener: rush to the target and gain rage.",
           ptBR = "Abertura: avance até o alvo e ganhe raiva." },
@@ -151,7 +144,6 @@ FoilKeybindsGuides.WARRIOR = {
     },
     [11670] = {
       name = "Protection",
-      meanings = PROT_MEANINGS,
       priority = {
         { spellID = 2565, level = 16, en = "Blocks the next hits. A block also lets you use Revenge.",
           ptBR = "Bloqueia os próximos golpes. Um bloqueio também libera o seu contra-ataque." },

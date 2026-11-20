@@ -42,7 +42,6 @@ FoilKeybindsGuides.DRUID = {
   specs = {
     [11328] = {
       name = "Balance",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "cc", ["4"] = "utility", ["5"] = "dot", Q = "heal", E = "heal", R = "form", T = "aoe", F = "buff", G = "utility", C = "defense", V = "items" },
       priority = {
         { spellID = 8921, level = 4, en = "Opening DoT. Put it on the target first, then cast your nukes.",
           ptBR = "DoT de abertura. Aplique primeiro no alvo e depois use seus ataques principais." },
@@ -92,7 +91,6 @@ FoilKeybindsGuides.DRUID = {
     },
     [11347] = {
       name = "Feral Combat",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "main", ["5"] = "main", Q = "heal", E = "utility", R = "form", T = "buff", F = "utility", G = "utility", C = "defense", V = "items" },
       priority = {
         { spellID = 5215, level = 20, en = "Stealth before the pull, then open from behind.",
           ptBR = "Furtividade antes do combate, para abrir pelas costas do alvo." },
@@ -156,7 +154,6 @@ FoilKeybindsGuides.DRUID = {
     },
     [11340] = {
       name = "Restoration",
-      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "cc", ["4"] = "utility", Q = "heal", E = "heal", R = "form", T = "heal", F = "buff", G = "utility", C = "utility", V = "items" },
       priority = {
         { spellID = 774, level = 4, en = "Heal over time. Put it on whoever takes damage first.",
           ptBR = "Cura ao longo do tempo. Aplique primeiro em quem estiver tomando dano." },

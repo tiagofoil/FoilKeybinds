@@ -158,11 +158,11 @@ f.__scripts.OnShow(f)
 for _, t in ipairs(frames) do if rawget(t, "label") and t.__scripts.OnEnter then t.__scripts.OnEnter(t) end end
 clickKey("Q") -- read-only: no selection, no edit
 assert(G.FoilKeybindsDB.keys == liveTable and same(live, G.FoilKeybindsDB.keys), "preview wrote the live keys")
-assert(G.FoilKeybindsDB.keys["1"] == nil, "preview created a live key")
+assert(G.FoilKeybindsDB.keys.BUTTON4 == nil, "preview created a live key")
 G.C_Spell.GetSpellInfo = function() end
 click(L.PREVIEW_CANCEL)
 assert(not ns.InPreview(), "cancel")
-assert(same(live, G.FoilKeybindsDB.keys) and G.FoilKeybindsDB.keys["1"] == nil, "cancel changed the live keys")
+assert(same(live, G.FoilKeybindsDB.keys) and G.FoilKeybindsDB.keys.BUTTON4 == nil, "cancel changed the live keys")
 
 -- Leaving the Keys tab cancels.
 click(L.GUIDE_PREVIEW)
@@ -197,7 +197,8 @@ collect(G.FoilKeybindsGuides.WARLOCK)
 G.C_Spell.GetSpellName = function(id) return names[id] end
 click(L.PREVIEW_USE)
 assert(not ns.InPreview())
-assert(db.keys["1"] and db.keys["1"].slots.normal.name == "CORRUPTION", "template not used with the loaded names")
+assert(db.keys.R and db.keys.R.slots.normal.name == "SHADOW BOLT", "template not used with the loaded names")
+assert(db.keys.BUTTON4.slots.normal.seq[2].name == "SIPHON LIFE" and db.keys.BUTTON4.slots.normal.reset.combat, "sequence not used")
 assert(db.guide.groupID == 11629 and db.guide.bracket == 3 and db.guide.told == 3 and db.guide.name == "Affliction")
 assert(lastSaid():find(L.TEMPLATE_USED:format("Affliction", "40-60"), 1, true), "no use line")
 assert(same(data, G.FoilKeybindsGuides.WARLOCK), "the guide data changed")
@@ -335,76 +336,76 @@ assert(f.tab == "keys" and ns.guide.hint == nil, "the hint came twice")
 G.SlashCmdList.FOILKEYBINDS("assistente")
 assert(f.tab == "guide" and ns.guide.hint == L.WIZARD_STEP1, "/fkb assistente")
 
--- A spec with no meanings map: the button does nothing, the note says why.
-local aff = G.FoilKeybindsGuides.WARLOCK.specs[11629]
-local meanings = aff.meanings
+-- Saved picks from before v6 map the old guide keys: dropped once when the wizard starts.
+db.wizard.picks = { [11629] = { ["1"] = "R" } }
 click("Affliction"); click("20-39")
-aff.meanings = nil; ns.ShowGuide()
-assert(showing(L.WIZARD_NO_MEANINGS), "no note for a spec without meanings")
-click(L.WIZARD_BUILD)
-assert(not ns.InPreview() and ns.WizardState() == nil, "wizard ran without meanings")
-aff.meanings = meanings; ns.ShowGuide()
 
--- Affliction 20-39: 12 groups, step 1 is the Guide tab. The first step is the main attack on 1, selected.
+-- Affliction 20-39: 11 groups, step 1 is the Guide tab. The first step is the main attack on Mouse 4, selected,
+-- with the no side buttons line; the wand on Mouse 5 comes next.
 db.keys = { Q = { slots = { normal = { spellID = 686, name = "Shadow Bolt", kind = "harm" } } } }
 local own = ns.Copy(db.keys)
 click(L.WIZARD_BUILD)
 local w = ns.WizardState()
+local M4, M5 = L.KEY_BUTTON4, L.KEY_BUTTON5
 assert(w and ns.InPreview() and f.tab == "keys", "Build my layout did not start the wizard")
-assert(#w.steps == 12 and w.steps[1].key == "1" and showing(L.WIZARD_STEP:format(2, 13)), "steps")
+assert(db.wizard.picks == nil and not w.saved, "old picks not dropped")
+assert(#w.steps == 11 and w.steps[1].key == "BUTTON4" and w.steps[2].key == "BUTTON5" and showing(L.WIZARD_STEP:format(2, 12)), "steps")
 assert(showing(L.MEANING_main) and showing(L.WHY_main) and showing(L.WIZARD_ALL), "step bar texts")
-assert(label():find(L.KEY:format("1"), 1, true), "current group not selected")
+assert(showing(L.WIZARD_NO_SIDE:format("1")), "no side buttons line on the main step")
+assert(label():find(L.KEY:format(M4), 1, true), "current group not selected")
 -- Pick a free key: the group moves, the board shows it, nothing live.
 clickKey("Z")
-assert(w.map["1"] == "Z" and showing(L.WIZARD_KEY:format("Z")) and label():find(L.KEY:format("Z"), 1, true), "pick")
+assert(w.map.BUTTON4 == "Z" and showing(L.WIZARD_KEY:format("Z")) and label():find(L.KEY:format("Z"), 1, true), "pick")
 assert(sameKeys(own, db.keys), "a pick wrote the live keys")
--- Next: the second attack 1 of 3 on 2. A taken key: the two trade, one chat line.
+-- Next: the wand on Mouse 5. A taken key: the two trade, one chat line.
 click(L.WIZARD_NEXT)
-assert(w.i == 2 and showing(L.WIZARD_OF:format(1, 3)), "next")
+assert(w.i == 2 and showing(L.MEANING_wand) and showing(L.WIZARD_NO_SIDE:format("2")), "next")
 clickKey("Z")
-assert(w.map["2"] == "Z" and w.map["1"] == "2", "swap")
-assert(lastSaid():find(L.WIZARD_MOVED:format(L.MEANING_dot, "Z") .. ", " .. L.WIZARD_MOVED:format(L.MEANING_main, "2"), 1, true), "swap line")
--- Back shows the main attack on its new key; Skip leaves the second attack out.
+assert(w.map.BUTTON5 == "Z" and w.map.BUTTON4 == "BUTTON5", "swap")
+assert(lastSaid():find(L.WIZARD_MOVED:format(L.MEANING_wand, "Z") .. ", " .. L.WIZARD_MOVED:format(L.MEANING_main, M5), 1, true), "swap line")
+-- Back shows the main attack on its new key; Skip leaves the wand out.
 click(L.WIZARD_BACK)
-assert(w.i == 1 and showing(L.WIZARD_KEY:format("2")), "back")
+assert(w.i == 1 and showing(L.WIZARD_KEY:format(M5)), "back")
 click(L.WIZARD_NEXT); click(L.WIZARD_SKIP)
-assert(w.i == 3 and w.map["2"] == false, "skip")
+assert(w.i == 3 and w.map.BUTTON5 == false, "skip")
 click(L.WIZARD_BACK) -- a left-out group: no key selected on the board
 assert(w.i == 2 and label() == L.PICK_KEY and showing(L.WIZARD_KEY_OUT), "skipped step highlights a key")
 click(L.WIZARD_NEXT)
+assert(w.steps[3].key == "E", "crowd control is step 3")
 clickKey("W") -- movement keys: blocked, the bar says why
-assert(w.map["3"] == "3" and showing(L.WIZARD_BLOCKED_move), "W not blocked")
+assert(w.map.E == "E" and showing(L.WIZARD_BLOCKED_move), "W not blocked")
 -- Plain Space for a group with a plain press: nothing moves, the bar says why.
 clickKey(L.KEY_SPACE)
-assert(w.map["3"] == "3" and showing(L.WIZARD_BLOCKED_space), "blocked key")
+assert(w.map.E == "E" and showing(L.WIZARD_BLOCKED_space), "blocked key")
 click(L.WIZARD_ALL)
-assert(w.i == 13 and ns.InPreview(), "use all suggestions ended the preview")
+assert(w.i == 12 and ns.InPreview(), "use all suggestions ended the preview")
 -- The done page lists the macros Apply will write, and the left-out group.
 local function showingPart(part)
   for _, t in ipairs(frames) do local v = rawget(t, "__text"); if type(v) == "string" and v:find(part, 1, true) then return true end end
 end
 assert(showing(L.WIZARD_DONE) and showing(L.WIZARD_DONE_STEP) and showingPart("#showtooltip"), "no macros on the done page")
-assert(showing(L.WIZARD_LEFT_OUT:format(L.MEANING_dot)), "left-out group not listed")
-clickKey("T") -- past the last step: read only
-assert(w.map.T == "T" and sameKeys(own, db.keys))
-click(L.WIZARD_BACK); assert(w.i == 12 and showing(L.WIZARD_STEP:format(13, 13)), "back from the done page")
-click(L.WIZARD_NEXT); assert(w.i == 13)
+assert(showing(L.WIZARD_LEFT_OUT:format(L.MEANING_wand)), "left-out group not listed")
+clickKey("Z") -- past the last step: read only
+assert(w.map.X == "X" and w.map.BUTTON4 == "BUTTON5" and sameKeys(own, db.keys))
+click(L.WIZARD_BACK); assert(w.i == 11 and showing(L.WIZARD_STEP:format(12, 12)), "back from the done page")
+click(L.WIZARD_NEXT); assert(w.i == 12)
 -- Use while spell names load: nothing saved, the preview stays.
 local nameFn = G.C_Spell.GetSpellName
 G.C_Spell.GetSpellName = function() end
 click(L.PREVIEW_USE)
 assert(ns.InPreview() and sameKeys(own, db.keys) and not db.wizard.picks and not db.wizard.cheatOnce, "a loading Use saved")
 G.C_Spell.GetSpellName = nameFn
--- Use: the built layout is live (main attack on 2, second attack out), old keys auto-saved, picks saved.
+-- Use: the built layout is live (main attack on Mouse 5, wand out), old keys auto-saved, picks saved.
 click(L.PREVIEW_USE)
 assert(not ns.InPreview() and ns.WizardState() == nil, "Use did not end the wizard")
-assert(db.keys["2"].slots.normal.name == "CORRUPTION" and db.keys["1"] == nil
+assert(db.keys.BUTTON5.slots.normal.seq[1].name == "BANE OF AGONY" and db.keys.BUTTON4 == nil
   and sameKeys({}, { Z = db.keys.Z }), "built layout not used")
-assert(db.keys.Q.slots.normal.name == "DRAIN LIFE" and db.keys.V.slots.normal.item == "HSPOT", "a group lost its key")
+assert(db.keys.Q.slots.normal.name == "CURSE OF WEAKNESS" and db.keys.V.slots.normal.item == "HSPOT", "a group lost its key")
 assert(isSaved(own), "own keys not auto-saved")
 assert(db.guide.wizard and db.guide.groupID == 11629 and db.guide.bracket == 2, "used template not marked")
 local picks = db.wizard.picks[11629]
-assert(picks["1"] == "2" and picks["2"] == false and picks.R == "R" and db.wizard.cheatOnce, "picks not saved")
+assert(picks.BUTTON4 == "BUTTON5" and picks.BUTTON5 == false and picks.R == "R" and db.wizard.cheatOnce, "picks not saved")
+assert(db.wizard.picksVersion == ns.PICKS_VERSION, "picks saved without the version")
 assert(lastSaid():find(L.TEMPLATE_USED:format("Affliction", "20-39"), 1, true), "no use line")
 G.SlashCmdList.FOILKEYBINDS("undo")
 assert(sameKeys(own, db.keys), "undo after the wizard")
@@ -413,11 +414,11 @@ assert(db.wizard.cheatOnce == nil and ns.guide.hint == nil, "undo kept the cheat
 -- Second run, 40-60: the saved picks preselect every step. Cancel, leaving the tab and closing change nothing.
 click("40-60"); click(L.WIZARD_BUILD)
 w = ns.WizardState()
-assert(w.saved and w.map["1"] == "2" and w.map["2"] == false and showing(L.WIZARD_ALL_MINE), "no preselected picks")
-assert(showing(L.WIZARD_KEY:format("2")), "first step does not show the saved key")
+assert(w.saved and w.map.BUTTON4 == "BUTTON5" and w.map.BUTTON5 == false and showing(L.WIZARD_ALL_MINE), "no preselected picks")
+assert(showing(L.WIZARD_KEY:format(M5)), "first step does not show the saved key")
 clickKey("X")
 click(L.PREVIEW_CANCEL)
-assert(not ns.InPreview() and ns.WizardState() == nil and sameKeys(own, db.keys) and db.wizard.picks[11629]["1"] == "2", "cancel")
+assert(not ns.InPreview() and ns.WizardState() == nil and sameKeys(own, db.keys) and db.wizard.picks[11629].BUTTON4 == "BUTTON5", "cancel")
 G.SlashCmdList.FOILKEYBINDS("guide"); click(L.WIZARD_BUILD); G.SlashCmdList.FOILKEYBINDS("config")
 assert(ns.WizardState() == nil and not ns.InPreview(), "leaving the tab did not end the wizard")
 G.SlashCmdList.FOILKEYBINDS("guide"); click(L.WIZARD_BUILD); f.__scripts.OnHide(f)
@@ -428,7 +429,7 @@ local cheat = {}
 local toggle = ns.ToggleCheat
 ns.ToggleCheat = function(v) cheat[#cheat + 1] = v end
 G.SlashCmdList.FOILKEYBINDS("guide"); click(L.WIZARD_BUILD); click(L.WIZARD_ALL_MINE); click(L.PREVIEW_USE)
-assert(db.keys["2"] and db.guide.bracket == 3 and db.wizard.cheatOnce, "second Use")
+assert(db.keys.BUTTON5 and db.guide.bracket == 3 and db.wizard.cheatOnce, "second Use")
 ns.Apply(); click(OKAY or "OK")
 assert(#cheat == 1 and cheat[1] == true and db.wizard.cheatOnce == nil, "cheat sheet not shown once after Apply")
 ns.Apply(); click(OKAY or "OK")
@@ -439,6 +440,29 @@ click("1-19"); click(L.WIZARD_BUILD); click(L.WIZARD_ALL_MINE); click(L.PREVIEW_
 local n0 = #said
 ev.__scripts.OnEvent(ev, "PLAYER_LEVEL_UP", 40) -- the item swap may add its own line after it
 assert((said[n0 + 1] or ""):find(L.WIZARD_LEVELUP:format(40, "Affliction", "40-60"), 1, true), "no wizard level-up line")
+
+-- Apply writes a sequence with the steps the character knows (one known: a plain cast); the stored keys
+-- keep every step, and a spell learned later comes in on SPELLS_CHANGED (the macro rebuilt from the snapshot).
+local macros, byName = {}, {}
+G.GetMacroIndexByName = function(n) return byName[n] or 0 end
+G.CreateMacro = function(n, _, body) macros[#macros + 1] = body; byName[n] = #macros; return #macros end
+G.EditMacro = function(i, _, _, body) macros[i] = body end
+G.GetMacroBody = function(i) return macros[i] end
+local known = { [348] = true }
+G.C_SpellBook.IsSpellKnown = function(id) return known[id] == true end
+local SEQ = { seq = { { spellID = 348, name = "Immolate", kind = "harm" }, { spellID = 172, name = "Corruption", kind = "harm" },
+  { spellID = 980, name = "Bane of Agony", kind = "harm" } }, reset = { target = true, combat = true } }
+db.keys, db.applied, db.wizard = { BUTTON4 = { slots = { normal = ns.Copy(SEQ) } } }, {}, nil
+ns.Apply(); click(OKAY or "OK")
+local body = macros[byName[ns.MacroName("BUTTON4")]]
+assert(body and body:find("/cast Immolate", 1, true) and not body:find("castsequence", 1, true), "one known step: " .. tostring(body))
+assert(#db.keys.BUTTON4.slots.normal.seq == 3 and #db.applied.BUTTON4.slots.normal.seq == 3, "Apply cut the stored sequence")
+known[172] = true
+ev.__scripts.OnEvent(ev, "SPELLS_CHANGED")
+body = macros[byName[ns.MacroName("BUTTON4")]]
+assert(body:find("reset=target/combat Immolate, Corruption", 1, true) and not body:find("Agony", 1, true), "learned step not in: " .. body)
+G.GetMacroIndexByName, G.C_SpellBook.IsSpellKnown = function() return 0 end, nil
+
 db.keys, db.guide, db.applied, db.wizard, db.copyUndo, db.copyUndoGuide, db.copyUndoLive, db.saved = ns.Copy(live), nil, {}, nil, nil, nil, nil, nil
 db.backup, ns.guide.hint = backup0, nil
 print("smoke ok")

@@ -540,6 +540,22 @@ function ns.Known(spellID, name, knownID, learned)
   return (spellID ~= nil and knownID(spellID)) or (name ~= nil and learned[name]) or false
 end
 
+-- The setup a macro is written from: sequence steps the player does not know yet are left out
+-- (known(step) -> bool), one known step left is a plain cast, none known keeps the whole sequence
+-- (an empty slot would write a bare /cast). Returns a copy; the stored keys keep every step.
+function ns.KnownSteps(setup, known)
+  local out = ns.Copy(setup)
+  for id, s in pairs(out.slots) do
+    if s.seq then
+      local kept = {}
+      for _, x in ipairs(s.seq) do if known(x) then kept[#kept + 1] = x end end
+      if #kept == 1 then out.slots[id] = ns.Unseq(kept[1]); out.slots[id].with = s.with
+      elseif #kept > 1 then s.seq = kept end
+    end
+  end
+  return out
+end
+
 -- Item swap chat lines: one entry per applied key and item slot whose best item changed.
 -- old/new = BestItems() output. Returns { key, slot, from, to } (names, nil = none), sorted.
 function ns.ItemChanges(old, new, applied)
@@ -649,19 +665,27 @@ function ns.GuessSpec(groups, suggested)
   return best, most > 0
 end
 
--- template = key -> slot -> { spellID, name (English), talent } or { item = "HS" }; lookup(spellID) ->
--- localized name, kind (nil when unknown). Returns a new keys table (key -> { slots }), stored shape, and
--- the spell IDs the lookup had no name for. Those keep ID and English name (they show faded); no kind means "other".
+-- template = key -> slot -> { spellID, name (English), talent }, { item = "HS" } or a sequence
+-- { seq = { spell, ... }, reset }; lookup(spellID) -> localized name, kind (nil when unknown). Returns a new
+-- keys table (key -> { slots }), stored shape, and the spell IDs the lookup had no name for. Those keep ID
+-- and English name (they show faded); no kind means "other".
 function ns.TemplateKeys(template, lookup)
   local keys, missing = {}, {}
+  local function named(s)
+    local name, kind = lookup(s.spellID)
+    if not name then missing[#missing + 1] = s.spellID end
+    return name or s.name, kind or "other"
+  end
   for key, slots in pairs(template) do
     local setup = { slots = {} }
     for id, s in pairs(slots) do
       if s.item then setup.slots[id] = { item = s.item }
+      elseif s.seq then
+        local seq = {}
+        for i, x in ipairs(s.seq) do local name, kind = named(x); seq[i] = { spellID = x.spellID, name = name, kind = kind } end
+        setup.slots[id] = { seq = seq, reset = ns.Copy(s.reset) }
       else
-        local name, kind = lookup(s.spellID)
-        if not name then missing[#missing + 1] = s.spellID end
-        setup.slots[id] = ns.NewSlot(s.spellID, name or s.name, kind or "other")
+        setup.slots[id] = ns.NewSlot(s.spellID, named(s))
       end
     end
     keys[key] = setup
@@ -734,41 +758,50 @@ function ns.GuideSpecs(groups, class)
   return l
 end
 
--- Guide data check: every problem in one class table (FoilKeybindsGuides[CLASS]), as text, sorted.
--- Empty list = good. Templates must fit GUIDE_MAX with English names, mouseover on, no items in bags.
-ns.GUIDE_MAX, ns.GUIDE_KEYS = 230, 16
+-- Home keys (v6): each guide key has one meaning (kind of spell), the same for every class except BUTTON5:
+-- Wand Shoot for the casters, the second attack for the others. Meanings in wizard step order; names and
+-- why lines: Locale MEANING_<id>, WHY_<id>. Keys off this table (5, SPACE, BUTTON3) stay free in guide layouts.
+ns.MEANINGS = { "main", "wand", "second", "cc", "dot", "burst", "items", "interrupt", "defense", "heal", "buff", "form", "pet", "utility" }
+local HOME = { BUTTON4 = "main", BUTTON5 = "second", E = "cc", F = "dot", Q = "dot", R = "burst", V = "items",
+  ["1"] = "interrupt", ["2"] = "defense", ["3"] = "heal", ["4"] = "buff", T = "buff", G = "pet", C = "form", X = "utility", Z = "utility" }
+local CASTER = { MAGE = true, PRIEST = true, WARLOCK = true }
+ns.WAND = 5019 -- Wand Shoot
+-- Meaning of a guide key for a class token ("WARLOCK"); nil off the home table.
+function ns.MeaningOf(key, class)
+  if key == "BUTTON5" and CASTER[class] then return "wand" end
+  return HOME[key]
+end
+
+-- Guide data check: every problem in one class table (FoilKeybindsGuides[token]), as text, sorted.
+-- Empty list = good. Templates use home keys only and must fit GUIDE_MAX with English names, mouseover on,
+-- no items in bags. A caster has Wand Shoot on BUTTON5 in every range.
+ns.GUIDE_MAX = 230
 local MOVE, ITEM, SLOT = { W = true, A = true, S = true, D = true }, {}, {}
 for _, c in ipairs(ns.ITEMS) do ITEM[c] = true end
 for _, id in ipairs(ns.SLOTS) do SLOT[id] = true end
--- Wizard (v5): one meaning per guide key (spec.meanings = guide key -> meaning ID), shared by every
--- class, in step order. Names and why lines: Locale MEANING_<id>, WHY_<id>.
-ns.MEANINGS = { "main", "dot", "aoe", "cc", "interrupt", "defense", "heal", "buff", "form", "pet", "utility", "items" }
-local MEANING = {}
-for i, m in ipairs(ns.MEANINGS) do MEANING[m] = i end
-function ns.CheckGuide(class)
-  local p, board = {}, {}
-  for _, k in ipairs(ns.BOARD) do board[k] = true end
+function ns.CheckGuide(class, token)
+  local p = {}
   local function bad(where, what) p[#p + 1] = where .. ": " .. what end
   local function text(v) return type(v) == "string" and v ~= "" end
   local function checkTemplate(where, t)
-    local n, before = 0, #p
+    local before = #p
     for key, slots in pairs(t) do
-      n = n + 1
       local at = where .. " key " .. key
       if MOVE[key] then bad(at, "movement key")
-      elseif not board[key] then bad(at, "unknown key")
-      elseif key == "SPACE" and slots.normal then bad(at, "plain Space press is jump") end
+      elseif not HOME[key] then bad(at, "not a home key") end
       for id, s in pairs(slots) do
         local sat = at .. " " .. tostring(id)
         if not SLOT[id] then bad(sat, "unknown slot")
-        elseif s.seq then bad(sat, "sequence not allowed in templates")
         elseif s.with then bad(sat, "cast with not allowed in templates")
         elseif s.pet or s.petSpecial then bad(sat, "pet command not allowed in templates")
         elseif s.item then if not ITEM[s.item] then bad(sat, "unknown item category " .. tostring(s.item)) end
+        elseif s.seq then
+          for i, x in ipairs(s.seq) do
+            if not (x.spellID and text(x.name)) then bad(sat .. " step " .. i, "needs a spell ID and a name") end
+          end
         elseif not (s.spellID and text(s.name)) then bad(sat, "needs a spell ID and a name") end
       end
     end
-    if n > ns.GUIDE_KEYS then bad(where, "more than 16 keys") end
     if #p > before then return end -- fit only a template that is well formed (bad slots break MacroText)
     for key, setup in pairs(ns.TemplateKeys(t, function() return nil, "harm" end)) do
       local fit, len = ns.FitMacro(setup, {}, nil, ns.GUIDE_MAX)
@@ -788,30 +821,26 @@ function ns.CheckGuide(class)
       if not text(r.en) then bad(at, "no en text") end
       if not text(r.ptBR) then bad(at, "no ptBR text") end
     end
-    if not spec.meanings then bad(where, "no meanings map") end
     for b in ipairs(ns.BRACKETS) do
       local t = (spec.templates or {})[b]
       if t then checkTemplate(where .. " bracket " .. b, t)
       elseif not ns.TemplateFor(class, gid, b) then bad(where, "no template for bracket " .. b) end
-      local used = spec.meanings and ns.TemplateFor(class, gid, b)
-      for key in pairs(used or {}) do
-        local m = spec.meanings[key]
-        if m == nil then bad(where .. " bracket " .. b .. " key " .. key, "no meaning")
-        elseif not MEANING[m] then bad(where .. " bracket " .. b .. " key " .. key, "unknown meaning " .. tostring(m)) end
-      end
+      local used = CASTER[token] and ns.TemplateFor(class, gid, b)
+      local wand = used and used.BUTTON5 and used.BUTTON5.normal
+      if used and not (wand and wand.spellID == ns.WAND) then bad(where .. " bracket " .. b, "no Wand Shoot on BUTTON5") end
     end
   end
   table.sort(p)
   return p
 end
 
--- Wizard steps: the template's guide keys that have a meaning, in meaning order, board order inside one.
--- Each step: { key = guide key, meaning, n, of } (n of the meaning's keys: "1 of 2").
-function ns.WizardSteps(template, meanings)
+-- Wizard steps: the template's guide keys that have a meaning (ns.MeaningOf for the class token), in meaning
+-- order, board order inside one. Each step: { key = guide key, meaning, n, of } (n of the meaning's keys: "1 of 2").
+function ns.WizardSteps(template, class)
   local steps = {}
   for _, m in ipairs(ns.MEANINGS) do
     local group = {}
-    for _, k in ipairs(ns.BOARD) do if template[k] and meanings[k] == m then group[#group + 1] = k end end
+    for _, k in ipairs(ns.BOARD) do if template[k] and ns.MeaningOf(k, class) == m then group[#group + 1] = k end end
     for i, k in ipairs(group) do steps[#steps + 1] = { key = k, meaning = m, n = i, of = #group } end
   end
   return steps
@@ -861,6 +890,14 @@ function ns.WizardMap(template, saved)
     elseif map[gk] ~= nil and k then ns.Pick(map, template, gk, k) end
   end
   return map
+end
+
+-- Saved picks map guide keys, so they are dropped once when the guide layouts move (a version next to them).
+-- wizard = FoilKeybindsDB.wizard (nil: never ran). Returns the picks that still hold (nil: none).
+ns.PICKS_VERSION = 6
+function ns.WizardPicks(wizard)
+  if wizard and wizard.picksVersion ~= ns.PICKS_VERSION then wizard.picks, wizard.picksVersion = nil, ns.PICKS_VERSION end
+  return wizard and wizard.picks
 end
 
 -- Picks to save after a Use: this run's map, plus older picks of guide keys this template lacks
