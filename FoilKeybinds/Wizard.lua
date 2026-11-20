@@ -82,9 +82,9 @@ local rows = {}
 local function row(i)
   if rows[i] then return rows[i] end
   local r = CreateFrame("Frame", nil, done.body)
-  r.key = ns.Chip(r, "mono", 11, T.brass); r.key:SetPoint("TOPLEFT", 0, 0)
-  r.name = ns.Text(r, "bold", 13, T.ink); r.name:SetPoint("LEFT", r.key, "RIGHT", 8, 0)
-  r.macro = ns.Text(r, "mono", 11, T.code); r.macro:SetPoint("TOPLEFT", 0, -26); r.macro:SetWidth(LIST_W)
+  r.key = ns.Chip(r, "mono", 13, T.brass); r.key:SetPoint("TOPLEFT", 0, 0)
+  r.name = ns.Text(r, "bold", 15, T.ink); r.name:SetPoint("LEFT", r.key, "RIGHT", 10, 0)
+  r.macro = ns.Text(r, "mono", 13, T.code); r.macro:SetPoint("TOPLEFT", 0, -30); r.macro:SetWidth(LIST_W)
   r.macro:SetJustifyH("LEFT"); r.macro:SetSpacing(2); r.macro:SetWordWrap(true); r.macro:SetNonSpaceWrap(true)
   rows[i] = r
   return r
@@ -124,7 +124,7 @@ local function fillDone(keys)
       r.name:SetText(L["MEANING_" .. st.meaning] .. (st.of > 1 and "  " .. L.WIZARD_OF:format(st.n, st.of) or ""))
       r.macro:SetText(text and ns.ColorMacro((text:gsub(";%s*", ";\n    "))) or L.WIZARD_TOO_LONG)
       r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, -y); r:SetWidth(LIST_W)
-      local h = 28 + r.macro:GetStringHeight()
+      local h = 32 + r.macro:GetStringHeight()
       r:SetHeight(h); r:Show()
       y = y + h + 14
     else

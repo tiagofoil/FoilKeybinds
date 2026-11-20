@@ -116,15 +116,15 @@ hint:SetPoint("RIGHT", previewBtn, "LEFT", -12, 0); hint:SetWidth(640); hint:Set
 
 -- Build my layout (the wizard, Wizard.lua): the big tile under the level ranges, icon, name and one line.
 local buildBtn = CreateFrame("Button", nil, left)
-buildBtn:SetPoint("TOPLEFT", 14, -262); buildBtn:SetSize(208, 112)
-ns.RoundSkin(buildBtn, { T.fel[1], T.fel[2], T.fel[3], 0.12 }, T.fel)
+buildBtn:SetPoint("TOPLEFT", 14, -262); buildBtn:SetSize(208, 124)
+ns.RoundSkin(buildBtn, T.well, T.fel) -- dark face: the white line reads on it
 buildBtn.icon = ns.IconFrame(buildBtn, 40); buildBtn.icon:SetPoint("TOPLEFT", 12, -12)
 buildBtn.icon.tex:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
 local buildText = ns.Text(buildBtn, "display", 16, T.fel)
 buildBtn:SetFontString(buildText); buildBtn:SetText(L.WIZARD_BUILD)
 buildText:ClearAllPoints(); buildText:SetPoint("LEFT", buildBtn.icon, "RIGHT", 10, 0); buildText:SetPoint("RIGHT", -10, 0)
 buildText:SetJustifyH("LEFT")
-buildBtn.sub = ns.Text(buildBtn, "body", 11, T.ink)
+buildBtn.sub = ns.Text(buildBtn, "body", 13, T.ink)
 buildBtn.sub:SetPoint("TOPLEFT", 12, -60); buildBtn.sub:SetPoint("RIGHT", -12, 0); buildBtn.sub:SetJustifyH("LEFT")
 buildBtn.sub:SetText(L.WIZARD_BUILD_SUB)
 buildBtn:SetScript("OnEnter", function(self) self.rLine:SetVertexColor(unpack(T.brass)); buildText:SetTextColor(unpack(T.brass)) end)
