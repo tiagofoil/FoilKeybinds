@@ -6,7 +6,7 @@
 ## OptionalDeps: GrimorioSetup, WhatsTraining
 ## SavedVariablesPerCharacter: FoilKeybindsDB
 ## SavedVariables: FoilKeybindsAccount
-## IconTexture: Interface\Icons\INV_Misc_Key_03
+## IconTexture: Interface\AddOns\FoilKeybinds\Media\Logo
 
 Locale.lua
 Theme.lua

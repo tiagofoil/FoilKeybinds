@@ -36,7 +36,7 @@ end
 -- Addon compartment entry, registered at runtime so it can be turned off (a TOC
 -- AddonCompartmentFunc cannot). Left click opens the editor, right click the settings.
 local entry = {
-  text = L.TITLE, icon = "Interface\\Icons\\INV_Misc_Key_03", notCheckable = true, registerForAnyClick = true,
+  text = L.TITLE, icon = "Interface\\AddOns\\FoilKeybinds\\Media\\Logo", notCheckable = true, registerForAnyClick = true,
   func = function(_, input)
     if input and input.buttonName == "RightButton" then ns.OpenWindow("settings") else FoilKeybinds_Toggle() end
   end,

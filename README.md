@@ -1,4 +1,5 @@
 # Foil Keybinds
+<img src="docs/logo-400.png" alt="Foil Keybinds logo" width="160">
 
 A WoW Forever addon that puts your whole layout on the keys near WASD. Each key gets one macro with five slots: normal, Shift, Alt, Alt+Shift and Ctrl. The modifiers live inside the macro, so one bar slot does it all.
 
