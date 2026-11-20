@@ -13,6 +13,7 @@ function ns.SetMainScale(v) f:SetScale(v) end
 
 -- Tabs at the top: Keys | Guide | Settings. One window, so closing it closes all.
 local keysPane = CreateFrame("Frame", nil, f); keysPane:SetAllPoints()
+ns.keysPane = keysPane -- the wizard panel sits in its lower half (Wizard.lua)
 ns.settingsPane = CreateFrame("Frame", nil, f) -- Settings.lua builds the page in it
 ns.settingsPane:SetPoint("TOPLEFT", 0, -28); ns.settingsPane:SetPoint("BOTTOMRIGHT"); ns.settingsPane:Hide()
 ns.guidePane = CreateFrame("Frame", nil, f) -- Guide.lua builds the tab in it
@@ -42,20 +43,38 @@ local undoBtn = ns.Button(keysPane, 100, 26, L.UNDO)
 undoBtn:SetPoint("RIGHT", applyBtn, "LEFT", -8, 0)
 undoBtn:SetScript("OnClick", function() ns.UndoStep() end)
 
--- Layouts menu: save the keys, load or delete a saved set, copy another character's keys.
+-- Layouts menu: save the keys under a name; load, overwrite, rename or delete a saved set (own sets
+-- first, then the auto-saved ones); copy another character's keys.
 local copyBtn = ns.Button(keysPane, 120, 26, L.LAYOUTS)
 copyBtn:SetPoint("RIGHT", undoBtn, "LEFT", -8, 0)
+local CANCEL_BTN = { CANCEL or "Cancel" }
+local function askName(title, name, fn)
+  ns.Popup(title, L.SAVE_NAME_ASK, { { L.SAVE, fn, T.fel }, CANCEL_BTN }, nil, name)
+end
+local function setMenu(root, set)
+  local sub = root:CreateButton(set.name)
+  sub:CreateButton(L.LOAD, function() ns.LoadSaved(set) end)
+  sub:CreateButton(L.OVERWRITE, function() ns.OverwriteSaved(set) end)
+  sub:CreateButton(L.RENAME, function() askName(L.RENAME, set.name, function(n) ns.RenameSaved(set, n) end) end)
+  sub:CreateButton(L.DELETE, function()
+    ns.Popup(L.DELETE, L.DELETE_ASK:format(set.name), { { L.DELETE, function() ns.DeleteSaved(set) end, T.blood }, CANCEL_BTN })
+  end)
+end
 copyBtn:SetScript("OnClick", function(self)
   local me, class = ns.Me()
   local list = ns.SameClass(FoilKeybindsAccount, class, me)
   MenuUtil.CreateContextMenu(self, function(_, root)
-    root:CreateButton(L.SAVE_KEYS, ns.SaveCurrent)
-    local saved = FoilKeybindsDB.saved or {}
-    if #saved > 0 then root:CreateTitle(L.SAVED_TITLE) end
-    for _, set in ipairs(saved) do
-      local sub = root:CreateButton(set.name)
-      sub:CreateButton(L.LOAD, function() ns.LoadSaved(set) end)
-      sub:CreateButton(L.DELETE, function() ns.DeleteSaved(set) end)
+    root:CreateButton(L.SAVE_KEYS, function()
+      askName(L.SAVE_KEYS, L.SAVED_NAME:format(date("%d/%m %H:%M")), ns.SaveCurrent)
+    end)
+    for _, auto in ipairs({ false, true }) do
+      local title
+      for _, set in ipairs(FoilKeybindsDB.saved or {}) do
+        if (set.auto or false) == auto then
+          if not title then title = true; root:CreateTitle(auto and L.AUTO_TITLE or L.SAVED_TITLE) end
+          setMenu(root, set)
+        end
+      end
     end
     root:CreateTitle(L.COPY_FROM)
     if #list == 0 then root:CreateTitle(L.COPY_NONE_SHORT) end
@@ -314,7 +333,7 @@ end
 -- Key panel: right of the board. Key and macro name, size meter, the two key toggles, Show macro,
 -- the dot legend, the fit messages and the switch OFF hint.
 card = CreateFrame("Frame", nil, keysPane)
-ns.keyCard = card -- the wizard's step bar sits in its space (Wizard.lua)
+ns.keyCard = card -- the wizard dims it (Wizard.lua)
 card:SetPoint("TOPLEFT", view, "TOPRIGHT", 12, 0); card:SetPoint("BOTTOMRIGHT", keysPane, "TOPRIGHT", -12, -338)
 ns.RoundSkin(card, T.panel, { T.void[1], T.void[2], T.void[3], 0.45 })
 card.label = ns.Text(card, "bold", 15)
@@ -883,9 +902,11 @@ function ns.CancelPreview()
 end
 function ns.InPreview() return pv ~= nil end
 banner.cancel:SetScript("OnClick", ns.CancelPreview)
-banner.use:SetScript("OnClick", function()
-  if pv.use(pv.keys) ~= false then ns.CancelPreview() end
-end)
+-- "Use this layout" (the banner, and the wizard's last page).
+function ns.UsePreview()
+  if pv and pv.use(pv.keys) ~= false then ns.CancelPreview() end
+end
+banner.use:SetScript("OnClick", ns.UsePreview)
 
 -- While shown: spells learned redraw the window, loaded spell data updates the icons of that spell,
 -- talent changes redraw the Guide tab ("yours" follows the points).

@@ -229,8 +229,9 @@ end
 -- One dialog for every popup (repair, Apply preview, master switch). buttons, right to left:
 -- { { label, fn, accent }, ... }. A click closes it unless fn returns true (stay open, e.g. in combat).
 -- combat: close when combat starts. Esc and x close it with no action (cancel).
+-- edit: a text box with this text (selected); each fn gets the box text, Enter clicks the first button.
 local dlg
-function ns.Popup(title, text, buttons, combat)
+function ns.Popup(title, text, buttons, combat, edit)
   if not dlg then
     dlg = ns.Panel("FoilKeybindsPopup", UIParent, "")
     dlg:SetPoint("CENTER"); dlg:SetFrameStrata("DIALOG"); dlg:SetClampedToScreen(true)
@@ -245,11 +246,18 @@ function ns.Popup(title, text, buttons, combat)
     dlg:SetScript("OnEvent", dlg.Hide)
     dlg:SetScript("OnHide", function(self) self:UnregisterEvent("PLAYER_REGEN_DISABLED") end)
     tinsert(UISpecialFrames, "FoilKeybindsPopup")
+    dlg.edit = CreateFrame("EditBox", nil, dlg, "BackdropTemplate")
+    dlg.edit:SetSize(240, 22); dlg.edit:SetPoint("BOTTOMLEFT", 16, 13)
+    ns.Skin(dlg.edit, T.well, T.line); dlg.edit:SetFontObject(ns.Font("body", 13)); dlg.edit:SetTextInsets(6, 6, 0, 0)
+    dlg.edit:SetAutoFocus(false); dlg.edit:SetMaxLetters(40)
+    dlg.edit:SetScript("OnEscapePressed", function() dlg:Hide() end)
+    dlg.edit:SetScript("OnEnterPressed", function() dlg.first:Click() end)
   end
   dlg:Hide()
   dlg.title:SetText(title); dlg.text:SetText(text)
   for _, b in pairs(dlg.cache) do b:Hide() end
   local prev
+  dlg.first = nil
   for _, spec in ipairs(buttons) do
     local id = spec[1] .. tostring(spec[3])
     local b = dlg.cache[id]
@@ -260,12 +268,16 @@ function ns.Popup(title, text, buttons, combat)
     end
     b:ClearAllPoints()
     if prev then b:SetPoint("RIGHT", prev, "LEFT", -8, 0) else b:SetPoint("BOTTOMRIGHT", -14, 12) end
-    b:SetScript("OnClick", function() if not (spec[2] and spec[2]()) then dlg:Hide() end end)
-    b:Show(); prev = b
+    b:SetScript("OnClick", function()
+      if not (spec[2] and spec[2](edit and dlg.edit:GetText())) then dlg:Hide() end
+    end)
+    b:Show(); dlg.first = dlg.first or b; prev = b
   end
+  dlg.edit:SetShown(edit ~= nil); dlg.edit:SetText(edit or "")
   local h = dlg.text:GetStringHeight()
   dlg.body:SetHeight(h); dlg.scroll:SetVerticalScroll(0)
   dlg:SetSize(500, math.min(h, 420) + 90)
   if combat then dlg:RegisterEvent("PLAYER_REGEN_DISABLED") end
   dlg:Show()
+  if edit then dlg.edit:SetFocus(); dlg.edit:HighlightText() end
 end

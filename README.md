@@ -19,9 +19,9 @@ A WoW Forever addon that puts your whole layout on the keys near WASD. Each key 
 
 - One macro per key, with the Shift, Alt, Alt+Shift and Ctrl variants inside it.
 - Guide tab for all 9 classes (`/fkb guide`): the main abilities of your spec in rotation order, what each one is for and which key it is on, plus a ready-made layout for levels 1-19, 20-39 and 40-60. Preview a layout, then Use it; Undo brings your own keys back. The guides are new; report a wrong key in the GitHub issues.
-- Wizard for new players (`/fkb wizard`, or "Build my layout" on the Guide tab): it walks through the guide layout of your spec one meaning at a time (main attack, crowd control, items...) and you click the key you want for each group. It opens once by itself on the first `/fkb` with no keys, and remembers your picks for the next level range.
+- Wizard for new players (`/fkb wizard`, or the "Build my layout" tile on the Guide tab): it walks through the guide layout of your spec one meaning at a time (main attack, crowd control, items...) and you click the key you want for each group. The last page lists every key with the macro Apply will write. It opens once by itself on the first `/fkb` with no keys, and remembers your picks for the next level range.
 - QoL item buttons: Heal button (health potion in combat, bandage out of combat), Eat and drink (best food and water in one click), Healthstone or potion. The guide layouts put them on V, Shift+V and Alt+V.
-- Layouts menu: save your keys, load or delete a saved set, or copy the keys of another character of your class. Before a layout, a copy or an Undo replaces your keys, they are saved there automatically (the last 10).
+- Layouts menu: save your keys under a name; load, overwrite, rename or delete a saved layout; or copy the keys of another character of your class. Before a layout, a copy or an Undo replaces your keys, they are saved there automatically (the last 10).
 - Canvas editor: click a key, pick a learned spell or a consumable for each slot.
 - Items: potions, Healthstone, bombs and bandages use the best one in your bags.
 - Places each macro on the bar slot the key already presses and clears the modifier bindings that would block it.

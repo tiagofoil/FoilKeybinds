@@ -107,14 +107,28 @@ list.url:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
 list.url:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 list.url:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
 
--- Bottom bar: Preview layout, where Apply sits on the Keys tab, and Build my layout (the wizard, Wizard.lua).
--- The hint line: the new-player or step 1 line (state.hint, set by /fkb), else what the buttons do.
-local previewBtn = ns.Button(pane, 160, 26, L.GUIDE_PREVIEW, T.fel)
+-- Bottom bar: Preview layout, where Apply sits on the Keys tab. The hint line: the new-player or step 1
+-- line (state.hint, set by /fkb), else what the buttons do.
+local previewBtn = ns.Button(pane, 160, 26, L.GUIDE_PREVIEW)
 previewBtn:SetPoint("BOTTOMRIGHT", -16, 14)
-local buildBtn = ns.Button(pane, 160, 26, L.WIZARD_BUILD, T.fel)
-buildBtn:SetPoint("RIGHT", previewBtn, "LEFT", -8, 0)
 local hint = ns.Text(pane, "body", 12, T.muted)
-hint:SetPoint("RIGHT", buildBtn, "LEFT", -12, 0); hint:SetWidth(560); hint:SetJustifyH("RIGHT") -- a long pt-BR line wraps
+hint:SetPoint("RIGHT", previewBtn, "LEFT", -12, 0); hint:SetWidth(640); hint:SetJustifyH("RIGHT") -- a long pt-BR line wraps
+
+-- Build my layout (the wizard, Wizard.lua): the big tile under the level ranges, icon, name and one line.
+local buildBtn = CreateFrame("Button", nil, left)
+buildBtn:SetPoint("TOPLEFT", 14, -262); buildBtn:SetSize(208, 112)
+ns.RoundSkin(buildBtn, { T.fel[1], T.fel[2], T.fel[3], 0.12 }, T.fel)
+buildBtn.icon = ns.IconFrame(buildBtn, 40); buildBtn.icon:SetPoint("TOPLEFT", 12, -12)
+buildBtn.icon.tex:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+local buildText = ns.Text(buildBtn, "display", 16, T.fel)
+buildBtn:SetFontString(buildText); buildBtn:SetText(L.WIZARD_BUILD)
+buildText:ClearAllPoints(); buildText:SetPoint("LEFT", buildBtn.icon, "RIGHT", 10, 0); buildText:SetPoint("RIGHT", -10, 0)
+buildText:SetJustifyH("LEFT")
+buildBtn.sub = ns.Text(buildBtn, "body", 11, T.ink)
+buildBtn.sub:SetPoint("TOPLEFT", 12, -60); buildBtn.sub:SetPoint("RIGHT", -12, 0); buildBtn.sub:SetJustifyH("LEFT")
+buildBtn.sub:SetText(L.WIZARD_BUILD_SUB)
+buildBtn:SetScript("OnEnter", function(self) self.rLine:SetVertexColor(unpack(T.brass)); buildText:SetTextColor(unpack(T.brass)) end)
+buildBtn:SetScript("OnLeave", function(self) self.rLine:SetVertexColor(unpack(T.fel)); buildText:SetTextColor(unpack(T.fel)) end)
 
 local function specOf(gid)
   for _, s in ipairs(state.specs) do if s.groupID == gid then return s end end

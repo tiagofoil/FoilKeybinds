@@ -251,6 +251,24 @@ ns.LoadSaved(mineSet)
 assert(same(live, db.keys) and db.keys ~= mineSet.keys, "load")
 G.SlashCmdList.FOILKEYBINDS("undo")
 assert(same(tpl, db.keys), "undo after load")
+-- Named save, rename, overwrite; an empty name falls back to the date name.
+ns.SaveCurrent("  Raid keys ")
+assert(db.saved[1].name == "Raid keys" and not db.saved[1].auto, "named save")
+ns.RenameSaved(db.saved[1], "")
+assert(db.saved[1].name:find(L.SAVED_NAME:format(""), 1, true) == 1, "empty rename keeps a name")
+ns.DeleteSaved(db.saved[1])
+db.keys = ns.Copy(tpl)
+ns.OverwriteSaved(mineSet)
+assert(same(tpl, mineSet.keys) and mineSet.keys ~= db.keys, "overwrite")
+-- A renamed auto set is the player's own: 11 more auto-saves do not drop it.
+local auto = { name = "auto", keys = { Q = { slots = { normal = { spellID = 9 } } } }, auto = true }
+table.insert(db.saved, 1, auto)
+ns.RenameSaved(auto, "Keep me")
+for i = 1, ns.MAX_AUTO + 1 do ns.PushSaved(db.saved, { name = "a" .. i, keys = { [tostring(i)] = { slots = { normal = { spellID = i } } } }, auto = true }) end
+local kept
+for _, s in ipairs(db.saved) do kept = kept or s == auto end
+assert(kept and auto.name == "Keep me" and not auto.auto, "renamed auto set dropped")
+ns.DeleteSaved(auto)
 ns.DeleteSaved(mineSet)
 for _, s in ipairs(db.saved) do assert(s ~= mineSet, "delete") end
 db.keys, db.guide, db.applied = ns.Copy(live), nil, {} -- the stub Apply's macros are not in this world
@@ -361,8 +379,16 @@ clickKey(L.KEY_SPACE)
 assert(w.map["3"] == "3" and showing(L.WIZARD_BLOCKED_space), "blocked key")
 click(L.WIZARD_ALL)
 assert(w.i == 13 and ns.InPreview(), "use all suggestions ended the preview")
+-- The done page lists the macros Apply will write, and the left-out group.
+local function showingPart(part)
+  for _, t in ipairs(frames) do local v = rawget(t, "__text"); if type(v) == "string" and v:find(part, 1, true) then return true end end
+end
+assert(showing(L.WIZARD_DONE) and showing(L.WIZARD_DONE_STEP) and showingPart("#showtooltip"), "no macros on the done page")
+assert(showing(L.WIZARD_LEFT_OUT:format(L.MEANING_dot)), "left-out group not listed")
 clickKey("T") -- past the last step: read only
 assert(w.map.T == "T" and sameKeys(own, db.keys))
+click(L.WIZARD_BACK); assert(w.i == 12 and showing(L.WIZARD_STEP:format(13, 13)), "back from the done page")
+click(L.WIZARD_NEXT); assert(w.i == 13)
 -- Use while spell names load: nothing saved, the preview stays.
 local nameFn = G.C_Spell.GetSpellName
 G.C_Spell.GetSpellName = function() end

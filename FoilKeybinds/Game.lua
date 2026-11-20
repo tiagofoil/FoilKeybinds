@@ -120,13 +120,30 @@ local function keepUndo(db, why)
   end
 end
 
+-- The name the player typed, or the date name for an empty box.
+local function setName(name)
+  name = strtrim(name or "")
+  return name ~= "" and name or L.SAVED_NAME:format(date("%d/%m %H:%M"))
+end
+
 -- Layouts menu: save the keys as they are now (a manual set, kept until deleted).
-function ns.SaveCurrent()
+function ns.SaveCurrent(name)
   local db = FoilKeybindsDB
   db.saved = db.saved or {}
-  local name = L.SAVED_NAME:format(date("%d/%m %H:%M"))
+  name = setName(name)
   if not ns.PushSaved(db.saved, { name = name, keys = ns.Copy(db.keys) }) then return ns.Say(L.NOTHING_TO_SAVE) end
   ns.Say(L.KEYS_SAVED:format(name))
+end
+
+-- Rename and overwrite make the set the player's own: an auto set stops counting toward MAX_AUTO, so it stays.
+function ns.RenameSaved(set, name)
+  set.name, set.auto = setName(name), nil
+  ns.Say(L.SAVED_RENAMED:format(set.name))
+end
+function ns.OverwriteSaved(set)
+  if not next(FoilKeybindsDB.keys) then return ns.Say(L.NOTHING_TO_SAVE) end
+  set.keys, set.auto = ns.Copy(FoilKeybindsDB.keys), nil
+  ns.Say(L.SAVED_UPDATED:format(set.name))
 end
 
 -- A saved set becomes the keys. Not applied; Undo brings the old keys back.
