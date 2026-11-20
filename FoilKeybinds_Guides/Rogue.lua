@@ -8,7 +8,7 @@ FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
 local function T(id, name) return { spellID = id, name = name, talent = true } end
-local POT, BAND = { item = "POT" }, { item = "BAND" }
+local HSPOT, HEAL, EAT = { item = "HSPOT" }, { item = "HEAL" }, { item = "EAT" }
 
 local SINISTER, EVISCERATE, STEALTH, BACKSTAB = S(1752, "Sinister Strike"), S(2098, "Eviscerate"), S(1784, "Stealth"), S(53, "Backstab")
 local PICK_POCKET, GOUGE, EVASION, SPRINT = S(921, "Pick Pocket"), S(1776, "Gouge"), S(5277, "Evasion"), S(2983, "Sprint")
@@ -19,13 +19,16 @@ local KIDNEY, BLIND, MUTILATE = S(408, "Kidney Shot"), S(2094, "Blind"), S(12415
 local PREMEDITATION, HEMORRHAGE, DEATH_MARK = T(14183, "Premeditation"), T(16511, "Hemorrhage"), T(1316709, "Death Mark")
 
 -- Keys every spec shares from 20 on: interrupts on Q, defense on E, stealth on R, Blind on F.
-local ITEMS = { normal = POT, shift = BAND }
+local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
 local INTERRUPT = { normal = KICK, shift = GOUGE }
 local DEFENSE = { normal = EVASION, shift = SPRINT, alt = FEINT, altshift = VANISH }
 local STEALTHY = { normal = STEALTH, shift = SAP, alt = PICK_POCKET, altshift = DISTRACT }
 local UTILITY = { normal = BLIND }
 local SND_KEY = { normal = SND, shift = EXPOSE }
 local SHANK_KEY = { normal = SHANK, shift = KIDNEY }
+-- Builders on 1, finishers on 2, openers on 5, Stealth is the form key.
+local MEANINGS = { ["1"] = "main", ["2"] = "main", ["3"] = "buff", ["4"] = "dot", ["5"] = "dot", Q = "interrupt", E = "defense",
+  R = "form", F = "cc", V = "items" }
 
 -- Combat and Subtlety get no new verified spell after 39, so one layout covers 20-60.
 local COMBAT = {
@@ -70,6 +73,7 @@ FoilKeybindsGuides.ROGUE = {
   specs = {
     [11580] = {
       name = "Assassination",
+      meanings = MEANINGS,
       priority = {
         { spellID = 703, level = 14, en = "Opener from stealth, behind the target: a long bleed and a combo point.",
           ptBR = "Abertura saindo da furtividade, pelas costas do alvo: um sangramento longo e um ponto de combo." },
@@ -116,6 +120,7 @@ FoilKeybindsGuides.ROGUE = {
     },
     [11573] = {
       name = "Combat",
+      meanings = MEANINGS,
       priority = {
         { spellID = 1833, level = 26, en = "Opener from stealth: stuns the target and gives combo points.",
           ptBR = "Abertura saindo da furtividade: atordoa o alvo e dá pontos de combo." },
@@ -134,6 +139,7 @@ FoilKeybindsGuides.ROGUE = {
     },
     [11572] = {
       name = "Subtlety",
+      meanings = MEANINGS,
       priority = {
         { spellID = 14183, level = 20, talent = true, en = "From stealth: adds 2 combo points before your opener.",
           ptBR = "Na furtividade: soma 2 pontos de combo antes da sua abertura." },
