@@ -124,10 +124,12 @@ draw = function()
   pane.msg:SetText(msg or ""); pane.msg:SetShown(msg ~= nil)
   for _, w in ipairs({ left, list, previewBtn, hint }) do w:SetShown(msg == nil) end
   if msg then return end
-  if not state.specs then -- first draw since the window opened: read the talent points once
+  if not state.specs then -- first draw since the window opened or the spells/talents changed: read the points
     state.specs = ns.ReadSpecs(class)
     state.mine, state.hasPoints = ns.GuessSpec(state.specs, class.suggested)
     if not specOf(state.mine) then state.mine = state.specs[1].groupID end
+  end
+  if not state.spec then -- the picks stay until the window closes
     state.spec = state.mine
     state.bracket = ns.BracketOf(UnitLevel("player") or 1)
   end
@@ -171,11 +173,12 @@ previewBtn:SetScript("OnClick", function()
   if not t then return end
   local used = { groupID = state.spec, bracket = state.bracket, name = specOf(state.spec).name }
   ns.StartPreview(ns.TemplateKeys(t, ns.SpellLookup), L.PREVIEW_TITLE:format(used.name, ns.BracketRange(used.bracket)),
-    function(keys) ns.UseTemplate(keys, used) end)
+    function() return ns.UseTemplate(t, used) end)
 end)
 
 ns.ShowGuide = draw
-function ns.RefreshGuide() if pane:IsShown() then draw() end end
+-- SPELLS_CHANGED, TRAIT_CONFIG_UPDATED: a respec moves the "yours" mark, so the points are read again.
+function ns.RefreshGuide() state.specs = nil; if pane:IsShown() then draw() end end
 function ns.GuideSpellLoaded(id)
   if not pane:IsShown() then return end
   for _, r in ipairs(rows) do if r:IsShown() and r.spellID == id then return draw() end end

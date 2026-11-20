@@ -830,11 +830,12 @@ local colShield = CreateFrame("Frame", nil, keysPane) -- see-through: the column
 colShield:SetPoint("TOPLEFT", cols.normal, "TOPLEFT"); colShield:SetPoint("BOTTOMRIGHT", cols.altshift, "BOTTOMRIGHT")
 colShield:SetFrameLevel(cols.normal:GetFrameLevel() + 30); colShield:EnableMouse(true); colShield:Hide()
 local function previewLook(on)
-  for _, b in ipairs({ applyBtn, undoBtn, copyBtn, itemsBtn }) do b:SetEnabled(not on); b:SetAlpha(on and 0.4 or 1) end
+  for _, b in ipairs({ applyBtn, undoBtn, copyBtn, itemsBtn, manageBtn, resetBtn }) do b:SetEnabled(not on); b:SetAlpha(on and 0.4 or 1) end
   banner:SetShown(on); cardShield:SetShown(on); colShield:SetShown(on)
   view.rLine:SetVertexColor(unpack(on and T.brass or T.line))
 end
--- keys: a fresh table (ns.TemplateKeys output), never the guide data. use(keys) runs on "Use this layout".
+-- keys: a fresh table (ns.TemplateKeys output), never the guide data. use(keys) runs on "Use this layout";
+-- false keeps the preview open (spell data still loading).
 -- The columns show the selected key when the template has it, else its first key in board order.
 function ns.StartPreview(keys, title, use)
   local box = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
@@ -861,13 +862,12 @@ end
 function ns.InPreview() return pv ~= nil end
 banner.cancel:SetScript("OnClick", ns.CancelPreview)
 banner.use:SetScript("OnClick", function()
-  local p = pv
-  ns.CancelPreview()
-  p.use(p.keys)
+  if pv.use(pv.keys) ~= false then ns.CancelPreview() end
 end)
 
--- While shown: spells learned redraw the window, loaded spell data updates the icons of that spell.
-local LIVE = { "SPELLS_CHANGED", "SPELL_DATA_LOAD_RESULT" }
+-- While shown: spells learned redraw the window, loaded spell data updates the icons of that spell,
+-- talent changes redraw the Guide tab ("yours" follows the points).
+local LIVE = { "SPELLS_CHANGED", "SPELL_DATA_LOAD_RESULT", "TRAIT_CONFIG_UPDATED" }
 f:SetScript("OnShow", function(self)
   for _, e in ipairs(LIVE) do self:RegisterEvent(e) end
   self:Raise() -- on top of other HIGH frames (SetToplevel only raises on click)
@@ -904,6 +904,7 @@ f:RegisterEvent("ADDON_LOADED")
 f:SetScript("OnEvent", function(_, event, name, ok)
   if event == "SPELLS_CHANGED" then if ns.RefreshGuide then ns.RefreshGuide() end; return card:Refresh() end
   if event == "SPELL_DATA_LOAD_RESULT" then if ok then loaded(name) end; return end
+  if event == "TRAIT_CONFIG_UPDATED" then if ns.RefreshGuide then ns.RefreshGuide() end; return end
   if name ~= "FoilKeybinds" then return end
   FoilKeybindsDB = FoilKeybindsDB or {}
   FoilKeybindsDB.keys = FoilKeybindsDB.keys or {}
@@ -938,6 +939,7 @@ SlashCmdList.FOILKEYBINDS = function(msg)
       end
     end
     ns.Say(L.UNKNOWN_SPELL:format(spell))
+  elseif (word == "apply" or word == "undo" or word == "reset") and ns.InPreview() then ns.Say(L.PREVIEW_BUSY)
   elseif word == "apply" then ns.Apply()
   elseif word == "undo" then ns.UndoStep()
   elseif word == "reset" then ns.ResetAll()

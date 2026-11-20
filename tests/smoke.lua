@@ -169,19 +169,60 @@ click(L.GUIDE_PREVIEW)
 G.SlashCmdList.FOILKEYBINDS("config")
 assert(not ns.InPreview(), "leaving the tab did not cancel")
 
--- Use: template keys live, old keys in the undo slot, used template saved; Undo has its own line.
+-- Preview open: master switch and Reset all are off, /fkb apply, undo and reset do nothing.
 G.SlashCmdList.FOILKEYBINDS("guide")
 click(L.GUIDE_PREVIEW)
+local db = G.FoilKeybindsDB
+for _, cmd in ipairs({ "apply", "undo", "reset" }) do
+  G.SlashCmdList.FOILKEYBINDS(cmd)
+  assert(lastSaid() == L.PREVIEW_BUSY or lastSaid():find(L.PREVIEW_BUSY, 1, true), "/fkb " .. cmd .. " ran in a preview")
+end
+assert(ns.InPreview() and same(live, db.keys), "a slash command changed the preview or the keys")
+
+-- Use with spell names not loaded yet: data requested, nothing saved, the preview stays for the next click.
+local asked = {}
+G.C_Spell.RequestLoadSpellData = function(id) asked[#asked + 1] = id end
+click(L.PREVIEW_USE)
+assert(lastSaid():find(L.TEMPLATE_LOADING, 1, true), "no loading line")
+assert(#asked > 0 and ns.InPreview() and same(live, db.keys) and db.guide == nil, "used a layout without its names")
+
+-- Names loaded (the client answers them, here upper case): template keys live with the names of now,
+-- old keys in the undo slot, used template saved; Undo has its own line.
+local names = {}
+local function collect(t)
+  if t.spellID and t.name then names[t.spellID] = t.name:upper() end
+  for _, v in pairs(t) do if type(v) == "table" then collect(v) end end
+end
+collect(G.FoilKeybindsGuides.WARLOCK)
+G.C_Spell.GetSpellName = function(id) return names[id] end
 click(L.PREVIEW_USE)
 assert(not ns.InPreview())
-local db = G.FoilKeybindsDB
-assert(db.keys["1"] and db.keys["1"].slots.normal.name == "Corruption", "template not used")
+assert(db.keys["1"] and db.keys["1"].slots.normal.name == "CORRUPTION", "template not used with the loaded names")
 assert(db.guide.groupID == 11629 and db.guide.bracket == 3 and db.guide.told == 3 and db.guide.name == "Affliction")
 assert(lastSaid():find(L.TEMPLATE_USED:format("Affliction", "40-60"), 1, true), "no use line")
 assert(same(data, G.FoilKeybindsGuides.WARLOCK), "the guide data changed")
 G.SlashCmdList.FOILKEYBINDS("undo")
 assert(lastSaid():find(L.TEMPLATE_UNDONE, 1, true), "undo line")
 assert(same(live, db.keys) and db.guide == nil and db.copyUndo == nil, "undo did not bring the old keys back")
+
+-- Two layouts used before Apply: Undo still brings the player's own keys back, not the first layout.
+click(L.GUIDE_PREVIEW); click(L.PREVIEW_USE)
+click("20-39"); click(L.GUIDE_PREVIEW); click(L.PREVIEW_USE)
+assert(db.guide.bracket == 2, "second layout not used")
+G.SlashCmdList.FOILKEYBINDS("undo")
+assert(same(live, db.keys) and db.guide == nil and db.copyUndo == nil, "undo after two layouts lost the own keys")
+
+-- Respec with the window open: the points are read again on SPELLS_CHANGED, the picks stay.
+POINTS[11629], POINTS[11637] = 20, 0
+f.__scripts.OnEvent(f, "SPELLS_CHANGED")
+click("40-60")
+assert(ns.guide.mine == 11629 and ns.guide.spec == 11629 and ns.guide.bracket == 3, "yours did not follow the respec")
+-- One group's points failing keeps the list, names and order.
+local cur = G.C_Traits.GetGroupCurrencyInfo
+G.C_Traits.GetGroupCurrencyInfo = function(c, ids) if ids[1] == 11636 then error("no points") end return cur(c, ids) end
+local specs = ns.ReadSpecs(G.FoilKeybindsGuides.WARLOCK)
+assert(#specs == 3 and specs[1].groupID == 11629 and specs[1].spent == 20 and specs[2].spent == 0, "one failing group dropped the specs")
+G.C_Traits.GetGroupCurrencyInfo = cur
 
 -- Level-up line: 1-19 layout used at level 25 (bracket 2 already reached), told once at 40.
 local ev
@@ -200,4 +241,14 @@ ev.__scripts.OnEvent(ev, "PLAYER_LEVEL_UP", 40)
 assert(#said == n + 1 and lastSaid():find(L.GUIDE_LEVELUP:format(40, "Affliction", "40-60"), 1, true), "no level-up line")
 ev.__scripts.OnEvent(ev, "PLAYER_LEVEL_UP", 41)
 assert(#said == n + 1, "level-up line twice")
+
+-- Copy from after the layout went live (Apply cleared the undo slot): the level-up line stops,
+-- Undo brings the layout's keys and its used template back.
+db.copyUndo, db.copyUndoGuide = nil, nil
+local used, mine = db.guide, ns.Copy(db.keys)
+G.FoilKeybindsAccount.WARLOCK = { ["Other-Realm"] = { V = { slots = {} } } }
+ns.CopyFrom("Other-Realm")
+assert(db.guide == nil and db.keys.V, "copy kept the used template")
+G.SlashCmdList.FOILKEYBINDS("undo")
+assert(db.guide == used and same(mine, db.keys) and lastSaid():find(L.COPY_UNDONE, 1, true), "copy undo")
 print("smoke ok")

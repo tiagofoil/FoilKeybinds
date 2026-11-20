@@ -104,6 +104,12 @@ function ns.SaveIndex()
   FoilKeybindsAccount[class][me] = ns.Copy(FoilKeybindsDB.keys)
 end
 
+-- Copy from and "Use this layout" before Apply: the oldest pending backup stays, so Undo always brings
+-- back the player's own keys (and the used template they had), however many copies came after it.
+local function keepUndo(db)
+  if not db.copyUndo then db.copyUndo, db.copyUndoGuide = ns.Copy(db.keys), db.guide or false end
+end
+
 -- Every place that replaces the keys table clears the Undo edit history (its steps would land in the
 -- wrong data). Replaces this character's keys with another's. Not applied; Undo brings the old keys back
 -- (edit steps made after the copy come back first; the ones before it are dropped).
@@ -111,8 +117,8 @@ function ns.CopyFrom(name)
   local me, class = ns.Me()
   local src = FoilKeybindsAccount[class] and FoilKeybindsAccount[class][name]
   if not src or name == me then return end
-  FoilKeybindsDB.copyUndo, FoilKeybindsDB.copyUndoGuide = ns.Copy(FoilKeybindsDB.keys), nil
-  FoilKeybindsDB.keys = ns.Copy(src)
+  keepUndo(FoilKeybindsDB)
+  FoilKeybindsDB.keys, FoilKeybindsDB.guide = ns.Copy(src), nil -- no level-up line for a layout no longer on the keys
   if ns.ClearHistory then ns.ClearHistory() end
   if ns.Refresh then ns.Refresh() end
   ns.Say(L.COPIED:format(name))
@@ -392,12 +398,13 @@ function ns.UndoBars()
 end
 
 -- A pending Copy from or "Use this layout": its old keys come back. It touched nothing in game. False when none.
--- copyUndoGuide set (the used template from before, or false) means the keys came from a template.
+-- db.guide set now means the keys came from a template. copyUndoGuide = the used template from before
+-- (false: none; nil: a backup saved before it was kept).
 function ns.UndoCopy()
   local db = FoilKeybindsDB
   if not db.copyUndo then return false end
-  local template = db.copyUndoGuide ~= nil
-  if template then db.guide = db.copyUndoGuide or nil end -- no level-up line for an undone layout
+  local template = db.guide ~= nil
+  if db.copyUndoGuide ~= nil then db.guide = db.copyUndoGuide or nil end -- no level-up line for an undone layout
   db.keys, db.copyUndo, db.copyUndoGuide = db.copyUndo, nil, nil; if ns.ClearHistory then ns.ClearHistory() end
   if ns.Refresh then ns.Refresh() end
   ns.Say(template and L.TEMPLATE_UNDONE or L.COPY_UNDONE)
@@ -413,28 +420,40 @@ end
 -- The class's specs from the talent API (Forever: one tree, one group per spec); every step may answer
 -- nil, and then GuideSpecs falls back to the guide's own specs. class = FoilKeybindsGuides[CLASS].
 function ns.ReadSpecs(class)
-  local ok, groups = pcall(function()
+  local ok, config, list = pcall(function()
     local config = C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
     local info = config and C_Traits and C_Traits.GetConfigInfo(config)
     local tree = info and info.treeIDs and info.treeIDs[1]
-    local list = tree and C_Traits.GetGroupDisplayInfoByTreeID(tree)
-    for _, g in ipairs(list or {}) do
-      local c = C_Traits.GetGroupCurrencyInfo(config, { g.groupID })
-      local ci = c and c[1] and c[1].currencyInfos and c[1].currencyInfos[1]
-      g.spent = ci and ci.spent or 0
-    end
-    return list
+    return config, tree and C_Traits.GetGroupDisplayInfoByTreeID(tree)
   end)
-  return ns.GuideSpecs(ok and groups or nil, class)
+  if not ok then list = nil end
+  for _, g in ipairs(list or {}) do -- one failing group counts 0, the list, names and order stay
+    local okc, c = pcall(C_Traits.GetGroupCurrencyInfo, config, { g.groupID })
+    local ci = okc and c and c[1] and c[1].currencyInfos and c[1].currencyInfos[1]
+    g.spent = ci and ci.spent or 0
+  end
+  return ns.GuideSpecs(list, class)
 end
 
--- "Use this layout": keys (fresh TemplateKeys output) become this character's keys. The old ones wait in
--- the Copy from undo slot; nothing reaches the game until Apply. used = { groupID, bracket, name }.
-function ns.UseTemplate(keys, used)
+-- "Use this layout": the template's keys become this character's keys. The old ones wait in the Copy
+-- from undo slot; nothing reaches the game until Apply. used = { groupID, bracket, name }.
+-- Names are looked up again here: one the client has not loaded yet would save the English name, a
+-- macro that casts nothing on a pt-BR client. Then the data is requested and the Use waits for the next
+-- click (returns false). A spell this client says it does not have keeps the English name (shows faded).
+function ns.UseTemplate(template, used)
   local db = FoilKeybindsDB
+  local keys, missing = ns.TemplateKeys(template, ns.SpellLookup)
+  local waiting
+  for _, id in ipairs(missing) do
+    if not (C_Spell and C_Spell.DoesSpellExist and C_Spell.DoesSpellExist(id) == false) then
+      waiting = true
+      if C_Spell and C_Spell.RequestLoadSpellData then C_Spell.RequestLoadSpellData(id) end
+    end
+  end
+  if waiting then ns.Say(L.TEMPLATE_LOADING); return false end
   ns.ScanBags()
   local dropped = ns.FitKeys(keys, ns.best)
-  db.copyUndo, db.copyUndoGuide = ns.Copy(db.keys), db.guide or false
+  keepUndo(db)
   db.keys = keys
   -- told starts at the current bracket: a level 30 using the 1-19 layout hears nothing until 40.
   used.told = math.max(used.bracket, ns.BracketOf(UnitLevel("player") or 1))

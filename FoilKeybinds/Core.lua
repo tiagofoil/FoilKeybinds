@@ -587,22 +587,23 @@ function ns.GuessSpec(groups, suggested)
 end
 
 -- template = key -> slot -> { spellID, name (English), talent } or { item = "HS" }; lookup(spellID) ->
--- localized name, kind (nil when unknown). Returns a new keys table (key -> { slots }), stored shape.
--- Unknown or unlearned spells keep ID and English name (they show faded); no kind means "other".
+-- localized name, kind (nil when unknown). Returns a new keys table (key -> { slots }), stored shape, and
+-- the spell IDs the lookup had no name for. Those keep ID and English name (they show faded); no kind means "other".
 function ns.TemplateKeys(template, lookup)
-  local keys = {}
+  local keys, missing = {}, {}
   for key, slots in pairs(template) do
     local setup = { slots = {} }
     for id, s in pairs(slots) do
       if s.item then setup.slots[id] = { item = s.item }
       else
         local name, kind = lookup(s.spellID)
+        if not name then missing[#missing + 1] = s.spellID end
         setup.slots[id] = ns.NewSlot(s.spellID, name or s.name, kind or "other")
       end
     end
     keys[key] = setup
   end
-  return keys
+  return keys, missing
 end
 
 -- Use safety: fits every key of keys (fresh TemplateKeys output, changed in place) in 255 with the real

@@ -608,7 +608,8 @@ local TPL = { Q = { normal = { spellID = 172, name = "Corruption" }, shift = { i
   alt = { spellID = 18265, name = "Siphon Life", talent = true } }, E = { ctrl = { spellID = 1454, name = "Life Tap" } } }
 test("template to keys: localized names and kinds, unknown spells keep ID and English name, items stay, input unchanged", function()
   local pt = { [172] = { "Corrupção", "harm" }, [1454] = { "Toque da Vida", "other" } }
-  local keys = core.TemplateKeys(TPL, function(id) local s = pt[id]; if s then return s[1], s[2] end end)
+  local keys, missing = core.TemplateKeys(TPL, function(id) local s = pt[id]; if s then return s[1], s[2] end end)
+  eq(#missing, 1); eq(missing[1], 18265) -- no name yet: the Use waits for the spell data
   local q = keys.Q.slots
   eq(q.normal.name, "Corrupção"); eq(q.normal.spellID, 172); eq(q.normal.kind, "harm"); eq(q.normal.mouseover, true)
   eq(q.shift.item, "POT"); eq(q.shift.spellID, nil)
