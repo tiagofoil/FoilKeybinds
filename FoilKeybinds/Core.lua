@@ -207,6 +207,7 @@ end
 -- Macro text that fits in 255 chars. Over the limit: first the compact form (no spaces
 -- after ";" and "]", exclusions only for filled slots; ponytail: spacing trick unverified in game), then drop mouseover from the slot whose
 -- removal saves the most chars (ties: SLOTS order), repeat until it fits.
+-- max: the limit (default ns.MAX; the guide data check uses less, as headroom for longer localized names).
 -- Returns text, length, trimmed (slot ids that lost mouseover, apply them to saved data).
 -- Still over with no mouseover left: returns nil, length, trimmed, errSlot, where errSlot
 -- is the slot with the longest text (the one most worth changing; item slots never are).
@@ -217,13 +218,14 @@ local function textLen(s)
   for _, w in ipairs(s.with or {}) do n = (n or 0) + #w.name + 20 end -- "/cast [cond] " per extra
   return n
 end
-function ns.FitMacro(setup, best, class)
+function ns.FitMacro(setup, best, class, max)
+  max = max or ns.MAX
   local slots = {}
   for id, s in pairs(setup.slots) do slots[id] = ns.Copy(s) end
   local copy = { slots = slots, targetEnemy = setup.targetEnemy, petAttack = setup.petAttack }
   local trimmed, text = {}, ns.MacroText(copy, best, class)
-  if #text > ns.MAX then copy.compact = true; text = ns.MacroText(copy, best, class) end
-  while #text > ns.MAX do
+  if #text > max then copy.compact = true; text = ns.MacroText(copy, best, class) end
+  while #text > max do
     local pick, pickText
     for _, id in ipairs(ns.SLOTS) do
       local s = slots[id]
@@ -557,6 +559,129 @@ function ns.ImportGrimorio(data, lookup)
     end
   end
   return keys, lost
+end
+
+-- Guide (v4). Level brackets, one template each: index = bracket number.
+ns.BRACKETS = { { 1, 19 }, { 20, 39 }, { 40, 60 } }
+function ns.BracketOf(level)
+  for i, b in ipairs(ns.BRACKETS) do if level <= b[2] then return i end end
+  return #ns.BRACKETS
+end
+
+-- groups = { { groupID, spent }, ... } in the game's order (nil when the talent API answered nothing).
+-- Returns the group with the most points (first one on a tie) and true, or suggested and false.
+function ns.GuessSpec(groups, suggested)
+  local best, most = suggested, 0
+  for _, grp in ipairs(groups or {}) do
+    if (grp.spent or 0) > most then best, most = grp.groupID, grp.spent end
+  end
+  return best, most > 0
+end
+
+-- template = key -> slot -> { spellID, name (English), talent } or { item = "HS" }; lookup(spellID) ->
+-- localized name, kind (nil when unknown). Returns a new keys table (key -> { slots }), stored shape.
+-- Unknown or unlearned spells keep ID and English name (they show faded); no kind means "other".
+function ns.TemplateKeys(template, lookup)
+  local keys = {}
+  for key, slots in pairs(template) do
+    local setup = { slots = {} }
+    for id, s in pairs(slots) do
+      if s.item then setup.slots[id] = { item = s.item }
+      else
+        local name, kind = lookup(s.spellID)
+        setup.slots[id] = ns.NewSlot(s.spellID, name or s.name, kind or "other")
+      end
+    end
+    keys[key] = setup
+  end
+  return keys
+end
+
+-- Board keys a layout may use, in board order (UI.lua LAYOUT without W A S D).
+ns.BOARD = { "1", "2", "3", "4", "5", "Q", "E", "R", "T", "F", "G", "Z", "X", "C", "V", "SPACE", "BUTTON3", "BUTTON4", "BUTTON5" }
+
+-- Key and slot a spell is on in keys: first a plain press on any key, then Shift, Ctrl, Alt, Alt+Shift
+-- (ns.COLUMNS), board order inside each. Any rank: the player's keys hold the picker's rank, the guide
+-- the first one, so pass the localized name (from the spell lookup, not the English fallback) as well.
+-- Spells inside a sequence or cast with count. Nil when the spell is on no key.
+function ns.KeyOf(keys, spellID, name)
+  local function hit(x) return (spellID ~= nil and x.spellID == spellID) or (name ~= nil and x.name == name) end
+  for _, slot in ipairs(ns.COLUMNS) do
+    for _, key in ipairs(ns.BOARD) do
+      local s = keys[key] and keys[key].slots[slot]
+      if s then
+        for _, x in ipairs(s.seq or { s }) do if x.name and hit(x) then return key, slot end end
+        for _, x in ipairs(s.with or {}) do if hit(x) then return key, slot end end
+      end
+    end
+  end
+end
+
+-- class = FoilKeybindsGuides[CLASS]. The spec's own template for the bracket, else for bracket 1 the
+-- class's shared template (class.shared), else nil.
+function ns.TemplateFor(class, groupID, bracket)
+  local spec = class.specs[groupID]
+  if not spec then return end
+  return (spec.templates or {})[bracket] or (bracket == 1 and class.shared or nil)
+end
+
+-- Guide data check: every problem in one class table (FoilKeybindsGuides[CLASS]), as text, sorted.
+-- Empty list = good. Templates must fit GUIDE_MAX with English names, mouseover on, no items in bags.
+ns.GUIDE_MAX, ns.GUIDE_KEYS = 230, 16
+local MOVE, ITEM, SLOT = { W = true, A = true, S = true, D = true }, {}, {}
+for _, c in ipairs(ns.ITEMS) do ITEM[c] = true end
+for _, id in ipairs(ns.SLOTS) do SLOT[id] = true end
+function ns.CheckGuide(class)
+  local p, board = {}, {}
+  for _, k in ipairs(ns.BOARD) do board[k] = true end
+  local function bad(where, what) p[#p + 1] = where .. ": " .. what end
+  local function text(v) return type(v) == "string" and v ~= "" end
+  local function checkTemplate(where, t)
+    local n, before = 0, #p
+    for key, slots in pairs(t) do
+      n = n + 1
+      local at = where .. " key " .. key
+      if MOVE[key] then bad(at, "movement key")
+      elseif not board[key] then bad(at, "unknown key")
+      elseif key == "SPACE" and slots.normal then bad(at, "plain Space press is jump") end
+      for id, s in pairs(slots) do
+        local sat = at .. " " .. tostring(id)
+        if not SLOT[id] then bad(sat, "unknown slot")
+        elseif s.seq then bad(sat, "sequence not allowed in templates")
+        elseif s.with then bad(sat, "cast with not allowed in templates")
+        elseif s.pet or s.petSpecial then bad(sat, "pet command not allowed in templates")
+        elseif s.item then if not ITEM[s.item] then bad(sat, "unknown item category " .. tostring(s.item)) end
+        elseif not (s.spellID and text(s.name)) then bad(sat, "needs a spell ID and a name") end
+      end
+    end
+    if n > ns.GUIDE_KEYS then bad(where, "more than 16 keys") end
+    if #p > before then return end -- fit only a template that is well formed (bad slots break MacroText)
+    for key, setup in pairs(ns.TemplateKeys(t, function() return nil, "harm" end)) do
+      local fit, len = ns.FitMacro(setup, {}, nil, ns.GUIDE_MAX)
+      if not fit then bad(where .. " key " .. key, "macro over 230 characters (" .. len .. ")") end
+    end
+  end
+  if not class.specs[class.suggested] then bad("class", "suggested spec is not one of its specs") end
+  if class.shared then checkTemplate("shared bracket 1", class.shared) end
+  for gid, spec in pairs(class.specs) do
+    local where = "spec " .. gid
+    if not text(spec.name) then bad(where, "no English name") end
+    if #(spec.priority or {}) == 0 then bad(where, "no priority list") end
+    for i, r in ipairs(spec.priority or {}) do
+      local at = where .. " row " .. i
+      if not r.spellID then bad(at, "no spell ID") end
+      if type(r.level) ~= "number" then bad(at, "no learn level") end
+      if not text(r.en) then bad(at, "no en text") end
+      if not text(r.ptBR) then bad(at, "no ptBR text") end
+    end
+    for b in ipairs(ns.BRACKETS) do
+      local t = (spec.templates or {})[b]
+      if t then checkTemplate(where .. " bracket " .. b, t)
+      elseif not ns.TemplateFor(class, gid, b) then bad(where, "no template for bracket " .. b) end
+    end
+  end
+  table.sort(p)
+  return p
 end
 
 return ns

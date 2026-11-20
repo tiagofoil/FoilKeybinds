@@ -1,0 +1,10 @@
+## Interface: 120000, 120001, 120005, 120007, 120100, 120105, 16001
+## Title: Foil Keybinds Guides
+## Notes: Class guides and ready-made layouts for Foil Keybinds. Loads only when the Guide tab opens.
+## Author: Foil
+## Version: @project-version@
+## Dependencies: FoilKeybinds
+## LoadOnDemand: 1
+## IconTexture: Interface\AddOns\FoilKeybinds\Media\Logo
+
+Warlock.lua

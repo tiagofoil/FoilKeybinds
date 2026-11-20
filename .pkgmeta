@@ -2,6 +2,7 @@ package-as: FoilKeybinds
 
 move-folders:
   FoilKeybinds/FoilKeybinds: FoilKeybinds
+  FoilKeybinds/FoilKeybinds_Guides: FoilKeybinds_Guides
 
 ignore:
   - docs

@@ -55,6 +55,16 @@ for file in toc:gmatch("([%w_]+%.lua)") do
   assert(ok, file .. ": " .. tostring(err))
 end
 
+-- The guide package (load on demand in game) loads in the same world, each file with its own namespace.
+local gtoc = assert(io.open("FoilKeybinds_Guides/FoilKeybinds_Guides.toc")):read("*a")
+for file in gtoc:gmatch("([%w_]+%.lua)") do
+  local chunk = assert(loadfile("FoilKeybinds_Guides/" .. file))
+  setfenv(chunk, G)
+  local ok, err = pcall(chunk, "FoilKeybinds_Guides", {})
+  assert(ok, file .. ": " .. tostring(err))
+end
+assert(rawget(G, "FoilKeybindsGuides") and G.FoilKeybindsGuides.WARLOCK, "guide data not loaded")
+
 local f = assert(rawget(G, "FoilKeybindsFrame"), "main window not created")
 f.__scripts.OnEvent(f, "ADDON_LOADED", "FoilKeybinds")
 assert(rawget(G, "SlashCmdList").FOILKEYBINDS, "/fkb not registered")

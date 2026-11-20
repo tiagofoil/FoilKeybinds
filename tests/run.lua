@@ -587,6 +587,171 @@ test("column order: Normal, Shift, Ctrl, Alt, Alt+Shift; macro order unchanged",
   eq(table.concat(core.SLOTS, " "), "altshift ctrl shift alt normal")
 end)
 
+-- Guide rules (v4).
+test("bracket of a level: 1-19, 20-39, 40-60", function()
+  for _, c in ipairs({ { 1, 1 }, { 19, 1 }, { 20, 2 }, { 39, 2 }, { 40, 3 }, { 60, 3 } }) do eq(core.BracketOf(c[1]), c[2]) end
+  eq(#core.BRACKETS, 3); eq(core.BRACKETS[2][1], 20); eq(core.BRACKETS[2][2], 39)
+end)
+
+local function g(id, spent) return { groupID = id, spent = spent } end
+test("spec guess: most points wins, ties keep game order, no points or no list gives the suggested spec", function()
+  local id, mine = core.GuessSpec({ g(1, 5), g(2, 21), g(3, 0) }, 3)
+  eq(id, 2); eq(mine, true)
+  eq(core.GuessSpec({ g(1, 0), g(2, 7), g(3, 7) }, 1), 2)
+  id, mine = core.GuessSpec({ g(1, 0), g(2, 0), g(3, 0) }, 3)
+  eq(id, 3); eq(mine, false)
+  eq(core.GuessSpec(nil, 3), 3); eq(core.GuessSpec({}, 3), 3)
+  eq(core.GuessSpec({ g(1, nil), g(2, 4) }, 1), 2) -- a group the API answered nothing for counts 0
+end)
+
+local TPL = { Q = { normal = { spellID = 172, name = "Corruption" }, shift = { item = "POT" },
+  alt = { spellID = 18265, name = "Siphon Life", talent = true } }, E = { ctrl = { spellID = 1454, name = "Life Tap" } } }
+test("template to keys: localized names and kinds, unknown spells keep ID and English name, items stay, input unchanged", function()
+  local pt = { [172] = { "Corrupção", "harm" }, [1454] = { "Toque da Vida", "other" } }
+  local keys = core.TemplateKeys(TPL, function(id) local s = pt[id]; if s then return s[1], s[2] end end)
+  local q = keys.Q.slots
+  eq(q.normal.name, "Corrupção"); eq(q.normal.spellID, 172); eq(q.normal.kind, "harm"); eq(q.normal.mouseover, true)
+  eq(q.shift.item, "POT"); eq(q.shift.spellID, nil)
+  eq(q.alt.name, "Siphon Life"); eq(q.alt.spellID, 18265); eq(q.alt.kind, "other"); eq(q.alt.mouseover, false)
+  eq(q.alt.talent, nil) -- data only, not a stored slot field
+  eq(keys.E.slots.ctrl.name, "Toque da Vida"); eq(keys.E.slots.ctrl.mouseover, false)
+  eq(TPL.Q.normal.name, "Corruption"); eq(TPL.Q.normal.kind, nil); eq(TPL.Q.alt.talent, true)
+  q.shift.item = "HS"; eq(TPL.Q.shift.item, "POT") -- no shared tables
+  eq(core.MacroText(keys.E), T .. "/cast [mod:ctrl] Toque da Vida")
+end)
+
+test("key of a spell: plain press first, then board order; any rank by name; sequences and cast with count", function()
+  local keys = { Q = { slots = { shift = ids(172, "Corruption") } }, E = { slots = { normal = ids(7648, "Corruption") } } }
+  local key, slot = core.KeyOf(keys, 172, "Corruption")
+  eq(key, "E"); eq(slot, "normal") -- other rank on a plain press beats the same ID on Shift
+  key, slot = core.KeyOf({ Q = keys.Q, ["1"] = { slots = { shift = ids(1, "Corruption") } } }, 172, "Corruption")
+  eq(key, "1"); eq(slot, "shift") -- same slot: board order, the number row comes first
+  key, slot = core.KeyOf({ R = { slots = { alt = { seq = { ids(1, "Shadow Bolt"), ids(172, "Corruption") } } } } }, 172, "Corruption")
+  eq(key .. slot, "Ralt")
+  local w = ids(686, "Shadow Bolt"); w.with = { ids(1454, "Life Tap") }
+  key, slot = core.KeyOf({ ["3"] = { slots = { ctrl = w } } }, 1455, "Life Tap")
+  eq(key .. slot, "3ctrl")
+  eq(core.KeyOf({ Q = { slots = { normal = it("POT"), shift = { pet = "follow" } } } }, 172, "Corruption"), nil)
+  eq(core.KeyOf({}, 172, "Corruption"), nil)
+  eq(core.KeyOf({ Q = { slots = { normal = { name = "Fear" } } } }, nil, "Banish"), nil) -- no ID on either side is no match
+  eq(core.KeyOf({ Q = { slots = { normal = ids(172, "Corrupção") } } }, 172, nil), "Q") -- by ID alone
+end)
+
+test("template for a spec and bracket: own template, shared bracket-1 fallback, nothing else", function()
+  local own1, shared, own2 = { Q = {} }, { E = {} }, { R = {} }
+  local class = { shared = shared, specs = { [10] = { templates = { [1] = own1, [2] = own2 } }, [11] = { templates = { [2] = own2 } } } }
+  eq(core.TemplateFor(class, 10, 1), own1); eq(core.TemplateFor(class, 11, 1), shared)
+  eq(core.TemplateFor(class, 11, 2), own2); eq(core.TemplateFor(class, 11, 3), nil)
+  eq(core.TemplateFor({ specs = { [11] = { templates = {} } } }, 11, 1), nil); eq(core.TemplateFor(class, 99, 1), nil)
+end)
+
+-- A small valid class; each bad case changes one thing and expects exactly one problem naming it.
+local function goodClass()
+  local row = { spellID = 172, level = 4, en = "DoT.", ptBR = "DoT." }
+  local function spec() return { name = "Affliction", priority = { core.Copy(row) },
+    templates = { [2] = { Q = { normal = { spellID = 172, name = "Corruption" } } }, [3] = { Q = { shift = { item = "POT" } } } } } end
+  return { suggested = 1, tested = false, shared = { E = { normal = { spellID = 686, name = "Shadow Bolt" } } },
+    specs = { [1] = spec(), [2] = spec() } }
+end
+test("data check: a valid class has no problems", function()
+  local p = core.CheckGuide(goodClass()); eq(#p, 0)
+end)
+local BAD = {
+  { "unknown key", function(c) c.specs[1].templates[2].P = { normal = { spellID = 1, name = "X" } } end },
+  { "movement key", function(c) c.specs[1].templates[2].W = { shift = { spellID = 1, name = "X" } } end },
+  { "plain Space", function(c) c.specs[1].templates[2].SPACE = { normal = { spellID = 1, name = "X" } } end },
+  { "more than 16 keys", function(c)
+    local t = c.specs[1].templates[3]
+    for i = 1, 17 do t[core.BOARD[i]] = { shift = { item = "HS" } } end
+  end },
+  { "unknown slot", function(c) c.specs[1].templates[2].Q.meta = { spellID = 1, name = "X" } end },
+  { "unknown item", function(c) c.specs[1].templates[3].Q.shift.item = "FOOD" end },
+  { "sequence", function(c) c.specs[1].templates[2].Q.normal = { seq = { { spellID = 1, name = "A" }, { spellID = 2, name = "B" } } } end },
+  { "cast with", function(c) c.specs[1].templates[2].Q.normal.with = { { spellID = 9, name = "Blood Fury" } } end },
+  { "pet command", function(c) c.specs[1].templates[2].Q.alt = { pet = "follow" } end },
+  { "pet command", function(c) c.shared.E.alt = { petSpecial = true } end },
+  { "needs a spell ID and a name", function(c) c.specs[1].templates[2].Q.normal.spellID = nil end },
+  { "no en text", function(c) c.specs[2].priority[1].en = "" end },
+  { "no ptBR text", function(c) c.specs[2].priority[1].ptBR = nil end },
+  { "no learn level", function(c) c.specs[2].priority[1].level = nil end },
+  { "no spell ID", function(c) c.specs[2].priority[1].spellID = nil end },
+  { "no priority list", function(c) c.specs[2].priority = {} end },
+  { "no template for bracket 3", function(c) c.specs[2].templates[3] = nil end },
+  { "no template for bracket 1", function(c) c.shared = nil end }, -- both specs lose it: two problems
+  { "no English name", function(c) c.specs[1].name = nil end },
+  { "suggested spec", function(c) c.suggested = 99 end },
+  { "macro over 230", function(c)
+    local n = ("n"):rep(35) -- fits 255 after trims, not 230
+    c.specs[1].templates[2].Q = { normal = { spellID = 1, name = n }, shift = { spellID = 2, name = n },
+      ctrl = { spellID = 3, name = n }, alt = { spellID = 4, name = n }, altshift = { spellID = 5, name = n .. "nnn" } }
+  end },
+}
+for _, b in ipairs(BAD) do
+  test("data check catches: " .. b[1], function()
+    local c = goodClass(); b[2](c)
+    local p = core.CheckGuide(c)
+    local want = b[1] == "no template for bracket 1" and 2 or 1
+    assert(#p == want, ("want %d problem(s), got %d: %s"):format(want, #p, table.concat(p, " | ")))
+    for _, s in ipairs(p) do assert(s:find(b[1], 1, true), s) end
+  end)
+end
+test("macro over 230 is still a valid 255 macro (the check keeps headroom for pt-BR names)", function()
+  local n = ("n"):rep(35)
+  local setup = { slots = {} }
+  for i, id in ipairs(core.SLOTS) do setup.slots[id] = sp(n .. (id == "altshift" and "nnn" or ""), true) end
+  assert(core.FitMacro(setup, {}), "fits 255"); eq(core.FitMacro(setup, {}, nil, 230), nil)
+end)
+
+-- Data test: the gate that keeps a bad guide from shipping. Loads every class file the guide TOC lists,
+-- runs the data check, then checks spell IDs against the Forever trainer fixture (tests/trainer_fixture.lua,
+-- built by tools/make_trainer_fixture.lua). A priority row: its ID is a trainer spell of the class learned
+-- at its level (a granted spell: at or below its bound). A template spell: learned by the bracket's top level.
+-- Talent spells (talent = true) are not trainer spells: their level comes from a talent row of the class.
+test("guide data: TOC matches the main addon, every class passes the data check and the trainer fixture", function()
+  local toc = assert(io.open("FoilKeybinds_Guides/FoilKeybinds_Guides.toc")):read("*a")
+  local main = assert(io.open("FoilKeybinds/FoilKeybinds.toc")):read("*a")
+  eq(toc:match("## Interface:[^\n]*"), main:match("## Interface:[^\n]*"))
+  assert(toc:find("## LoadOnDemand: 1", 1, true) and toc:find("## Dependencies: FoilKeybinds", 1, true), "TOC flags")
+  FoilKeybindsGuides = nil
+  local files = 0
+  for file in toc:gmatch("([%w_]+%.lua)") do assert(loadfile("FoilKeybinds_Guides/" .. file))("FoilKeybinds_Guides", {}); files = files + 1 end
+  assert(files > 0 and FoilKeybindsGuides, "no class files loaded")
+  local fixture, p = dofile("tests/trainer_fixture.lua"), {}
+  for CLASS, c in pairs(FoilKeybindsGuides) do
+    for _, s in ipairs(core.CheckGuide(c)) do p[#p + 1] = CLASS .. " " .. s end
+    local fx, talents = assert(fixture[CLASS], "unknown class " .. CLASS), {}
+    local function bad(where, what) p[#p + 1] = CLASS .. " " .. where .. ": " .. what end
+    for gid, spec in pairs(c.specs) do
+      for i, r in ipairs(spec.priority) do
+        local where = "spec " .. gid .. " row " .. i .. " (" .. tostring(r.spellID) .. ")"
+        if r.talent then talents[r.spellID] = r.level
+        elseif fx.granted[r.spellID] then
+          if r.level > fx.granted[r.spellID] then bad(where, "granted spell is learned by " .. fx.granted[r.spellID]) end
+        elseif fx.levels[r.spellID] ~= r.level then bad(where, "trainer level is " .. tostring(fx.levels[r.spellID])) end
+      end
+    end
+    local function checkTemplate(where, t, b)
+      local top = core.BRACKETS[b][2]
+      for key, slots in pairs(t) do
+        for id, s in pairs(slots) do
+          if s.spellID then
+            local lvl = s.talent and talents[s.spellID] or not s.talent and (fx.levels[s.spellID] or fx.granted[s.spellID])
+            local at = where .. " key " .. key .. " " .. id .. " (" .. s.spellID .. ")"
+            if not lvl then bad(at, s.talent and "talent spell with no talent row" or "not a trainer spell of the class")
+            elseif lvl > top then bad(at, "learned at " .. lvl .. ", after the bracket") end
+          end
+        end
+      end
+    end
+    if c.shared then checkTemplate("shared bracket 1", c.shared, 1) end
+    for gid, spec in pairs(c.specs) do
+      for b, t in pairs(spec.templates) do checkTemplate("spec " .. gid .. " bracket " .. b, t, b) end
+    end
+  end
+  table.sort(p)
+  assert(#p == 0, #p .. " problem(s):\n     " .. table.concat(p, "\n     "))
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))
