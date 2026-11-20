@@ -2,6 +2,18 @@
 
 A WoW Forever addon that puts your whole layout on the keys near WASD. Each key gets one macro with five slots: normal, Shift, Alt, Alt+Shift and Ctrl. The modifiers live inside the macro, so one bar slot does it all.
 
+## Screenshots
+
+![The editor: one key per macro, five slots each](docs/screenshots/editor.png)
+
+![The editor with the spell and item panels open](docs/screenshots/editor-side-panels.png)
+
+![The cheat sheet](docs/screenshots/cheat-sheet.png) ![The cheat sheet at 0% background](docs/screenshots/cheat-sheet-no-background.png)
+
+![Settings](docs/screenshots/settings.png)
+
+![Login repair popup](docs/screenshots/login-repair.png)
+
 ## What it does
 
 - One macro per key, with the Shift, Alt, Alt+Shift and Ctrl variants inside it.
