@@ -752,6 +752,59 @@ test("guide data: TOC matches the main addon, every class passes the data check 
   assert(#p == 0, #p .. " problem(s):\n     " .. table.concat(p, "\n     "))
 end)
 
+-- Guide tab rules (v4 ticket 02).
+local GCLASS = { suggested = 20, specs = { [10] = { name = "Ten" }, [20] = { name = "Twenty" }, [30] = { name = "Thirty" } } }
+test("guide specs: game order and names, unknown groups dropped, no talent answer gives the data's specs", function()
+  local l = core.GuideSpecs({
+    { groupID = 30, displayName = "Trinta", orderIndex = 1, spent = 5 },
+    { groupID = 99, displayName = "Other", orderIndex = 0, spent = 9 },
+    { groupID = 10, orderIndex = 2 },
+    { groupID = 20, displayName = "Vinte", orderIndex = 3, spent = 2 },
+  }, GCLASS)
+  eq(#l, 3)
+  eq(l[1].groupID, 30); eq(l[1].name, "Trinta"); eq(l[1].spent, 5)
+  eq(l[2].groupID, 10); eq(l[2].name, "Ten"); eq(l[2].spent, 0)
+  eq(l[3].groupID, 20); eq(l[3].name, "Vinte")
+  for _, groups in ipairs({ {}, { { groupID = 99, orderIndex = 0 } } }) do
+    local f = core.GuideSpecs(groups, GCLASS)
+    eq(#f, 3); eq(f[1].name, "Ten"); eq(f[2].name, "Twenty"); eq(f[3].groupID, 30); eq(f[3].spent, 0)
+  end
+  eq(#core.GuideSpecs(nil, GCLASS), 3)
+end)
+
+test("level-up line: only with a used template, only above the used and the told bracket", function()
+  eq(core.LevelUpBracket(nil, 20), nil)
+  eq(core.LevelUpBracket({ bracket = 1, told = 1 }, 19), nil)
+  eq(core.LevelUpBracket({ bracket = 1, told = 1 }, 20), 2)
+  eq(core.LevelUpBracket({ bracket = 1, told = 2 }, 21), nil) -- already told
+  eq(core.LevelUpBracket({ bracket = 1, told = 2 }, 40), 3)
+  eq(core.LevelUpBracket({ bracket = 3, told = 1 }, 45), nil) -- used the 40-60 layout already
+  eq(core.LevelUpBracket({ bracket = 2 }, 40), 3)
+end)
+
+test("fit keys: a key that fits only without mouseover keeps it off, a key that never fits is left out", function()
+  local long = ("x"):rep(56)
+  local function big(n) local s = {}; for _, id in ipairs(core.SLOTS) do s[id] = sp(long .. id .. n, true) end; return { slots = s } end
+  local tight = { slots = {} }
+  for _, id in ipairs({ "normal", "shift", "alt" }) do tight.slots[id] = sp(("y"):rep(48) .. id, true) end
+  local keys = { Q = { slots = { normal = sp("Corruption", true) } }, E = tight, R = big(1), ["1"] = big(2) }
+  local dropped = core.FitKeys(keys, {})
+  eq(#dropped, 2); eq(dropped[1], "1"); eq(dropped[2], "R")
+  eq(keys.R, nil); eq(keys["1"], nil)
+  eq(keys.Q.slots.normal.mouseover, true)
+  local off = 0
+  for _, s in pairs(keys.E.slots) do if not s.mouseover then off = off + 1 end end
+  assert(off > 0, "no mouseover trimmed on E")
+  assert(core.FitMacro(keys.E, {}), "E does not fit")
+end)
+
+test("key label: plain press is the key, a modifier goes first, key names from the locale", function()
+  local labels = { SLOT_shift = "Shift", SLOT_altshift = "Alt+Shift", KEY_SPACE = "Espaço" }
+  eq(core.KeyLabel("Q", "normal", labels), "Q")
+  eq(core.KeyLabel("Q", "shift", labels), "Shift+Q")
+  eq(core.KeyLabel("SPACE", "altshift", labels), "Alt+Shift+Espaço")
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))
