@@ -28,7 +28,7 @@ local ITEMS = { normal = HS, shift = POT, alt = BAND }
 
 FoilKeybindsGuides.WARLOCK = {
   suggested = 11629, -- Affliction levels best: DoTs and drains, little downtime
-  tested = false,
+  tested = true,
   -- Levels 1-19, every spec: no talent spell yet, the same core spells for all three.
   shared = {
     ["1"] = { normal = IMMOLATE },
