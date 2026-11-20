@@ -8,3 +8,7 @@
 ## IconTexture: Interface\AddOns\FoilKeybinds\Media\Logo
 
 Warlock.lua
+Druid.lua
+Hunter.lua
+Paladin.lua
+Priest.lua
