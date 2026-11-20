@@ -750,12 +750,12 @@ end)
 -- built by tools/make_trainer_fixture.lua). A priority row: its ID is a trainer spell of the class learned
 -- at its level (a granted spell: at or below its bound). A template spell: learned by the bracket's top level.
 -- Talent spells (talent = true) are not trainer spells: their level comes from a talent row of the class.
--- GENERAL: spells every class has from level 1, not in the trainer data (Wand Shoot).
+-- GENERAL: spells every class has from level 1, or an innate class spell, not in the trainer data
+-- (Wand Shoot, Battle Stance).
 -- PENDING (v6): classes not rebuilt on the home keys yet (tickets 02 to 04). Their data check problems are
 -- counted, not failed; the trainer check still runs on them. Each ticket takes its classes out.
-local GENERAL = { [5019] = 1 }
-local PENDING = { DRUID = true, HUNTER = true, MAGE = true, PALADIN = true, PRIEST = true, ROGUE = true, SHAMAN = true,
-  WARRIOR = true }
+local GENERAL = { [5019] = 1, [2457] = 1 }
+local PENDING = { DRUID = true, MAGE = true, PALADIN = true, PRIEST = true, SHAMAN = true }
 local pending = 0
 test("guide data: TOC matches the main addon, every class passes the data check and the trainer fixture", function()
   local toc = assert(io.open("FoilKeybinds_Guides/FoilKeybinds_Guides.toc")):read("*a")

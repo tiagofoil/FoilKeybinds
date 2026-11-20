@@ -1,6 +1,9 @@
 -- Hunter guide. Shape and sources: see Warlock.lua and docs/spec-v4.md "Guide data package".
 -- No pet commands (attack, follow, stay): those stay on the pet bar. Mend Pet, Call Pet and Revive Pet are
--- hunter spells. Raptor Strike is 14260: rank 1 (level 1) is not in the trainer data; the macro casts by name.
+-- hunter spells, so they sit on G. Raptor Strike is 14260: rank 1 (level 1) is not in the trainer data; the
+-- macro casts by name.
+-- No castsequence: the damage shots (Arcane, Multi, Aimed) all have a cooldown, and the shots without one
+-- (Hunter's Mark, the stings) are debuffs cast once per target, so no sequence makes a rotation.
 FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
@@ -18,9 +21,20 @@ local VIPER, VOLLEY, PACK, SCARE = S(3034, "Viper Sting"), S(1510, "Volley"), S(
 local DETERRENCE, TRUESHOT, INTIMIDATION = T(19263, "Deterrence"), T(1299346, "Trueshot Aura"), T(19577, "Intimidation")
 local COUNTER, BESTIAL, SNIPER = T(19306, "Counterattack"), T(19574, "Bestial Wrath"), T(1310687, "Sniper Shot")
 
--- Keys every spec shares from 20 on: pet care on E, traps on R, escapes on G, consumables on V.
+-- Home keys (docs/spec-v6.md): Arcane Shot on Mouse 4, Multi-Shot on Mouse 5, slows and traps on E, Serpent
+-- Sting on F, Mark and the other stings on Q, the big shots and area on R, pet care on G, aspects on C.
+-- Keys every spec shares from 20 on: shots, crowd control, stings, escapes, pet, aspects, consumables.
+local SHOT = { normal = ARCANE, shift = RAPTOR }
+local SECOND = { normal = MULTI, shift = MONGOOSE }
+local CC = { normal = CONCUSSIVE, shift = WING_CLIP, alt = FREEZING, altshift = SCARE }
+local SERPENT_KEY = { normal = SERPENT, shift = IMMO_TRAP }
+local STINGS2 = { normal = MARK, shift = SCORPID }
+local STINGS3 = { normal = MARK, shift = SCORPID, alt = VIPER }
+local ESCAPES = { normal = FEIGN, shift = DISENGAGE, alt = FROST_TRAP }
 local PET = { normal = MEND_PET, shift = CALL_PET, alt = REVIVE_PET }
-local TRAPS = { normal = FREEZING, shift = IMMO_TRAP, alt = FROST_TRAP, altshift = EXPLOSIVE }
+local ASPECTS2 = { normal = HAWK, shift = MONKEY, alt = CHEETAH, altshift = BEAST }
+local ASPECTS3 = { normal = HAWK, shift = MONKEY, alt = CHEETAH, altshift = PACK }
+local UTILITY = { normal = FLARE }
 local ITEMS = { normal = { item = "HSPOT" }, shift = { item = "HEAL" }, alt = { item = "EAT" } }
 
 FoilKeybindsGuides.HUNTER = {
@@ -28,15 +42,14 @@ FoilKeybindsGuides.HUNTER = {
   tested = false,
   -- Levels 1-19, every spec: no talent spell yet, the same shots for all three.
   shared = {
-    ["1"] = { normal = ARCANE, shift = MULTI },
-    ["2"] = { normal = SERPENT },
-    ["3"] = { normal = CONCUSSIVE, shift = WING_CLIP },
-    ["4"] = { normal = RAPTOR, shift = MONGOOSE },
+    BUTTON4 = SHOT,
+    BUTTON5 = SECOND,
+    E = { normal = CONCUSSIVE, shift = WING_CLIP },
+    F = SERPENT_KEY,
     Q = { normal = MARK },
-    E = PET,
-    R = { normal = IMMO_TRAP },
-    F = { normal = HAWK, shift = MONKEY },
     V = ITEMS,
+    G = PET,
+    C = { normal = HAWK, shift = MONKEY },
   },
   specs = {
     [11372] = {
@@ -59,33 +72,35 @@ FoilKeybindsGuides.HUNTER = {
         { spellID = 136, level = 12, en = "Heals your pet over time, during and between pulls.",
           ptBR = "Cura o seu pet ao longo do tempo, durante e entre os combates." },
       },
+      -- Intimidation stops a cast, so it sits on the interrupt key.
       templates = {
         [2] = {
-          ["1"] = { normal = ARCANE, shift = MULTI },
-          ["2"] = { normal = SERPENT, shift = SCORPID },
-          ["3"] = { normal = CONCUSSIVE, shift = WING_CLIP, alt = SCARE },
-          ["4"] = { normal = RAPTOR, shift = MONGOOSE },
-          ["5"] = { normal = RAPID, shift = INTIMIDATION },
-          Q = { normal = MARK, shift = FLARE },
-          E = PET,
-          R = TRAPS,
-          F = { normal = HAWK, shift = MONKEY, alt = CHEETAH, altshift = BEAST },
-          G = { normal = FEIGN, shift = DISENGAGE },
+          BUTTON4 = SHOT,
+          BUTTON5 = SECOND,
+          E = CC,
+          F = SERPENT_KEY,
+          Q = STINGS2,
+          R = { normal = RAPID, shift = EXPLOSIVE },
           V = ITEMS,
+          ["1"] = { normal = INTIMIDATION },
+          ["2"] = ESCAPES,
+          G = PET,
+          C = ASPECTS2,
+          X = UTILITY,
         },
         [3] = {
-          ["1"] = { normal = ARCANE, shift = MULTI },
-          ["2"] = { normal = SERPENT, shift = SCORPID, alt = VIPER },
-          ["3"] = { normal = CONCUSSIVE, shift = WING_CLIP, alt = SCARE },
-          ["4"] = { normal = RAPTOR, shift = MONGOOSE },
-          ["5"] = { normal = RAPID, shift = INTIMIDATION, alt = BESTIAL },
-          Q = { normal = MARK, shift = FLARE },
-          E = PET,
-          R = TRAPS,
-          T = { normal = VOLLEY },
-          F = { normal = HAWK, shift = MONKEY, alt = CHEETAH, altshift = PACK },
-          G = { normal = FEIGN, shift = DISENGAGE },
+          BUTTON4 = SHOT,
+          BUTTON5 = SECOND,
+          E = CC,
+          F = SERPENT_KEY,
+          Q = STINGS3,
+          R = { normal = RAPID, shift = EXPLOSIVE, alt = VOLLEY, altshift = BESTIAL },
           V = ITEMS,
+          ["1"] = { normal = INTIMIDATION },
+          ["2"] = ESCAPES,
+          G = PET,
+          C = ASPECTS3,
+          X = UTILITY,
         },
       },
     },
@@ -108,33 +123,33 @@ FoilKeybindsGuides.HUNTER = {
         { spellID = 3045, level = 26, en = "Faster shots for a short time. Save it for elites and hard fights.",
           ptBR = "Tiros mais rápidos por pouco tempo. Guarde para elites e lutas difíceis." },
       },
+      -- Trueshot Aura is an aura, so it sits with the aspects on C.
       templates = {
         [2] = {
-          ["1"] = { normal = ARCANE, shift = MULTI },
-          ["2"] = { normal = SERPENT, shift = SCORPID },
-          ["3"] = { normal = CONCUSSIVE, shift = WING_CLIP, alt = SCARE },
-          ["4"] = { normal = RAPTOR, shift = MONGOOSE },
-          ["5"] = { normal = AIMED, shift = RAPID },
-          Q = { normal = MARK, shift = FLARE },
-          E = PET,
-          R = TRAPS,
-          F = { normal = HAWK, shift = MONKEY, alt = CHEETAH, altshift = TRUESHOT },
-          G = { normal = FEIGN, shift = DISENGAGE },
+          BUTTON4 = SHOT,
+          BUTTON5 = SECOND,
+          E = CC,
+          F = SERPENT_KEY,
+          Q = STINGS2,
+          R = { normal = AIMED, shift = EXPLOSIVE, altshift = RAPID },
           V = ITEMS,
+          ["2"] = ESCAPES,
+          G = PET,
+          C = { normal = HAWK, shift = MONKEY, alt = CHEETAH, altshift = TRUESHOT, ctrl = BEAST },
+          X = UTILITY,
         },
         [3] = {
-          ["1"] = { normal = ARCANE, shift = MULTI },
-          ["2"] = { normal = SERPENT, shift = SCORPID, alt = VIPER },
-          ["3"] = { normal = CONCUSSIVE, shift = WING_CLIP, alt = SCARE },
-          ["4"] = { normal = RAPTOR, shift = MONGOOSE },
-          ["5"] = { normal = AIMED, shift = RAPID, alt = SNIPER },
-          Q = { normal = MARK, shift = FLARE },
-          E = PET,
-          R = TRAPS,
-          T = { normal = VOLLEY },
-          F = { normal = HAWK, shift = MONKEY, alt = CHEETAH, altshift = TRUESHOT },
-          G = { normal = FEIGN, shift = DISENGAGE, alt = PACK },
+          BUTTON4 = SHOT,
+          BUTTON5 = SECOND,
+          E = CC,
+          F = SERPENT_KEY,
+          Q = STINGS3,
+          R = { normal = AIMED, shift = EXPLOSIVE, alt = VOLLEY, altshift = RAPID, ctrl = SNIPER },
           V = ITEMS,
+          ["2"] = ESCAPES,
+          G = PET,
+          C = { normal = HAWK, shift = MONKEY, alt = CHEETAH, altshift = TRUESHOT, ctrl = PACK },
+          X = UTILITY,
         },
       },
     },
@@ -159,31 +174,30 @@ FoilKeybindsGuides.HUNTER = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = ARCANE, shift = MULTI },
-          ["2"] = { normal = SERPENT, shift = SCORPID },
-          ["3"] = { normal = CONCUSSIVE, shift = WING_CLIP, alt = SCARE },
-          ["4"] = { normal = RAPTOR, shift = MONGOOSE, alt = COUNTER },
-          ["5"] = { normal = RAPID },
-          Q = { normal = MARK, shift = FLARE },
-          E = PET,
-          R = TRAPS,
-          F = { normal = HAWK, shift = MONKEY, alt = CHEETAH, altshift = BEAST },
-          G = { normal = FEIGN, shift = DISENGAGE, alt = DETERRENCE },
+          BUTTON4 = SHOT,
+          BUTTON5 = { normal = MULTI, shift = MONGOOSE, alt = COUNTER },
+          E = CC,
+          F = SERPENT_KEY,
+          Q = STINGS2,
+          R = { normal = RAPID, shift = EXPLOSIVE },
           V = ITEMS,
+          ["2"] = { normal = FEIGN, shift = DISENGAGE, alt = FROST_TRAP, altshift = DETERRENCE },
+          G = PET,
+          C = ASPECTS2,
+          X = UTILITY,
         },
         [3] = {
-          ["1"] = { normal = ARCANE, shift = MULTI },
-          ["2"] = { normal = SERPENT, shift = SCORPID, alt = VIPER },
-          ["3"] = { normal = CONCUSSIVE, shift = WING_CLIP, alt = SCARE },
-          ["4"] = { normal = RAPTOR, shift = MONGOOSE, alt = COUNTER },
-          ["5"] = { normal = RAPID },
-          Q = { normal = MARK, shift = FLARE },
-          E = PET,
-          R = TRAPS,
-          T = { normal = VOLLEY },
-          F = { normal = HAWK, shift = MONKEY, alt = CHEETAH, altshift = PACK },
-          G = { normal = FEIGN, shift = DISENGAGE, alt = DETERRENCE },
+          BUTTON4 = SHOT,
+          BUTTON5 = { normal = MULTI, shift = MONGOOSE, alt = COUNTER },
+          E = CC,
+          F = SERPENT_KEY,
+          Q = STINGS3,
+          R = { normal = RAPID, shift = EXPLOSIVE, alt = VOLLEY },
           V = ITEMS,
+          ["2"] = { normal = FEIGN, shift = DISENGAGE, alt = FROST_TRAP, altshift = DETERRENCE },
+          G = PET,
+          C = ASPECTS3,
+          X = UTILITY,
         },
       },
     },
