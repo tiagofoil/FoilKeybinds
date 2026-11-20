@@ -166,6 +166,50 @@ test("mixed spell and item key: exclusive conditions, no bare fallback", functio
       .. "/cast [mod:alt,mod:shift] Banish; [nomod,@mouseover,harm,nodead][nomod] Fear")
 end)
 
+test("HEAL: potion in combat, bandage out, in one /use line", function()
+  eq(core.MacroText({ slots = { normal = it("HEAL") } }, {}), T .. "/use [nomod,combat] Healing Potion; [nomod] Linen Bandage")
+  local best = core.BestItems({ [929] = "Healing Potion", [3530] = "Wool Bandage" })
+  eq(core.MacroText({ slots = { shift = it("HEAL") } }, best),
+    T .. "/use [mod:shift,nomod:alt,nomod:ctrl,combat] item:929; [mod:shift,nomod:alt,nomod:ctrl] item:3530")
+end)
+
+test("EAT: food and drink out of combat, the drink on its own /use line", function()
+  eq(core.MacroText({ slots = { normal = it("EAT") } }, {}), T .. "/use [nomod,nocombat] Tough Jerky\n/use [nomod,nocombat] Ice Cold Milk")
+  local best = core.BestItems({ [4540] = "", [8079] = "", [159] = "" })
+  eq(core.MacroText({ slots = { alt = it("EAT"), normal = sp("X") } }, best),
+    T .. "/use [mod:alt,nomod:shift,nomod:ctrl,nocombat] item:4540\n/use [mod:alt,nomod:shift,nomod:ctrl,nocombat] item:8079\n/cast [nomod] X")
+end)
+
+test("HSPOT: the Healthstone when the bags hold one, else the best potion, else the default", function()
+  local best = core.BestItems({ [5512] = "", [929] = "" })
+  eq(best.HSPOT.id, 5512)
+  eq(core.MacroText({ slots = { normal = it("HSPOT") } }, best), T .. "/use [nomod] item:5512")
+  eq(core.MacroText({ slots = { ctrl = it("HSPOT") } }, core.BestItems({ [929] = "" })), T .. "/use [mod:ctrl,nomod:alt] item:929")
+  eq(core.MacroText({ slots = { normal = it("HSPOT") } }, {}), T .. "/use [nomod] Healing Potion")
+end)
+
+test("FOOD and DRINK: IDs and names, best first, matched by ID", function()
+  for _, c in ipairs({ "FOOD", "DRINK" }) do
+    eq(#core.RANK_IDS[c], #core.RANKS[c]); assert(core.ITEM_DEFAULT[c], c)
+  end
+  eq(core.BestItems({ [159] = "", [8079] = "" }).DRINK.id, 8079) -- Crystal Water over Spring Water
+  eq(core.BestItems({ [117] = "", [8950] = "Torta" }).FOOD.name, "Torta")
+  local eat = core.BestItems({ [117] = "Tough Jerky", [159] = "Refreshing Spring Water" }).EAT
+  eq(eat.id, 117); eq(eat.name, "Tough Jerky / Refreshing Spring Water")
+end)
+
+test("ItemChanges: a key with HEAL or EAT changes when a better part appears", function()
+  local applied = { V = { slots = { shift = it("HEAL"), alt = it("EAT") } } }
+  local old = core.BestItems({ [929] = "Healing Potion", [1251] = "Linen Bandage", [117] = "Tough Jerky" })
+  local new = core.BestItems({ [1710] = "Greater Healing Potion", [929] = "Healing Potion", [1251] = "Linen Bandage",
+    [117] = "Tough Jerky" })
+  local ch = core.ItemChanges(old, new, applied)
+  eq(#ch, 1); eq(ch[1].slot, "shift")
+  eq(ch[1].from .. ">" .. ch[1].to, "Healing Potion / Linen Bandage>Greater Healing Potion / Linen Bandage")
+  ch = core.ItemChanges(old, core.BestItems({ [929] = "", [1251] = "", [117] = "", [159] = "Refreshing Spring Water" }), applied)
+  eq(#ch, 1); eq(ch[1].slot, "alt"); eq(ch[1].to, "Tough Jerky / Refreshing Spring Water")
+end)
+
 test("FitMacro keeps item slots and passes best through", function()
   local text = core.FitMacro({ slots = { normal = it("BAND"), ctrl = sp("X") } }, { BAND = { id = 14530 } })
   eq(text, T .. "/use [nomod] item:14530\n/cast [mod:ctrl,nomod:alt] X")

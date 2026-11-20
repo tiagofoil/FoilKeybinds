@@ -18,7 +18,8 @@ end
 local COND = { altshift = "mod:alt,mod:shift", ctrl = "mod:ctrl", shift = "mod:shift", alt = "mod:alt" }
 
 -- Items, best first: the first one in the bags (and usable) wins. Same lists as GrimorioSetup.
-ns.ITEMS = { "HS", "POT", "BAND", "BOMB" }
+-- HEAL, EAT and HSPOT are virtual (no list of their own, see BestItems); FOOD and DRINK feed EAT only.
+ns.ITEMS = { "HS", "POT", "BAND", "BOMB", "HEAL", "EAT", "HSPOT" }
 ns.RANKS = {
   HS = { "Major Healthstone", "Greater Healthstone", "Healthstone", "Lesser Healthstone", "Minor Healthstone" },
   POT = { "Major Healing Potion", "Superior Healing Potion", "Greater Healing Potion", "Healing Potion",
@@ -32,21 +33,47 @@ ns.RANKS = {
     "Mithril Frag Bomb", "Tru-Trigger Frag Bomb", "Big Iron Bomb", "SAF-T Bomb", "Iron Grenade", "Big Bronze Bomb",
     "Small Bronze Bomb", "SAF-T Bronze Bomb", "Large Copper Bomb", "EZ-Thro Copper Bomb XL", "Rough Copper Bomb",
     "SAF-T Copper Bomb" },
+  FOOD = { "Conjured Cinnamon Roll", "Conjured Sweet Roll", "Homemade Cherry Pie", "Roasted Quail", "Alterac Swiss",
+    "Deep Fried Plantains", "Dried King Bolete", "Conjured Sourdough", "Soft Banana Bread", "Cured Ham Steak",
+    "Fine Aged Cheddar", "Moon Harvest Pumpkin", "Striped Yellowtail", "Spinefin Halibut", "Raw Black Truffle",
+    "Conjured Pumpernickel", "Mulgore Spice Bread", "Wild Hog Shank", "Stormwind Brie", "Goldenbark Apple", "Rockscale Cod",
+    "Delicious Cave Mold", "Conjured Rye", "Moist Cornbread", "Mutton Chop", "Dwarven Mild", "Snapvine Watermelon",
+    "Bristle Whisker Catfish", "Longjaw Mud Snapper", "Spongy Morel", "Conjured Bread", "Freshly Baked Bread",
+    "Haunch of Meat", "Dalaran Sharp", "Tel'Abim Banana", "Slitherskin Mackerel", "Red-speckled Mushroom",
+    "Conjured Muffin", "Tough Hunk of Bread", "Tough Jerky", "Darnassian Bleu", "Shiny Red Apple", "Forest Mushroom Cap" },
+  DRINK = { "Conjured Crystal Water", "Conjured Sparkling Water", "Morning Glory Dew", "Conjured Mineral Water",
+    "Moonberry Juice", "Bottled Winterspring Water", "Conjured Spring Water", "Sweet Nectar", "Conjured Purified Water",
+    "Melon Juice", "Conjured Fresh Water", "Ice Cold Milk", "Conjured Water", "Refreshing Spring Water" },
 }
 -- Same order by itemID, checked on wowhead.com/forever (2026-11-18). Bags match by ID first, so
 -- non-English clients work; the names above stay as a fallback for IDs not listed here.
 -- HS: on Forever each base stone heals like its best talented one, the middle one is lower.
 -- POT: plain first; a Discolored potion deals 75% of its heal back over time.
 -- BOMB: each Classic bomb (needs Engineering) next to its Forever copy anyone can use (EZ-Thro, SAF-T, Tru-Trigger).
+-- FOOD, DRINK (2026-11-20): vendor and conjured, no buff food, by amount restored on Forever (fish heals
+-- more than its level band), conjured first on a tie (free, gone at logout).
 ns.RANK_IDS = {
   HS = { 19013, 9421, 19012, 19011, 5510, 19010, 19009, 5509, 19008, 19007, 5511, 19006, 19005, 5512, 19004 },
   POT = { 13446, 3928, 1710, 929, 858, 118, 241650, 247242, 247241, 247240, 247239, 4596 },
   BAND = { 232433, 23684, 14530, 14529, 8545, 8544, 6451, 6450, 3531, 3530, 2581, 1251 },
   BOMB = { 16005, 260817, 15993, 260816, 10562, 10514, 260809, 4394, 260805, 4390, 4380, 4374, 260797, 4370, 260795,
     4360, 260793 },
+  FOOD = { 22895, 8076, 8950, 8952, 8932, 8953, 8948, 8075, 4601, 4599, 3927, 4602, 21552, 8957, 4608, 1487, 4544, 3771,
+    1707, 4539, 4594, 4607, 1114, 4542, 3770, 422, 4538, 4593, 4592, 4606, 1113, 4541, 2287, 414, 4537, 787, 4605, 5349,
+    4540, 117, 2070, 4536, 4604 },
+  DRINK = { 8079, 8078, 8766, 8077, 1645, 19300, 3772, 1708, 2136, 1205, 2288, 1179, 5350, 159 },
 }
 -- Shown with no item in the bags. ponytail: English names, so a non-English client gets a /use that fails until an item is in the bags.
-ns.ITEM_DEFAULT = { HS = "Healthstone", POT = "Healing Potion", BAND = "Linen Bandage", BOMB = "Rough Copper Bomb" }
+ns.ITEM_DEFAULT = { HS = "Healthstone", POT = "Healing Potion", BAND = "Linen Bandage", BOMB = "Rough Copper Bomb",
+  FOOD = "Tough Jerky", DRINK = "Ice Cold Milk", HSPOT = "Healing Potion" }
+
+-- Two-item virtual entry (HEAL, EAT) for icons, labels and change lines: icon of the first one held,
+-- both names, sig = both IDs (ItemChanges compares it). The macro reads the two parts itself.
+local function pair(a, b)
+  if not (a or b) then return end
+  return { id = (a or b).id, name = a and b and (a.name .. " / " .. b.name) or (a or b).name,
+    sig = (a and a.id or 0) .. "/" .. (b and b.id or 0) }
+end
 
 -- owned = bag contents itemID -> name ("" when not loaded), usable(id) -> bool (nil = all usable).
 -- Returns category -> { id, name } for categories with something in the bags.
@@ -64,6 +91,10 @@ function ns.BestItems(owned, usable)
       end
     end
   end
+  -- One item per click, the stone when the bags hold one. ponytail: after the Healthstone is used in combat,
+  -- HSPOT keeps pointing at it until combat ends and the bags are scanned again.
+  best.HSPOT = best.HS or best.POT
+  best.HEAL, best.EAT = pair(best.POT, best.BAND), pair(best.FOOD, best.DRINK)
   return best
 end
 
@@ -107,7 +138,8 @@ end
 function ns.MacroText(setup, best, class)
   best = best or {}
   local special = ns.PET_SPECIAL[class or ns.playerClass] or {}
-  local lines, casts, uses, pets, seqs = { "#showtooltip" }, {}, {}, {}, {}
+  local lines, casts, uses, pets, seqs, drinks = { "#showtooltip" }, {}, {}, {}, {}, {}
+  local function use(cat) local b = best[cat]; return b and ("item:" .. b.id) or ns.ITEM_DEFAULT[cat] end
   if setup.targetEnemy then lines[#lines + 1] = "/targetenemy [noharm][dead]" end
   if setup.petAttack then lines[#lines + 1] = "/petattack [harm,nodead]" end
   local hasItem = false
@@ -143,9 +175,13 @@ function ns.MacroText(setup, best, class)
       pets[#pets + 1] = "/pet" .. s.pet .. " [" .. cond .. (s.pet == "moveto" and ",@cursor" or "") .. "]"
     elseif s and s.petSpecial then
       for _, p in ipairs(special) do casts[#casts + 1] = "[" .. cond .. ",pet:" .. p[1] .. "]" .. sp .. p[2] end
+    elseif s and s.item == "HEAL" then -- potion in combat, bandage out
+      uses[#uses + 1] = "[" .. cond .. ",combat]" .. sp .. use("POT") .. sep .. "[" .. cond .. "]" .. sp .. use("BAND")
+    elseif s and s.item == "EAT" then -- one /use line uses one item: the drink gets its own line
+      uses[#uses + 1] = "[" .. cond .. ",nocombat]" .. sp .. use("FOOD")
+      drinks[#drinks + 1] = "/use [" .. cond .. ",nocombat]" .. sp .. use("DRINK")
     elseif s and s.item then
-      local b = best[s.item]
-      uses[#uses + 1] = "[" .. cond .. "]" .. sp .. (b and ("item:" .. b.id) or ns.ITEM_DEFAULT[s.item])
+      uses[#uses + 1] = "[" .. cond .. "]" .. sp .. use(s.item)
     elseif s and s.name then
       local mo = s.mouseover and (s.kind == "harm" or s.kind == "help")
       local c
@@ -158,6 +194,7 @@ function ns.MacroText(setup, best, class)
   end
   for _, l in ipairs(pets) do lines[#lines + 1] = l end
   if #uses > 0 then lines[#lines + 1] = "/use " .. table.concat(uses, sep) end
+  for _, l in ipairs(drinks) do lines[#lines + 1] = l end
   for _, l in ipairs(seqs) do lines[#lines + 1] = l end
   if #casts > 0 or (#uses == 0 and #pets == 0 and #seqs == 0) then lines[#lines + 1] = "/cast " .. table.concat(casts, sep) end
   return table.concat(lines, "\n")
@@ -510,7 +547,7 @@ function ns.ItemChanges(old, new, applied)
     for _, id in ipairs(ns.SLOTS) do
       local s = setup.slots[id]
       local a, b = s and s.item and old[s.item], s and s.item and new[s.item]
-      if s and s.item and (a and a.id) ~= (b and b.id) then
+      if s and s.item and (a and (a.sig or a.id)) ~= (b and (b.sig or b.id)) then
         out[#out + 1] = { key = key, slot = id, from = a and a.name, to = b and b.name }
       end
     end

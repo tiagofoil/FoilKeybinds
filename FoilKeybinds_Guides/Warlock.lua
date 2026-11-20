@@ -1,12 +1,12 @@
 -- Warlock guide. Shape: see docs/spec-v4.md "Guide data package"; checked by tests/run.lua (data test).
 -- Spell IDs: Forever first rank (the macro casts by name, so the best known rank fires), levels from the
 -- What's Training Forever trainer data. talent = true: a talent spell, level = the talent's minimum level
--- (wowhead.com/forever). Templates: key -> slot -> spell or { item = "HS" | "POT" | "BAND" | "BOMB" }.
+-- (wowhead.com/forever). Templates: key -> slot -> spell or { item = "HS" | "POT" | "BAND" | "BOMB" | "HEAL" | "EAT" | "HSPOT" }.
 FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
 local function T(id, name) return { spellID = id, name = name, talent = true } end
-local HS, POT, BAND = { item = "HS" }, { item = "POT" }, { item = "BAND" }
+local HSPOT, HEAL, EAT = { item = "HSPOT" }, { item = "HEAL" }, { item = "EAT" }
 
 local IMMOLATE, SHADOW_BOLT, DEMON_SKIN, SUMMON_IMP = S(348, "Immolate"), S(686, "Shadow Bolt"), S(687, "Demon Skin"), S(688, "Summon Imp")
 local CORRUPTION, WEAKNESS, LIFE_TAP = S(172, "Corruption"), S(702, "Curse of Weakness"), S(1454, "Life Tap")
@@ -24,7 +24,7 @@ local WRACK, INCINERATE = T(1316697, "Wrack"), T(412758, "Incinerate")
 -- Keys every bracket shares from 20 on: curses on 3, demons on G, consumables on V.
 local CURSES = { normal = ELEMENTS, shift = WEAKNESS, alt = RECKLESSNESS, altshift = TONGUES }
 local DEMONS = { normal = VOIDWALKER, shift = SUCCUBUS, alt = FELHUNTER, altshift = SUMMON_IMP }
-local ITEMS = { normal = HS, shift = POT, alt = BAND }
+local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
 
 FoilKeybindsGuides.WARLOCK = {
   suggested = 11629, -- Affliction levels best: DoTs and drains, little downtime
