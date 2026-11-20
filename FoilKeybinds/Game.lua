@@ -325,6 +325,10 @@ local function run(p, quiet)
   ns.SaveIndex()
   if quiet then ns.Say(L.NOTHING_TO_CHANGE) else ns.Info((p.manage and L.DONE or L.DONE_MACROS):format(done)) end
   if ns.Refresh then ns.Refresh() end
+  if not quiet and db.wizard and db.wizard.cheatOnce then -- first Apply after a wizard Use: learn the new keys
+    db.wizard.cheatOnce = nil
+    if ns.ToggleCheat then ns.ToggleCheat(true) end
+  end
 end
 
 -- Preview text: one line per change the player would see in game.
@@ -508,7 +512,7 @@ function ns.TellBracket(level)
   local b = level and ns.LevelUpBracket(g, level)
   if not b then return end
   g.told = b
-  ns.Say(L.GUIDE_LEVELUP:format(level, g.name, ns.BracketRange(b)))
+  ns.Say((g.wizard and L.WIZARD_LEVELUP or L.GUIDE_LEVELUP):format(level, g.name, ns.BracketRange(b)))
 end
 
 -- Reset all: bindings, bar slots and macros go back to how they were before Apply. Key setups stay.

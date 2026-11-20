@@ -739,6 +739,11 @@ ns.GUIDE_MAX, ns.GUIDE_KEYS = 230, 16
 local MOVE, ITEM, SLOT = { W = true, A = true, S = true, D = true }, {}, {}
 for _, c in ipairs(ns.ITEMS) do ITEM[c] = true end
 for _, id in ipairs(ns.SLOTS) do SLOT[id] = true end
+-- Wizard (v5): one meaning per guide key (spec.meanings = guide key -> meaning ID), shared by every
+-- class, in step order. Names and why lines: Locale MEANING_<id>, WHY_<id>.
+ns.MEANINGS = { "main", "dot", "aoe", "cc", "interrupt", "defense", "heal", "buff", "form", "pet", "utility", "items" }
+local MEANING = {}
+for i, m in ipairs(ns.MEANINGS) do MEANING[m] = i end
 function ns.CheckGuide(class)
   local p, board = {}, {}
   for _, k in ipairs(ns.BOARD) do board[k] = true end
@@ -786,10 +791,96 @@ function ns.CheckGuide(class)
       local t = (spec.templates or {})[b]
       if t then checkTemplate(where .. " bracket " .. b, t)
       elseif not ns.TemplateFor(class, gid, b) then bad(where, "no template for bracket " .. b) end
+      -- ponytail: meanings are checked only when the spec has a map; ticket 04 makes the map required.
+      local used = spec.meanings and ns.TemplateFor(class, gid, b)
+      for key in pairs(used or {}) do
+        local m = spec.meanings[key]
+        if m == nil then bad(where .. " bracket " .. b .. " key " .. key, "no meaning")
+        elseif not MEANING[m] then bad(where .. " bracket " .. b .. " key " .. key, "unknown meaning " .. tostring(m)) end
+      end
     end
   end
   table.sort(p)
   return p
+end
+
+-- Wizard steps: the template's guide keys that have a meaning, in meaning order, board order inside one.
+-- Each step: { key = guide key, meaning, n, of } (n of the meaning's keys: "1 of 2").
+function ns.WizardSteps(template, meanings)
+  local steps = {}
+  for _, m in ipairs(ns.MEANINGS) do
+    local group = {}
+    for _, k in ipairs(ns.BOARD) do if template[k] and meanings[k] == m then group[#group + 1] = k end end
+    for i, k in ipairs(group) do steps[#steps + 1] = { key = k, meaning = m, n = i, of = #group } end
+  end
+  return steps
+end
+
+-- Can a group (slots = the guide key's template slots) go on key? False and why ("move", "space", "board").
+local BOARDKEY = {}
+for _, k in ipairs(ns.BOARD) do BOARDKEY[k] = true end
+function ns.Allowed(key, slots)
+  if MOVE[key] then return false, "move" end
+  if key == "SPACE" and slots.normal then return false, "space" end
+  if not BOARDKEY[key] then return false, "board" end
+  return true
+end
+
+-- A pick map: guide key -> chosen key, false = left out. Pick puts guideKey's group on key; a group
+-- already there takes guideKey's old key (the two trade; a group picked back from "left out" leaves the
+-- holder out). Returns what moved, { { guideKey, key or false }, ... }, or nil and why when either group
+-- may not go where it would land (map unchanged).
+function ns.Pick(map, template, guideKey, key)
+  local old = map[guideKey]
+  if old == key then return {} end
+  local ok, why = ns.Allowed(key, template[guideKey])
+  if not ok then return nil, why end
+  local holder
+  for gk, k in pairs(map) do if k == key and gk ~= guideKey then holder = gk end end
+  if holder and old then
+    ok, why = ns.Allowed(old, template[holder])
+    if not ok then return nil, why end
+  end
+  map[guideKey] = key
+  local moved = { { guideKey, key } }
+  if holder then map[holder] = old; moved[2] = { holder, old } end
+  return moved
+end
+function ns.Skip(map, guideKey) map[guideKey] = false end
+
+-- First pick map: every guide key on itself, then the saved picks (guide key -> key | false) replayed
+-- through Pick in board order, so it is always one group per key. Saved keys not in the template, and
+-- picks that no longer fit the group (a plain press on Space), are dropped.
+function ns.WizardMap(template, saved)
+  local map = {}
+  for gk in pairs(template) do map[gk] = gk end
+  for _, gk in ipairs(ns.BOARD) do
+    local k = saved and saved[gk]
+    if map[gk] ~= nil and k == false then ns.Skip(map, gk)
+    elseif map[gk] ~= nil and k then ns.Pick(map, template, gk, k) end
+  end
+  return map
+end
+
+-- Picks to save after a Use: this run's map, plus older picks of guide keys this template lacks
+-- (another range) whose key this run does not use.
+function ns.MergePicks(old, map)
+  local out, taken = ns.Copy(map), {}
+  for _, k in pairs(map) do if k then taken[k] = true end end
+  for gk, k in pairs(old or {}) do if out[gk] == nil and not (k and taken[k]) then out[gk] = k end end
+  return out
+end
+
+-- A new template with each group (all its slots) on its chosen key, left-out groups gone. The slot
+-- tables are the template's (TemplateKeys copies them), so the guide data never changes.
+function ns.BuildTemplate(template, map)
+  local out = {}
+  for gk, slots in pairs(template) do
+    local k = map[gk]
+    if k == nil then k = gk end
+    if k then out[k] = slots end
+  end
+  return out
 end
 
 return ns

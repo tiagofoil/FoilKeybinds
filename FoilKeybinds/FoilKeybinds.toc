@@ -14,5 +14,6 @@ Core.lua
 Game.lua
 UI.lua
 Guide.lua
+Wizard.lua
 Cheat.lua
 Settings.lua

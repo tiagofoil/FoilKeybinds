@@ -864,6 +864,103 @@ test("saved keys: newest first, auto set skipped when already saved, only the ne
   assert(core.Same(k2, { Q = { slots = { normal = sp("B") } } }) and not core.Same(k1, k2) and not core.Same(k1, {}))
 end)
 
+-- Wizard (v5).
+test("meanings: the shared list in step order, a name and a why line in English and pt-BR", function()
+  eq(table.concat(core.MEANINGS, " "), "main dot aoe cc interrupt defense heal buff form pet utility items")
+  for _, loc in ipairs({ "enUS", "ptBR" }) do
+    GetLocale = function() return loc end
+    local ns = {}; assert(loadfile("FoilKeybinds/Locale.lua"))(nil, ns)
+    for _, m in ipairs(core.MEANINGS) do -- rawget: pt-BR falls back to English, a missing one must fail
+      assert(rawget(ns.L, "MEANING_" .. m) and rawget(ns.L, "WHY_" .. m), loc .. " misses " .. m)
+    end
+  end
+  GetLocale = nil
+end)
+
+local sl = function(name) return { spellID = 1, name = name } end
+local WT = { -- guide keys: two "dot" keys, an items group, a Shift-only group (may go on Space), an unmeant key
+  ["1"] = { normal = sl("Main") }, ["2"] = { normal = sl("Dot"), shift = sl("Dot2") }, Q = { normal = sl("Dot3") },
+  R = { normal = sl("Fear"), shift = sl("Banish"), alt = sl("Howl") }, V = { normal = { item = "HSPOT" }, shift = { item = "HEAL" } },
+  F = { shift = sl("Stone") }, Z = { normal = sl("Extra") } }
+local WM = { ["1"] = "main", ["2"] = "dot", Q = "dot", R = "cc", V = "items", F = "buff" }
+test("wizard steps: meaning order, board order inside a meaning, n of a meaning, keys with no meaning left out", function()
+  local s = core.WizardSteps(WT, WM)
+  local l = {}
+  for i, x in ipairs(s) do l[i] = x.key .. ":" .. x.meaning .. ":" .. x.n .. "/" .. x.of end
+  eq(table.concat(l, " "), "1:main:1/1 2:dot:1/2 Q:dot:2/2 R:cc:1/1 F:buff:1/1 V:items:1/1")
+end)
+
+test("allowed keys: no W A S D, no plain Space for a group with a plain press, mouse buttons and Shift-only Space fine", function()
+  for _, k in ipairs({ "W", "A", "S", "D" }) do local ok, why = core.Allowed(k, WT.F); eq(ok, false); eq(why, "move") end
+  local ok, why = core.Allowed("SPACE", WT.R); eq(ok, false); eq(why, "space")
+  eq(core.Allowed("SPACE", WT.F), true)
+  eq(core.Allowed("BUTTON4", WT.R), true); eq(core.Allowed("E", WT.R), true)
+  eq(select(2, core.Allowed("P", WT.R)), "board")
+end)
+
+test("pick: a free key moves the group, a taken key makes the two trade, blocked picks change nothing", function()
+  local map = core.WizardMap(WT)
+  for gk in pairs(WT) do eq(map[gk], gk) end
+  local m = core.Pick(map, WT, "R", "E")
+  eq(#m, 1); eq(m[1][1], "R"); eq(m[1][2], "E"); eq(map.R, "E")
+  m = core.Pick(map, WT, "V", "E") -- R holds E: R goes to V's key
+  eq(#m, 2); eq(m[1][1] .. m[1][2], "VE"); eq(m[2][1] .. m[2][2], "RV"); eq(map.V, "E"); eq(map.R, "V")
+  eq(#core.Pick(map, WT, "V", "E"), 0) -- already there
+  local before = core.Copy(map)
+  local r, why = core.Pick(map, WT, "R", "SPACE"); eq(r, nil); eq(why, "space")
+  core.Pick(map, WT, "F", "SPACE") -- Shift only: fine on Space
+  r, why = core.Pick(map, WT, "F", "1") -- would push Main (plain press) onto Space
+  eq(r, nil); eq(why, "space"); eq(map.F, "SPACE"); eq(map["1"], "1")
+  eq(before.R, map.R)
+end)
+
+test("skip leaves a group out; picking it back onto a taken key leaves the holder out; build moves whole groups", function()
+  local map = core.WizardMap(WT)
+  core.Skip(map, "V"); eq(map.V, false)
+  core.Pick(map, WT, "R", "E")
+  local t = core.BuildTemplate(WT, map)
+  eq(t.V, nil); eq(t.R, nil); eq(t.E, WT.R); eq(t["1"], WT["1"]); eq(t.Z, WT.Z)
+  local n = 0; for _ in pairs(t.E) do n = n + 1 end; eq(n, 3) -- all of the group's slots
+  local m = core.Pick(map, WT, "V", "E")
+  eq(m[2][1], "R"); eq(m[2][2], false); eq(map.V, "E"); eq(map.R, false)
+  eq(core.BuildTemplate(WT, {}).R, WT.R) -- no map entry: the guide's key
+  eq(WT.R.normal.name, "Fear")
+end)
+
+test("first pick map: saved picks replayed through Pick, one group per key even when a new range adds a group on a picked key", function()
+  local old = { ["1"] = { normal = sl("Main") }, R = { normal = sl("Fear") } }
+  local saved = core.WizardMap(old)
+  core.Pick(saved, old, "R", "E") -- the 1-19 run moved crowd control to E (free there)
+  local map = core.WizardMap(WT, saved) -- the new range has no E group... and one adds it:
+  eq(map.R, "E")
+  local WT2 = core.Copy(WT); WT2.E = { normal = sl("Tap") }
+  map = core.WizardMap(WT2, saved)
+  eq(map.R, "E"); eq(map.E, "R") -- the new E group took R's old key
+  local seen = {}
+  for gk, k in pairs(map) do if k then assert(not seen[k], "two groups on " .. k); seen[k] = gk end end
+  map = core.WizardMap(WT, { V = false, Q = "SPACE", P = "E", F = "P" }) -- skip kept; Space with a plain press, unknown keys dropped
+  eq(map.V, false); eq(map.Q, "Q"); eq(map.P, nil); eq(map.F, "F")
+end)
+
+test("saved picks merge: this run wins, older picks of other keys stay unless their key is taken now", function()
+  local out = core.MergePicks({ T = "E", C = "BUTTON4", R = "Q" }, { R = "R", E = "E", ["1"] = false })
+  eq(out.R, "R"); eq(out.E, "E"); eq(out["1"], false); eq(out.T, nil); eq(out.C, "BUTTON4")
+  eq(core.MergePicks(nil, { R = "E" }).R, "E")
+end)
+
+test("data check: meanings are checked only with a map, every used template key needs a known one", function()
+  local c = goodClass()
+  eq(#core.CheckGuide(c), 0) -- no map yet: fine (ticket 04 makes it required)
+  c.specs[1].meanings = { Q = "main", E = "utility" }
+  eq(#core.CheckGuide(c), 0) -- Q from brackets 2 and 3, E from the shared bracket 1 template
+  c.specs[1].meanings.E = nil
+  local p = core.CheckGuide(c)
+  eq(#p, 1); assert(p[1]:find("bracket 1 key E: no meaning", 1, true), p[1])
+  c.specs[1].meanings.E = "stuff"
+  p = core.CheckGuide(c)
+  eq(#p, 1); assert(p[1]:find("unknown meaning stuff", 1, true), p[1])
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

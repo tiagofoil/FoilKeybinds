@@ -45,6 +45,8 @@ FoilKeybindsGuides.WARLOCK = {
   specs = {
     [11629] = {
       name = "Affliction",
+      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "dot", Q = "heal", E = "utility", R = "cc", T = "aoe",
+        F = "buff", G = "pet", V = "items", C = "defense" },
       priority = {
         { spellID = 172, level = 4, en = "Main DoT. Keep it on every target.", ptBR = "DoT principal. Mantenha em todos os alvos." },
         { spellID = 980, level = 8, en = "Long Shadow DoT that grows over time. Let it run out before you cast it again.",
@@ -101,6 +103,8 @@ FoilKeybindsGuides.WARLOCK = {
     },
     [11636] = {
       name = "Demonology",
+      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "main", Q = "heal", E = "utility", R = "cc", T = "aoe",
+        F = "buff", G = "pet", V = "items", C = "defense" },
       priority = {
         { spellID = 172, level = 4, en = "Main DoT. Put it up first while your demon holds the target.",
           ptBR = "DoT principal. Aplique primeiro enquanto o seu demônio segura o alvo." },
@@ -155,6 +159,8 @@ FoilKeybindsGuides.WARLOCK = {
     },
     [11637] = {
       name = "Destruction",
+      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "main", ["5"] = "dot", Q = "heal", E = "utility", R = "cc",
+        T = "aoe", F = "buff", G = "pet", V = "items", C = "defense" },
       priority = {
         { spellID = 348, level = 1, en = "Fire DoT. Keep it up: your Fire spells hit harder with it.",
           ptBR = "DoT de Fogo. Mantenha ativo: seus feitiços de Fogo batem mais forte com ele." },

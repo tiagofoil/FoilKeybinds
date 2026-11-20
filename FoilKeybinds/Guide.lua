@@ -107,11 +107,14 @@ list.url:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
 list.url:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 list.url:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
 
--- Bottom bar: Preview layout, where Apply sits on the Keys tab.
+-- Bottom bar: Preview layout, where Apply sits on the Keys tab, and Build my layout (the wizard, Wizard.lua).
+-- The hint line: the new-player or step 1 line (state.hint, set by /fkb), else what the buttons do.
 local previewBtn = ns.Button(pane, 160, 26, L.GUIDE_PREVIEW, T.fel)
 previewBtn:SetPoint("BOTTOMRIGHT", -16, 14)
+local buildBtn = ns.Button(pane, 160, 26, L.WIZARD_BUILD, T.fel)
+buildBtn:SetPoint("RIGHT", previewBtn, "LEFT", -8, 0)
 local hint = ns.Text(pane, "body", 12, T.muted)
-hint:SetPoint("RIGHT", previewBtn, "LEFT", -12, 0); hint:SetText(L.GUIDE_PREVIEW_HINT)
+hint:SetPoint("RIGHT", buildBtn, "LEFT", -12, 0); hint:SetWidth(560); hint:SetJustifyH("RIGHT") -- a long pt-BR line wraps
 
 local function specOf(gid)
   for _, s in ipairs(state.specs) do if s.groupID == gid then return s end end
@@ -122,7 +125,7 @@ draw = function()
   local class = ok and FoilKeybindsGuides[ns.playerClass]
   local msg = (not ok and L.GUIDE_MISSING) or (not class and L.GUIDE_NO_CLASS) or nil
   pane.msg:SetText(msg or ""); pane.msg:SetShown(msg ~= nil)
-  for _, w in ipairs({ left, list, previewBtn, hint }) do w:SetShown(msg == nil) end
+  for _, w in ipairs({ left, list, previewBtn, buildBtn, hint }) do w:SetShown(msg == nil) end
   if msg then return end
   if not state.specs then -- first draw since the window opened or the spells/talents changed: read the points
     state.specs = ns.ReadSpecs(class)
@@ -165,6 +168,10 @@ draw = function()
   end
   for i = #prio + 1, #rows do rows[i]:Hide() end
   list.note:SetShown(not class.tested); list.url:SetShown(not class.tested)
+  local meanings = class.specs[state.spec].meanings ~= nil
+  buildBtn:SetEnabled(meanings); buildBtn:SetAlpha(meanings and 1 or 0.4)
+  hint:SetText(not meanings and L.WIZARD_NO_MEANINGS or state.hint or L.GUIDE_PREVIEW_HINT)
+  hint:SetTextColor(unpack(state.hint and meanings and T.brass or T.muted))
 end
 
 previewBtn:SetScript("OnClick", function()
@@ -174,6 +181,10 @@ previewBtn:SetScript("OnClick", function()
   local used = { groupID = state.spec, bracket = state.bracket, name = specOf(state.spec).name }
   ns.StartPreview(ns.TemplateKeys(t, ns.SpellLookup), L.PREVIEW_TITLE:format(used.name, ns.BracketRange(used.bracket)),
     function() return ns.UseTemplate(t, used) end)
+end)
+
+buildBtn:SetScript("OnClick", function()
+  ns.StartWizard(FoilKeybindsGuides[ns.playerClass], state.spec, state.bracket, specOf(state.spec).name)
 end)
 
 ns.ShowGuide = draw

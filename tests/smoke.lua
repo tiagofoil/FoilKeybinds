@@ -294,4 +294,118 @@ ns.CopyFrom("Other-Realm")
 assert(db.guide == nil and db.keys.V, "copy kept the used template")
 G.SlashCmdList.FOILKEYBINDS("undo")
 assert(db.guide == used and same(mine, db.keys) and lastSaid():find(L.COPY_UNDONE, 1, true), "copy undo")
+
+-- Wizard (v5): first-open hint once, Build my layout, pick, swap, Back, Skip, blocked key, Use all
+-- suggestions, Use (only a Use that went through saves), Undo, second run preselects, Cancel, cheat once.
+local function showing(text) -- a frame was given exactly this text
+  for _, t in ipairs(frames) do if rawget(t, "__text") == text then return true end end
+end
+local function label() return rawget(ns.keyCard.label, "__text") or "" end
+local function sameKeys(a, b) -- empty setups do not count (the selected key gets one when the preview ends)
+  local function filled(k) local o = {}; for key, s in pairs(k) do if next(s.slots) then o[key] = s end end; return o end
+  return same(filled(a), filled(b))
+end
+db.keys, db.guide, db.applied, db.wizard, db.copyUndo, db.copyUndoGuide, db.copyUndoLive, db.saved = {}, nil, {}, nil, nil, nil, nil, nil
+ns.guide.hint = nil
+G.SlashCmdList.FOILKEYBINDS("")
+assert(f.tab == "guide" and ns.guide.hint == L.WIZARD_HINT and showing(L.WIZARD_HINT), "first /fkb: no Guide tab with the hint")
+assert(db.wizard.seen, "seen flag not saved")
+ns.guide.hint = nil -- the window closed (the stub does not run the Guide's OnHide hook)
+G.SlashCmdList.FOILKEYBINDS("")
+assert(f.tab == "keys" and ns.guide.hint == nil, "the hint came twice")
+G.SlashCmdList.FOILKEYBINDS("assistente")
+assert(f.tab == "guide" and ns.guide.hint == L.WIZARD_STEP1, "/fkb assistente")
+
+-- A spec with no meanings map: the button does nothing, the note says why.
+local aff = G.FoilKeybindsGuides.WARLOCK.specs[11629]
+local meanings = aff.meanings
+click("Affliction"); click("20-39")
+aff.meanings = nil; ns.ShowGuide()
+assert(showing(L.WIZARD_NO_MEANINGS), "no note for a spec without meanings")
+click(L.WIZARD_BUILD)
+assert(not ns.InPreview() and ns.WizardState() == nil, "wizard ran without meanings")
+aff.meanings = meanings; ns.ShowGuide()
+
+-- Affliction 20-39: 12 groups, step 1 is the Guide tab. The first step is the main attack on 1, selected.
+db.keys = { Q = { slots = { normal = { spellID = 686, name = "Shadow Bolt", kind = "harm" } } } }
+local own = ns.Copy(db.keys)
+click(L.WIZARD_BUILD)
+local w = ns.WizardState()
+assert(w and ns.InPreview() and f.tab == "keys", "Build my layout did not start the wizard")
+assert(#w.steps == 12 and w.steps[1].key == "1" and showing(L.WIZARD_STEP:format(2, 13)), "steps")
+assert(showing(L.MEANING_main) and showing(L.WHY_main) and showing(L.WIZARD_ALL), "step bar texts")
+assert(label():find(L.KEY:format("1"), 1, true), "current group not selected")
+-- Pick a free key: the group moves, the board shows it, nothing live.
+clickKey("Z")
+assert(w.map["1"] == "Z" and showing(L.WIZARD_KEY:format("Z")) and label():find(L.KEY:format("Z"), 1, true), "pick")
+assert(sameKeys(own, db.keys), "a pick wrote the live keys")
+-- Next: the second attack 1 of 3 on 2. A taken key: the two trade, one chat line.
+click(L.WIZARD_NEXT)
+assert(w.i == 2 and showing(L.WIZARD_OF:format(1, 3)), "next")
+clickKey("Z")
+assert(w.map["2"] == "Z" and w.map["1"] == "2", "swap")
+assert(lastSaid():find(L.WIZARD_MOVED:format(L.MEANING_dot, "Z") .. ", " .. L.WIZARD_MOVED:format(L.MEANING_main, "2"), 1, true), "swap line")
+-- Back shows the main attack on its new key; Skip leaves the second attack out.
+click(L.WIZARD_BACK)
+assert(w.i == 1 and showing(L.WIZARD_KEY:format("2")), "back")
+click(L.WIZARD_NEXT); click(L.WIZARD_SKIP)
+assert(w.i == 3 and w.map["2"] == false, "skip")
+-- Plain Space for a group with a plain press: nothing moves, the bar says why.
+clickKey(L.KEY_SPACE)
+assert(w.map["3"] == "3" and showing(L.WIZARD_BLOCKED_space), "blocked key")
+click(L.WIZARD_ALL)
+assert(w.i == 13 and ns.InPreview(), "use all suggestions ended the preview")
+clickKey("T") -- past the last step: read only
+assert(w.map.T == "T" and sameKeys(own, db.keys))
+-- Use while spell names load: nothing saved, the preview stays.
+local nameFn = G.C_Spell.GetSpellName
+G.C_Spell.GetSpellName = function() end
+click(L.PREVIEW_USE)
+assert(ns.InPreview() and sameKeys(own, db.keys) and not db.wizard.picks and not db.wizard.cheatOnce, "a loading Use saved")
+G.C_Spell.GetSpellName = nameFn
+-- Use: the built layout is live (main attack on 2, second attack out), old keys auto-saved, picks saved.
+click(L.PREVIEW_USE)
+assert(not ns.InPreview() and ns.WizardState() == nil, "Use did not end the wizard")
+assert(db.keys["2"].slots.normal.name == "CORRUPTION" and db.keys["1"] == nil
+  and sameKeys({}, { Z = db.keys.Z }), "built layout not used")
+assert(db.keys.Q.slots.normal.name == "DRAIN LIFE" and db.keys.V.slots.normal.item == "HSPOT", "a group lost its key")
+assert(isSaved(own), "own keys not auto-saved")
+assert(db.guide.wizard and db.guide.groupID == 11629 and db.guide.bracket == 2, "used template not marked")
+local picks = db.wizard.picks[11629]
+assert(picks["1"] == "2" and picks["2"] == false and picks.R == "R" and db.wizard.cheatOnce, "picks not saved")
+assert(lastSaid():find(L.TEMPLATE_USED:format("Affliction", "20-39"), 1, true), "no use line")
+G.SlashCmdList.FOILKEYBINDS("undo")
+assert(sameKeys(own, db.keys), "undo after the wizard")
+
+-- Second run, 40-60: the saved picks preselect every step. Cancel, leaving the tab and closing change nothing.
+click("40-60"); click(L.WIZARD_BUILD)
+w = ns.WizardState()
+assert(w.saved and w.map["1"] == "2" and w.map["2"] == false and showing(L.WIZARD_ALL_MINE), "no preselected picks")
+assert(showing(L.WIZARD_KEY:format("2")), "first step does not show the saved key")
+clickKey("X")
+click(L.PREVIEW_CANCEL)
+assert(not ns.InPreview() and ns.WizardState() == nil and sameKeys(own, db.keys) and db.wizard.picks[11629]["1"] == "2", "cancel")
+G.SlashCmdList.FOILKEYBINDS("guide"); click(L.WIZARD_BUILD); G.SlashCmdList.FOILKEYBINDS("config")
+assert(ns.WizardState() == nil and not ns.InPreview(), "leaving the tab did not end the wizard")
+G.SlashCmdList.FOILKEYBINDS("guide"); click(L.WIZARD_BUILD); f.__scripts.OnHide(f)
+assert(ns.WizardState() == nil and not ns.InPreview() and sameKeys(own, db.keys), "closing the window did not end the wizard")
+
+-- Use from the second run, then Apply: the cheat sheet opens once, the flag clears.
+local cheat = {}
+local toggle = ns.ToggleCheat
+ns.ToggleCheat = function(v) cheat[#cheat + 1] = v end
+G.SlashCmdList.FOILKEYBINDS("guide"); click(L.WIZARD_BUILD); click(L.WIZARD_ALL_MINE); click(L.PREVIEW_USE)
+assert(db.keys["2"] and db.guide.bracket == 3 and db.wizard.cheatOnce, "second Use")
+ns.Apply(); click(OKAY or "OK")
+assert(#cheat == 1 and cheat[1] == true and db.wizard.cheatOnce == nil, "cheat sheet not shown once after Apply")
+ns.Apply(); click(OKAY or "OK")
+assert(#cheat == 1, "cheat sheet shown twice")
+ns.ToggleCheat = toggle
+-- Level-up line names /fkb wizard for a wizard layout (used 1-19 at level 25, told at 40).
+click("1-19"); click(L.WIZARD_BUILD); click(L.WIZARD_ALL_MINE); click(L.PREVIEW_USE)
+local n0 = #said
+ev.__scripts.OnEvent(ev, "PLAYER_LEVEL_UP", 40) -- the item swap may add its own line after it
+assert((said[n0 + 1] or ""):find(L.WIZARD_LEVELUP:format(40, "Affliction", "40-60"), 1, true), "no wizard level-up line")
+db.keys, db.guide, db.applied, db.wizard, db.copyUndo, db.copyUndoGuide, db.copyUndoLive, db.saved = ns.Copy(live), nil, {}, nil, nil, nil, nil, nil
+ns.guide.hint = nil
 print("smoke ok")

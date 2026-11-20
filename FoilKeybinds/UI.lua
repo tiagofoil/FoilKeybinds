@@ -120,7 +120,10 @@ end
 
 -- A seconds box with focus commits on focus loss, so it must lose focus while current is still its key.
 local function selectKey(key)
-  if pv then return end -- preview is read-only
+  if pv then -- preview is read-only; the wizard takes a key click as its pick
+    if pv.wiz and pv.wiz.click then pv.wiz.click(key) end
+    return
+  end
   local box = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
   if box then box:ClearFocus() end
   current = key; picker:Hide(); card.msg:SetText(""); card:Refresh()
@@ -309,6 +312,7 @@ end
 -- Key panel: right of the board. Key and macro name, size meter, the two key toggles, Show macro,
 -- the dot legend, the fit messages and the switch OFF hint.
 card = CreateFrame("Frame", nil, keysPane)
+ns.keyCard = card -- the wizard's step bar sits in its space (Wizard.lua)
 card:SetPoint("TOPLEFT", view, "TOPRIGHT", 12, 0); card:SetPoint("BOTTOMRIGHT", keysPane, "TOPRIGHT", -12, -338)
 ns.RoundSkin(card, T.panel, { T.void[1], T.void[2], T.void[3], 0.45 })
 card.label = ns.Text(card, "bold", 15)
@@ -847,14 +851,17 @@ end
 -- keys: a fresh table (ns.TemplateKeys output), never the guide data. use(keys) runs on "Use this layout";
 -- false keeps the preview open (spell data still loading).
 -- The columns show the selected key when the template has it, else its first key in board order.
-function ns.StartPreview(keys, title, use)
+-- wiz (Wizard.lua, called again on every step): sel = the key to select (false: none), click(key) gets
+-- the canvas clicks, stop() runs when the preview ends (Use, Cancel, leaving the tab, closing the window).
+function ns.StartPreview(keys, title, use, wiz)
   local box = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
   if box then box:ClearFocus() end -- a seconds box commits to the live keys first
   picker:Hide(); preview:Hide() -- the macro panel would say "Live macro differs" about a template key
   showTab("keys")
   local was = pv and pv.was or current
-  pv = { keys = keys, use = use, was = was }
-  if not (current and keys[current]) then
+  pv = { keys = keys, use = use, was = was, wiz = wiz }
+  if wiz and wiz.sel ~= nil then current = wiz.sel or nil
+  elseif not (current and keys[current]) then
     current = nil
     for _, k in ipairs(ns.BOARD) do if keys[k] then current = k; break end end
   end
@@ -865,8 +872,10 @@ end
 -- Back to the live keys and the key selected before (no live key is created for the preview's pick).
 function ns.CancelPreview()
   if not pv then return end
+  local wiz = pv.wiz
   current, pv = pv.was, nil
   previewLook(false)
+  if wiz then wiz.stop() end
   card:Refresh()
 end
 function ns.InPreview() return pv ~= nil end
@@ -931,8 +940,10 @@ f:SetScript("OnEvent", function(_, event, name, ok)
 end)
 
 -- /fkb toggles the window. /fkb set <KEY> <Spell> fills a key's normal slot from the spellbook (live keys,
--- even during a preview). /fkb guide (guia) opens the Guide tab.
+-- even during a preview). /fkb guide (guia) opens the Guide tab, /fkb wizard (assistente) too, with the
+-- wizard's step 1 line. The first /fkb of a character with no keys opens it with the new-player hint, once.
 SLASH_FOILKEYBINDS1 = "/fkb"
+local function hasKeys() for _, setup in pairs(FoilKeybindsDB.keys) do if next(setup.slots) then return true end end end
 local CONFIG = { config = true, settings = true, opcoes = true, ["opções"] = true }
 SlashCmdList.FOILKEYBINDS = function(msg)
   msg = strtrim(msg or "")
@@ -957,5 +968,10 @@ SlashCmdList.FOILKEYBINDS = function(msg)
   elseif word == "cheat" or word == "cola" then ns.ToggleCheat()
   elseif CONFIG[word] then ns.OpenWindow("settings")
   elseif word == "guide" or word == "guia" then ns.OpenWindow("guide")
+  elseif word == "wizard" or word == "assistente" then ns.guide.hint = L.WIZARD_STEP1; ns.OpenWindow("guide")
+  elseif not (FoilKeybindsDB.wizard and FoilKeybindsDB.wizard.seen) and not hasKeys() then
+    FoilKeybindsDB.wizard = FoilKeybindsDB.wizard or {}
+    FoilKeybindsDB.wizard.seen = true
+    ns.guide.hint = L.WIZARD_HINT; ns.OpenWindow("guide")
   else FoilKeybinds_Toggle() end
 end
