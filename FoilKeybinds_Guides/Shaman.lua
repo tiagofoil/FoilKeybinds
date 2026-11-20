@@ -7,7 +7,7 @@ FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
 local function T(id, name) return { spellID = id, name = name, talent = true } end
-local POT, BAND = { item = "POT" }, { item = "BAND" }
+local HSPOT, HEAL, EAT = { item = "HSPOT" }, { item = "HEAL" }, { item = "EAT" }
 
 local BOLT, EARTH_SHOCK, FLAME_SHOCK, FROST_SHOCK = S(403, "Lightning Bolt"), S(8042, "Earth Shock"), S(8050, "Flame Shock"), S(8056, "Frost Shock")
 local HW, LHW, SHIELD, PURGE = S(331, "Healing Wave"), S(8004, "Lesser Healing Wave"), S(324, "Lightning Shield"), S(370, "Purge")
@@ -21,7 +21,7 @@ local CHAIN_LIGHTNING, CHAIN_HEAL, MANA_TIDE = S(421, "Chain Lightning"), S(1064
 local STORMSTRIKE, RIPTIDE = T(17364, "Stormstrike"), T(408521, "Riptide")
 
 -- Keys every spec shares from 20 on: totems by element, cures on T, totem bar on C.
-local ITEMS = { normal = POT, shift = BAND }
+local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
 local FIRE = { normal = SEARING, shift = MAGMA, alt = FT_TOTEM }
 local EARTH = { normal = STRENGTH, shift = STONESKIN, alt = EARTHBIND, altshift = TREMOR }
 local WATER = { normal = STREAM, shift = SPRING, alt = POISON_TOTEM }
@@ -30,6 +30,11 @@ local CURES = { normal = CURE_POISON, shift = CURE_DISEASE, alt = SPIRIT }
 local TOTEM_BAR = { normal = CALL, shift = RECALL }
 local SELF = { normal = SHIELD, shift = WOLF }
 local IMBUES = { normal = FLAMETONGUE, shift = ROCKBITER, alt = FROSTBRAND, altshift = WINDFURY }
+-- One meaning per key in every range: imbues stay on E (as from level 1), so Restoration keeps its big heals on X.
+local MEANINGS = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "aoe", ["5"] = "buff", Q = "heal", E = "buff", R = "buff",
+  T = "utility", F = "buff", G = "buff", C = "utility", V = "items" }
+local RESTO_MEANINGS = { X = "heal" }
+for k, m in pairs(MEANINGS) do RESTO_MEANINGS[k] = m end
 
 FoilKeybindsGuides.SHAMAN = {
   suggested = 11363, -- Enhancement levels best: melee with totems and shocks, little mana to drink back
@@ -50,6 +55,7 @@ FoilKeybindsGuides.SHAMAN = {
   specs = {
     [11326] = {
       name = "Elemental Combat",
+      meanings = MEANINGS,
       priority = {
         { spellID = 3599, level = 10, en = "Drop it before the pull. It shoots your target while you cast.",
           ptBR = "Coloque antes de puxar. Ele ataca o seu alvo enquanto você conjura." },
@@ -100,6 +106,7 @@ FoilKeybindsGuides.SHAMAN = {
     },
     [11363] = {
       name = "Enhancement",
+      meanings = MEANINGS,
       priority = {
         { spellID = 8232, level = 30, en = "Weapon buff that adds extra attacks. Before 30, use the one you have.",
           ptBR = "Bônus de arma que dá ataques extras. Antes do nível 30, use o bônus de arma que você tiver." },
@@ -151,6 +158,7 @@ FoilKeybindsGuides.SHAMAN = {
     },
     [11362] = {
       name = "Restoration",
+      meanings = RESTO_MEANINGS,
       priority = {
         { spellID = 5675, level = 26, en = "Water totem that gives mana back over time. Drop it before the pull.",
           ptBR = "Totem de água que devolve mana aos poucos. Coloque antes de puxar." },
@@ -173,13 +181,13 @@ FoilKeybindsGuides.SHAMAN = {
           ["4"] = FIRE,
           ["5"] = EARTH,
           Q = { normal = LHW },
-          E = { normal = HW },
+          E = IMBUES,
           R = SELF,
           T = CURES,
           F = { normal = SPRING, shift = STREAM, alt = POISON_TOTEM, altshift = MANA_TIDE },
           G = AIR,
           C = TOTEM_BAR,
-          X = IMBUES,
+          X = { normal = HW },
           V = ITEMS,
         },
         [3] = {
@@ -189,13 +197,13 @@ FoilKeybindsGuides.SHAMAN = {
           ["4"] = FIRE,
           ["5"] = EARTH,
           Q = { normal = LHW, shift = RIPTIDE },
-          E = { normal = CHAIN_HEAL, shift = HW },
+          E = IMBUES,
           R = SELF,
           T = CURES,
           F = { normal = SPRING, shift = STREAM, alt = POISON_TOTEM, altshift = MANA_TIDE },
           G = AIR,
           C = TOTEM_BAR,
-          X = IMBUES,
+          X = { normal = CHAIN_HEAL, shift = HW },
           V = ITEMS,
         },
       },

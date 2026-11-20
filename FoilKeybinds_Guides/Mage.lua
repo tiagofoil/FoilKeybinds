@@ -5,7 +5,7 @@ FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
 local function T(id, name) return { spellID = id, name = name, talent = true } end
-local POT, BAND = { item = "POT" }, { item = "BAND" }
+local HSPOT, HEAL, EAT = { item = "HSPOT" }, { item = "HEAL" }, { item = "EAT" }
 
 local FIREBALL, FROSTBOLT, FIRE_BLAST, MISSILES = S(133, "Fireball"), S(116, "Frostbolt"), S(2136, "Fire Blast"), S(5143, "Arcane Missiles")
 local NOVA, POLY, EXPLOSION, FLAMESTRIKE = S(122, "Frost Nova"), S(118, "Polymorph"), S(1449, "Arcane Explosion"), S(2120, "Flamestrike")
@@ -20,7 +20,7 @@ local ICE_LANCE, BARRIER = T(1312002, "Ice Lance"), T(11426, "Ice Barrier")
 local ARCANE_BLAST, ARCANE_WRATH = T(400574, "Arcane Blast"), T(1326079, "Arcane Wrath")
 
 -- Keys every spec shares from 20 on: defense on Q, control on E, wards on R, armor on F, conjures on G.
-local ITEMS = { normal = POT, shift = BAND }
+local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
 local CONTROL = { normal = POLY, shift = DECURSE }
 local ESCAPE = { normal = NOVA, shift = BLINK }
 local WARDS = { normal = MANA_SHIELD, shift = FIRE_WARD, alt = FROST_WARD }
@@ -28,6 +28,9 @@ local ARMOR = { normal = FROST_ARMOR, shift = ICE_ARMOR, alt = MAGE_ARMOR }
 local CONJURE2 = { normal = WATER, shift = FOOD, alt = INTELLECT, altshift = AGATE }
 local CONJURE3 = { normal = WATER, shift = FOOD, alt = INTELLECT, altshift = JADE }
 local EVOKE = { normal = EVOCATION, shift = SLOW_FALL }
+-- One meaning per key in every range (the 1-19 buffs sit on T, the utility key, so R stays defense).
+local MEANINGS = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "aoe", ["5"] = "interrupt", Q = "defense", E = "cc",
+  R = "defense", T = "utility", F = "buff", G = "utility", V = "items" }
 
 FoilKeybindsGuides.MAGE = {
   suggested = 11601, -- Frost levels best: slows and Frost Nova keep enemies off you, so you rest less
@@ -40,7 +43,7 @@ FoilKeybindsGuides.MAGE = {
     ["4"] = { normal = EXPLOSION, shift = FLAMESTRIKE },
     Q = { normal = NOVA },
     E = { normal = POLY, shift = DECURSE },
-    R = { normal = DAMPEN, shift = AMPLIFY, alt = SLOW_FALL },
+    T = { normal = DAMPEN, shift = AMPLIFY, alt = SLOW_FALL },
     F = { normal = FROST_ARMOR, shift = INTELLECT },
     G = { normal = WATER, shift = FOOD },
     V = ITEMS,
@@ -48,6 +51,7 @@ FoilKeybindsGuides.MAGE = {
   specs = {
     [11582] = {
       name = "Arcane",
+      meanings = MEANINGS,
       priority = {
         { spellID = 400574, level = 20, talent = true, en = "Main nuke. Each cast hits harder and costs more mana. Stop when mana runs low.",
           ptBR = "Ataque principal. Cada conjuração bate mais forte e custa mais mana. Pare quando a mana estiver baixa." },
@@ -97,6 +101,7 @@ FoilKeybindsGuides.MAGE = {
     },
     [11594] = {
       name = "Fire",
+      meanings = MEANINGS,
       priority = {
         { spellID = 11366, level = 20, talent = true, en = "Slow, heavy opener. Cast it before the enemy reaches you.",
           ptBR = "Abertura lenta e pesada. Lance antes de o inimigo chegar até você." },
@@ -146,6 +151,7 @@ FoilKeybindsGuides.MAGE = {
     },
     [11601] = {
       name = "Frost",
+      meanings = MEANINGS,
       priority = {
         { spellID = 11426, level = 40, talent = true, en = "Shield that absorbs damage. Put it up before the pull.",
           ptBR = "Escudo que absorve dano. Aplique antes de puxar." },

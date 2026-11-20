@@ -7,7 +7,7 @@ FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
 local function T(id, name) return { spellID = id, name = name, talent = true } end
-local POT, BAND = { item = "POT" }, { item = "BAND" }
+local HSPOT, HEAL, EAT = { item = "HSPOT" }, { item = "HEAL" }, { item = "EAT" }
 
 local HS, BATTLE_SHOUT, CHARGE, REND = S(78, "Heroic Strike"), S(6673, "Battle Shout"), S(100, "Charge"), S(772, "Rend")
 local THUNDER_CLAP, HAMSTRING, BLOODRAGE, SHIELD_BASH = S(6343, "Thunder Clap"), S(1715, "Hamstring"), S(2687, "Bloodrage"), S(72, "Shield Bash")
@@ -22,7 +22,7 @@ local PIERCING_HOWL, BLOODTHIRST = T(12323, "Piercing Howl"), T(23881, "Bloodthi
 local CONCUSSION, SHIELD_SLAM = T(12809, "Concussion Blow"), T(23922, "Shield Slam")
 
 -- Keys every spec shares from 20 on: gap closers on Q, shouts on E, rage on R, stances on F.
-local ITEMS = { normal = POT, shift = BAND }
+local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
 local CLOSERS = { normal = CHARGE, shift = INTERCEPT, alt = PUMMEL }
 local SHOUTS = { normal = BATTLE_SHOUT, shift = DEMO_SHOUT, alt = INTIMIDATING, altshift = CHALLENGING }
 local RAGE2 = { normal = BLOODRAGE, shift = BERSERKER_RAGE, alt = RETALIATION }
@@ -30,6 +30,11 @@ local RAGE3 = { normal = BLOODRAGE, shift = BERSERKER_RAGE, alt = RETALIATION, a
 local STANCES = { normal = DEFENSIVE, shift = BERSERKER, alt = DISARM, altshift = SHIELD_BLOCK }
 local THREAT = { normal = SUNDER, shift = TAUNT, alt = SHIELD_BASH }
 local FINISH = { normal = EXECUTE, shift = VICTORY_RUSH }
+-- One meaning per key in every range: area hits on 5, taunts and slows on T, defense on 4 for Protection.
+local MEANINGS = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "dot", ["5"] = "aoe", Q = "utility", E = "buff",
+  R = "buff", T = "utility", F = "form", V = "items" }
+local PROT_MEANINGS = { ["1"] = "main", ["2"] = "main", ["3"] = "dot", ["4"] = "defense", ["5"] = "aoe", Q = "utility", E = "buff",
+  R = "buff", T = "utility", F = "form", G = "dot", V = "items" }
 
 FoilKeybindsGuides.WARRIOR = {
   suggested = 11650, -- Arms levels best: big two-handed hits and the most healing from Victory Rush per kill
@@ -39,17 +44,18 @@ FoilKeybindsGuides.WARRIOR = {
     ["1"] = { normal = HS, shift = SUNDER },
     ["2"] = { normal = REND, shift = REVENGE },
     ["3"] = { normal = OVERPOWER, shift = SHIELD_BASH },
-    ["4"] = { normal = THUNDER_CLAP, shift = TAUNT },
-    ["5"] = { normal = HAMSTRING, shift = MOCKING },
+    ["5"] = { normal = THUNDER_CLAP, shift = TAUNT },
     Q = { normal = CHARGE },
     E = { normal = BATTLE_SHOUT, shift = DEMO_SHOUT },
     R = { normal = BLOODRAGE },
+    T = { normal = HAMSTRING, shift = MOCKING },
     F = { normal = DEFENSIVE, shift = SHIELD_BLOCK, alt = DISARM },
     V = ITEMS,
   },
   specs = {
     [11650] = {
       name = "Arms",
+      meanings = MEANINGS,
       priority = {
         { spellID = 100, level = 4, en = "Opener: rush to the target and gain rage.",
           ptBR = "Abertura: avance até o alvo e ganhe raiva." },
@@ -98,6 +104,7 @@ FoilKeybindsGuides.WARRIOR = {
     },
     [11657] = {
       name = "Fury",
+      meanings = MEANINGS,
       priority = {
         { spellID = 100, level = 4, en = "Opener: rush to the target and gain rage.",
           ptBR = "Abertura: avance até o alvo e ganhe raiva." },
@@ -144,6 +151,7 @@ FoilKeybindsGuides.WARRIOR = {
     },
     [11670] = {
       name = "Protection",
+      meanings = PROT_MEANINGS,
       priority = {
         { spellID = 2565, level = 16, en = "Blocks the next hits. A block also lets you use Revenge.",
           ptBR = "Bloqueia os próximos golpes. Um bloqueio também libera o seu contra-ataque." },
@@ -164,13 +172,13 @@ FoilKeybindsGuides.WARRIOR = {
         [2] = {
           ["1"] = { normal = SUNDER, shift = HS },
           ["2"] = { normal = REVENGE, shift = CLEAVE },
-          ["3"] = { normal = SHIELD_BLOCK, shift = SHIELD_BASH },
-          ["4"] = { normal = THUNDER_CLAP, shift = DEMO_SHOUT },
-          ["5"] = { normal = CONCUSSION, shift = REND, alt = HAMSTRING },
+          ["3"] = { normal = REND, shift = SHIELD_BASH, alt = HAMSTRING },
+          ["4"] = { normal = SHIELD_BLOCK, shift = CONCUSSION },
+          ["5"] = { normal = THUNDER_CLAP, shift = DEMO_SHOUT },
           Q = CLOSERS,
           E = { normal = BATTLE_SHOUT, shift = INTIMIDATING, alt = CHALLENGING },
-          R = { normal = TAUNT, shift = MOCKING },
-          T = RAGE2,
+          R = RAGE2,
+          T = { normal = TAUNT, shift = MOCKING },
           F = { normal = DEFENSIVE, shift = BERSERKER, alt = DISARM, altshift = SHIELD_WALL },
           G = { normal = VICTORY_RUSH, shift = EXECUTE, alt = OVERPOWER },
           V = ITEMS,
@@ -183,8 +191,8 @@ FoilKeybindsGuides.WARRIOR = {
           ["5"] = { normal = THUNDER_CLAP, shift = DEMO_SHOUT },
           Q = CLOSERS,
           E = { normal = BATTLE_SHOUT, shift = INTIMIDATING, alt = CHALLENGING },
-          R = { normal = TAUNT, shift = MOCKING },
-          T = RAGE3,
+          R = RAGE3,
+          T = { normal = TAUNT, shift = MOCKING },
           F = { normal = DEFENSIVE, shift = BERSERKER, alt = DISARM, altshift = SHIELD_WALL },
           G = { normal = VICTORY_RUSH, shift = EXECUTE, alt = OVERPOWER },
           V = ITEMS,
