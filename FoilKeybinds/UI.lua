@@ -238,7 +238,9 @@ for _, k in ipairs(LAYOUT) do
   b.label:SetPoint("TOPLEFT", 8, -6); b.label:SetText(L["KEY_" .. key] or key)
   if k.move then
     keyFace(b, T.moveTop, T.moveBot)
-    b.label:SetTextColor(0.44, 0.6, 0.46); b:EnableMouse(false)
+    b.label:SetTextColor(0.44, 0.6, 0.46)
+    -- Not editable; only the wizard hears the click (its bar says why the key is blocked).
+    b:SetScript("OnClick", function() if pv and pv.wiz and pv.wiz.click then pv.wiz.click(key) end end)
   else
     keyFace(b, T.keyTop, T.keyBot)
     ns.KEY_ORDER[#ns.KEY_ORDER + 1] = key

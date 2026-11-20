@@ -73,7 +73,7 @@ show = function()
   local st = wz.steps[wz.i]
   local k = st and wz.map[st.key]
   ns.StartPreview(ns.TemplateKeys(ns.BuildTemplate(wz.t, wz.map), ns.SpellLookup), wz.title, use,
-    { click = click, stop = stop, sel = st and (k or false) or nil })
+    { click = click, stop = stop, sel = st and (k or false) }) -- nil past the last step, false when left out
   bar:SetShown(st ~= nil)
   bar.msg:SetText("")
   if not st then return end

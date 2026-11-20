@@ -305,6 +305,7 @@ local function sameKeys(a, b) -- empty setups do not count (the selected key get
   local function filled(k) local o = {}; for key, s in pairs(k) do if next(s.slots) then o[key] = s end end; return o end
   return same(filled(a), filled(b))
 end
+local backup0 = ns.Copy(db.backup)
 db.keys, db.guide, db.applied, db.wizard, db.copyUndo, db.copyUndoGuide, db.copyUndoLive, db.saved = {}, nil, {}, nil, nil, nil, nil, nil
 ns.guide.hint = nil
 G.SlashCmdList.FOILKEYBINDS("")
@@ -350,6 +351,11 @@ click(L.WIZARD_BACK)
 assert(w.i == 1 and showing(L.WIZARD_KEY:format("2")), "back")
 click(L.WIZARD_NEXT); click(L.WIZARD_SKIP)
 assert(w.i == 3 and w.map["2"] == false, "skip")
+click(L.WIZARD_BACK) -- a left-out group: no key selected on the board
+assert(w.i == 2 and label() == L.PICK_KEY and showing(L.WIZARD_KEY_OUT), "skipped step highlights a key")
+click(L.WIZARD_NEXT)
+clickKey("W") -- movement keys: blocked, the bar says why
+assert(w.map["3"] == "3" and showing(L.WIZARD_BLOCKED_move), "W not blocked")
 -- Plain Space for a group with a plain press: nothing moves, the bar says why.
 clickKey(L.KEY_SPACE)
 assert(w.map["3"] == "3" and showing(L.WIZARD_BLOCKED_space), "blocked key")
@@ -407,5 +413,5 @@ local n0 = #said
 ev.__scripts.OnEvent(ev, "PLAYER_LEVEL_UP", 40) -- the item swap may add its own line after it
 assert((said[n0 + 1] or ""):find(L.WIZARD_LEVELUP:format(40, "Affliction", "40-60"), 1, true), "no wizard level-up line")
 db.keys, db.guide, db.applied, db.wizard, db.copyUndo, db.copyUndoGuide, db.copyUndoLive, db.saved = ns.Copy(live), nil, {}, nil, nil, nil, nil, nil
-ns.guide.hint = nil
+db.backup, ns.guide.hint = backup0, nil
 print("smoke ok")
