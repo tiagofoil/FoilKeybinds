@@ -754,8 +754,7 @@ end)
 -- PENDING (v6): classes not rebuilt on the home keys yet (tickets 02 to 04). Their data check problems are
 -- counted, not failed; the trainer check still runs on them. Each ticket takes its classes out.
 local GENERAL = { [5019] = 1 }
-local PENDING = { DRUID = true, HUNTER = true, PALADIN = true, ROGUE = true, SHAMAN = true,
-  WARRIOR = true }
+local PENDING = { HUNTER = true, ROGUE = true, WARRIOR = true }
 local pending = 0
 test("guide data: TOC matches the main addon, every class passes the data check and the trainer fixture", function()
   local toc = assert(io.open("FoilKeybinds_Guides/FoilKeybinds_Guides.toc")):read("*a")
