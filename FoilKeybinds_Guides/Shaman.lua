@@ -190,6 +190,7 @@ FoilKeybindsGuides.SHAMAN = {
       },
       templates = {
         -- Heals on the plain press, solo damage on Shift (Lightning Bolt on Mouse 4, Chain Lightning on Mouse 5).
+        -- From 40 Chain Heal is the main heal on Mouse 4 and Lesser Healing Wave moves to 3.
         [2] = {
           BUTTON4 = { normal = LHW, shift = BOLT },
           BUTTON5 = { normal = STREAM, shift = CHAIN_LIGHTNING },
@@ -207,7 +208,7 @@ FoilKeybindsGuides.SHAMAN = {
           C = FORM,
         },
         [3] = {
-          BUTTON4 = { normal = LHW, shift = BOLT },
+          BUTTON4 = { normal = CHAIN_HEAL, shift = BOLT },
           BUTTON5 = { normal = RIPTIDE, shift = CHAIN_LIGHTNING },
           E = CC,
           F = SHOCKS,
@@ -216,7 +217,7 @@ FoilKeybindsGuides.SHAMAN = {
           V = ITEMS,
           ["1"] = KICK,
           ["2"] = GUARD,
-          ["3"] = { normal = CHAIN_HEAL, shift = STREAM },
+          ["3"] = { normal = LHW, shift = STREAM },
           ["4"] = SELF,
           T = { normal = CALL, shift = SPRING, alt = STRENGTH, altshift = STONESKIN },
           X = SITUATIONAL,
