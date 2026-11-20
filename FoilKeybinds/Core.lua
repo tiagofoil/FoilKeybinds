@@ -330,6 +330,31 @@ function ns.Copy(t)
   return c
 end
 
+-- Deep equality of plain tables.
+function ns.Same(a, b)
+  if type(a) ~= "table" or type(b) ~= "table" then return a == b end
+  for k, v in pairs(a) do if not ns.Same(v, b[k]) then return false end end
+  for k in pairs(b) do if a[k] == nil then return false end end
+  return true
+end
+
+-- Saved key sets (FoilKeybindsDB.saved), newest first: { name, keys, auto }. Auto sets come before
+-- anything replaces the keys; one is skipped when those keys are already saved, and only the newest
+-- MAX_AUTO stay. Manual sets stay until deleted. Returns true when the set went in.
+ns.MAX_AUTO = 10
+function ns.PushSaved(list, set)
+  if not next(set.keys) then return false end
+  if set.auto then for _, s in ipairs(list) do if ns.Same(s.keys, set.keys) then return false end end end
+  table.insert(list, 1, set)
+  local autos = 0
+  for _, s in ipairs(list) do if s.auto then autos = autos + 1 end end
+  for i = #list, 1, -1 do
+    if autos <= ns.MAX_AUTO then break end
+    if list[i].auto then table.remove(list, i); autos = autos - 1 end
+  end
+  return true
+end
+
 -- index = class -> { "Name-Realm" = keys }. Other characters of that class, sorted, without me.
 function ns.SameClass(index, class, me)
   local out = {}

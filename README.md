@@ -19,6 +19,7 @@ A WoW Forever addon that puts your whole layout on the keys near WASD. Each key 
 
 - One macro per key, with the Shift, Alt, Alt+Shift and Ctrl variants inside it.
 - Guide tab for all 9 classes (`/fkb guide`): the main abilities of your spec in rotation order, what each one is for and which key it is on, plus a ready-made layout for levels 1-19, 20-39 and 40-60. Preview a layout, then Use it; Undo brings your own keys back. The guides are new; report a wrong key in the GitHub issues.
+- Layouts menu: save your keys, load or delete a saved set, or copy the keys of another character of your class. Before a layout, a copy or an Undo replaces your keys, they are saved there automatically (the last 10).
 - Canvas editor: click a key, pick a learned spell or a consumable for each slot.
 - Items: potions, Healthstone, bombs and bandages use the best one in your bags.
 - Places each macro on the bar slot the key already presses and clears the modifier bindings that would block it.

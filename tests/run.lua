@@ -806,6 +806,20 @@ test("key label: plain press is the key, a modifier goes first, key names from t
   eq(core.KeyLabel("SPACE", "altshift", labels), "Alt+Shift+Espaço")
 end)
 
+test("saved keys: newest first, auto set skipped when already saved, only the newest autos stay", function()
+  local list, k1, k2 = {}, { Q = { slots = { normal = sp("A") } } }, { Q = { slots = { normal = sp("B") } } }
+  assert(core.PushSaved(list, { name = "mine", keys = k1 }))
+  assert(not core.PushSaved(list, { name = "a", keys = core.Copy(k1), auto = true }), "auto copy of a saved set")
+  assert(not core.PushSaved(list, { name = "e", keys = {}, auto = true }), "empty keys saved")
+  for i = 1, core.MAX_AUTO + 2 do
+    assert(core.PushSaved(list, { name = "auto" .. i, keys = { Q = { slots = { normal = sp("X" .. i) } } }, auto = true }))
+  end
+  assert(core.PushSaved(list, { name = "mine2", keys = k1 }), "a manual save always goes in")
+  eq(list[1].name, "mine2"); eq(list[2].name, "auto" .. (core.MAX_AUTO + 2)); eq(list[#list].name, "mine")
+  eq(#list, core.MAX_AUTO + 2)
+  assert(core.Same(k2, { Q = { slots = { normal = sp("B") } } }) and not core.Same(k1, k2) and not core.Same(k1, {}))
+end)
+
 for _, t in ipairs(tests) do
   local ok, err = pcall(t[2])
   print((ok and "ok   " or "FAIL ") .. t[1] .. (ok and "" or ("\n     " .. tostring(err))))

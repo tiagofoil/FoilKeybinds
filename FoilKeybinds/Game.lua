@@ -104,10 +104,45 @@ function ns.SaveIndex()
   FoilKeybindsAccount[class][me] = ns.Copy(FoilKeybindsDB.keys)
 end
 
--- Copy from and "Use this layout" before Apply: the oldest pending backup stays, so Undo always brings
--- back the player's own keys (and the used template they had), however many copies came after it.
-local function keepUndo(db)
-  if not db.copyUndo then db.copyUndo, db.copyUndoGuide = ns.Copy(db.keys), db.guide or false end
+-- Before anything replaces the keys, they go in the saved sets (Layouts menu), so no replace loses them.
+local function autoSave(db, why)
+  db.saved = db.saved or {}
+  ns.PushSaved(db.saved, { name = L.AUTO_SAVED:format(why, date("%d/%m %H:%M")), keys = ns.Copy(db.keys), auto = true })
+end
+
+-- Copy from, "Use this layout" and a loaded set: the oldest pending backup stays, so Undo brings back
+-- the player's own keys (and the used template they had), however many replaces came after it.
+-- After an Apply (copyUndoLive) the backup still works for Undo, and the next replace starts a fresh one.
+local function keepUndo(db, why)
+  autoSave(db, why)
+  if not db.copyUndo or db.copyUndoLive then
+    db.copyUndo, db.copyUndoGuide, db.copyUndoLive = ns.Copy(db.keys), db.guide or false, nil
+  end
+end
+
+-- Layouts menu: save the keys as they are now (a manual set, kept until deleted).
+function ns.SaveCurrent()
+  local db = FoilKeybindsDB
+  db.saved = db.saved or {}
+  local name = L.SAVED_NAME:format(date("%d/%m %H:%M"))
+  if not ns.PushSaved(db.saved, { name = name, keys = ns.Copy(db.keys) }) then return ns.Say(L.NOTHING_TO_SAVE) end
+  ns.Say(L.KEYS_SAVED:format(name))
+end
+
+-- A saved set becomes the keys. Not applied; Undo brings the old keys back.
+function ns.LoadSaved(set)
+  local db = FoilKeybindsDB
+  keepUndo(db, set.name)
+  db.keys, db.guide = ns.Copy(set.keys), nil
+  if ns.ClearHistory then ns.ClearHistory() end
+  if ns.Refresh then ns.Refresh() end
+  ns.Say(L.KEYS_LOADED:format(set.name))
+end
+
+function ns.DeleteSaved(set)
+  for i, s in ipairs(FoilKeybindsDB.saved or {}) do
+    if s == set then table.remove(FoilKeybindsDB.saved, i); return ns.Say(L.SAVED_DELETED:format(set.name)) end
+  end
 end
 
 -- Every place that replaces the keys table clears the Undo edit history (its steps would land in the
@@ -117,7 +152,7 @@ function ns.CopyFrom(name)
   local me, class = ns.Me()
   local src = FoilKeybindsAccount[class] and FoilKeybindsAccount[class][name]
   if not src or name == me then return end
-  keepUndo(FoilKeybindsDB)
+  keepUndo(FoilKeybindsDB, name)
   FoilKeybindsDB.keys, FoilKeybindsDB.guide = ns.Copy(src), nil -- no level-up line for a layout no longer on the keys
   if ns.ClearHistory then ns.ClearHistory() end
   if ns.Refresh then ns.Refresh() end
@@ -286,7 +321,7 @@ local function run(p, quiet)
   for _, n in ipairs(p.notes) do ns.Say(n) end
   SaveBindings(GetCurrentBindingSet())
   built = ns.best
-  if not quiet then db.copyUndo, db.copyUndoGuide = nil, nil end -- the copy is live now; Undo reverts the Apply instead
+  if not quiet and db.copyUndo then db.copyUndoLive = true end -- Undo still brings the old keys back; the next replace starts over
   ns.SaveIndex()
   if quiet then ns.Say(L.NOTHING_TO_CHANGE) else ns.Info((p.manage and L.DONE or L.DONE_MACROS):format(done)) end
   if ns.Refresh then ns.Refresh() end
@@ -404,8 +439,10 @@ function ns.UndoCopy()
   local db = FoilKeybindsDB
   if not db.copyUndo then return false end
   local template = db.guide ~= nil
+  autoSave(db, L.UNDO)
   if db.copyUndoGuide ~= nil then db.guide = db.copyUndoGuide or nil end -- no level-up line for an undone layout
-  db.keys, db.copyUndo, db.copyUndoGuide = db.copyUndo, nil, nil; if ns.ClearHistory then ns.ClearHistory() end
+  db.keys, db.copyUndo, db.copyUndoGuide, db.copyUndoLive = db.copyUndo, nil, nil, nil
+  if ns.ClearHistory then ns.ClearHistory() end
   if ns.Refresh then ns.Refresh() end
   ns.Say(template and L.TEMPLATE_UNDONE or L.COPY_UNDONE)
   return true
@@ -453,7 +490,7 @@ function ns.UseTemplate(template, used)
   if waiting then ns.Say(L.TEMPLATE_LOADING); return false end
   ns.ScanBags()
   local dropped = ns.FitKeys(keys, ns.best)
-  keepUndo(db)
+  keepUndo(db, used.name .. " " .. ns.BracketRange(used.bracket))
   db.keys = keys
   -- told starts at the current bracket: a level 30 using the 1-19 layout hears nothing until 40.
   used.told = math.max(used.bracket, ns.BracketOf(UnitLevel("player") or 1))

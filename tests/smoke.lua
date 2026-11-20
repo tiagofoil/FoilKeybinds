@@ -36,7 +36,7 @@ local env = {
   GetMacroIndexByName = function() return 0 end, UnitClass = function() return "Warlock", "WARLOCK" end,
   UnitName = function() return "Tester" end, GetRealmName = function() return "Realm" end,
   GetLocale = function() return "enUS" end, GameTooltip_Hide = function() end,
-  SetCursor = function() end, ResetCursor = function() end, print = function() end,
+  SetCursor = function() end, ResetCursor = function() end, print = function() end, date = os.date,
 }
 -- Game API namespaces: every function exists and answers nothing.
 local function api() return setmetatable({}, { __index = function() return function() end end }) end
@@ -212,6 +212,49 @@ assert(db.guide.bracket == 2, "second layout not used")
 G.SlashCmdList.FOILKEYBINDS("undo")
 assert(same(live, db.keys) and db.guide == nil and db.copyUndo == nil, "undo after two layouts lost the own keys")
 
+-- Use, Apply, fight, then Undo (the bug of 2026-11-20): the own keys come back, and they were auto-saved.
+click(L.GUIDE_PREVIEW); click(L.PREVIEW_USE)
+local tpl = ns.Copy(db.keys)
+local function isSaved(keys) for _, s in ipairs(db.saved or {}) do if same(keys, s.keys) then return true end end end
+assert(isSaved(live), "own keys not auto-saved before Use")
+for _, n in ipairs({ "GetNumMacros", "CreateMacro", "EditMacro", "GetBindingAction", "SetBinding", "SaveBindings",
+  "GetCurrentBindingSet", "GetActionInfo", "GetActionText", "PickupAction", "PickupMacro", "PlaceAction", "ClearCursor",
+  "GetBindingKey", "GetMacroInfo", "GetBindingName", "DeleteMacro", "GetCursorInfo", "PickupSpell", "PickupItem" }) do
+  if not rawget(G, n) then G[n] = function() return 0 end end
+end
+G.GetNumMacros = function() return 0, 0 end
+G.GetBindingAction, G.GetActionInfo, G.GetActionText, G.GetMacroInfo, G.GetCursorInfo = function() return "" end,
+  function() end, function() end, function() end, function() end
+G.CreateMacro = function() return 1 end
+ns.Apply()
+click(OKAY or "OK")
+assert(db.copyUndoLive, "Apply did not run")
+G.SlashCmdList.FOILKEYBINDS("undo")
+assert(same(live, db.keys) and db.copyUndo == nil, "undo after Apply lost the own keys")
+assert(isSaved(tpl), "keys replaced by Undo not auto-saved")
+-- After Apply the next replace starts a fresh backup: Undo goes one step back, not to older keys.
+click(L.GUIDE_PREVIEW); click(L.PREVIEW_USE)
+db.copyUndoLive = true -- as after an Apply
+click("20-39"); click(L.GUIDE_PREVIEW); click(L.PREVIEW_USE)
+G.SlashCmdList.FOILKEYBINDS("undo")
+assert(same(tpl, db.keys), "undo after Apply then Use did not bring the applied keys back")
+G.SlashCmdList.FOILKEYBINDS("undo") -- no backup left: keys stay
+assert(same(tpl, db.keys))
+-- Save, load, delete.
+db.keys = ns.Copy(live)
+local n0 = #db.saved
+ns.SaveCurrent()
+local mineSet = db.saved[1]
+assert(#db.saved == n0 + 1 and not mineSet.auto and same(live, mineSet.keys), "save")
+db.keys = ns.Copy(tpl)
+ns.LoadSaved(mineSet)
+assert(same(live, db.keys) and db.keys ~= mineSet.keys, "load")
+G.SlashCmdList.FOILKEYBINDS("undo")
+assert(same(tpl, db.keys), "undo after load")
+ns.DeleteSaved(mineSet)
+for _, s in ipairs(db.saved) do assert(s ~= mineSet, "delete") end
+db.keys, db.guide, db.applied = ns.Copy(live), nil, {} -- the stub Apply's macros are not in this world
+
 -- Respec with the window open: the points are read again on SPELLS_CHANGED, the picks stay.
 POINTS[11629], POINTS[11637] = 20, 0
 f.__scripts.OnEvent(f, "SPELLS_CHANGED")
@@ -242,7 +285,7 @@ assert(#said == n + 1 and lastSaid():find(L.GUIDE_LEVELUP:format(40, "Affliction
 ev.__scripts.OnEvent(ev, "PLAYER_LEVEL_UP", 41)
 assert(#said == n + 1, "level-up line twice")
 
--- Copy from after the layout went live (Apply cleared the undo slot): the level-up line stops,
+-- Copy from with no pending undo: the level-up line stops,
 -- Undo brings the layout's keys and its used template back.
 db.copyUndo, db.copyUndoGuide = nil, nil
 local used, mine = db.guide, ns.Copy(db.keys)

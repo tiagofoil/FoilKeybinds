@@ -42,13 +42,23 @@ local undoBtn = ns.Button(keysPane, 100, 26, L.UNDO)
 undoBtn:SetPoint("RIGHT", applyBtn, "LEFT", -8, 0)
 undoBtn:SetScript("OnClick", function() ns.UndoStep() end)
 
-local copyBtn = ns.Button(keysPane, 120, 26, L.COPY_FROM)
+-- Layouts menu: save the keys, load or delete a saved set, copy another character's keys.
+local copyBtn = ns.Button(keysPane, 120, 26, L.LAYOUTS)
 copyBtn:SetPoint("RIGHT", undoBtn, "LEFT", -8, 0)
 copyBtn:SetScript("OnClick", function(self)
   local me, class = ns.Me()
   local list = ns.SameClass(FoilKeybindsAccount, class, me)
-  if #list == 0 then return ns.Say(L.COPY_NONE) end
   MenuUtil.CreateContextMenu(self, function(_, root)
+    root:CreateButton(L.SAVE_KEYS, ns.SaveCurrent)
+    local saved = FoilKeybindsDB.saved or {}
+    if #saved > 0 then root:CreateTitle(L.SAVED_TITLE) end
+    for _, set in ipairs(saved) do
+      local sub = root:CreateButton(set.name)
+      sub:CreateButton(L.LOAD, function() ns.LoadSaved(set) end)
+      sub:CreateButton(L.DELETE, function() ns.DeleteSaved(set) end)
+    end
+    root:CreateTitle(L.COPY_FROM)
+    if #list == 0 then root:CreateTitle(L.COPY_NONE_SHORT) end
     for _, name in ipairs(list) do root:CreateButton(name, function() ns.CopyFrom(name) end) end
   end)
 end)
