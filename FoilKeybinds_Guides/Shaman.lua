@@ -2,7 +2,6 @@
 -- Lightning Bolt and Healing Wave are granted at level 1 on Forever (trainer data bound 8 and 6).
 -- Mana Tide Totem is 17354, the rank the trainer sells at 38: the talent rank's Forever page shows no real
 -- level, so the row carries the trainer level, as Druid.lua does for Claw.
--- Totems by element: fire on 4, earth on 5, water on F, air on G; Call of the Elements on C.
 FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
@@ -20,32 +19,47 @@ local CURE_POISON, CURE_DISEASE, SPIRIT, WOLF = S(526, "Cure Poison"), S(2870, "
 local CHAIN_LIGHTNING, CHAIN_HEAL, MANA_TIDE = S(421, "Chain Lightning"), S(1064, "Chain Heal"), S(17354, "Mana Tide Totem")
 local STORMSTRIKE, RIPTIDE = T(17364, "Stormstrike"), T(408521, "Riptide")
 
--- Keys every spec shares from 20 on: totems by element, cures on T, totem bar on C.
+-- Home keys (docs/spec-v6.md). No castsequence: the shocks share a cooldown and the totems are dropped once
+-- per pull. Earth Shock on 1 (it interrupts) and on a mouse button when it is also an attack; Frost Shock and
+-- Earthbind on E, Flame Shock and Searing Totem on F, Purge on Q, Ghost Wolf on C.
+-- Totems by job, not by element: buff totems go on T (a far buff key: dropped before the pull, rarely pressed
+-- again), damage totems on F and R (Fire Nova and Magma are the area damage), Stoneclaw and Grounding on 2
+-- (they take hits and spells for you), Healing Stream on 3 (a heal), Tremor, Poison Cleansing and Totemic
+-- Recall on X (situational). Lightning Shield and the weapon buffs on 4.
 local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
-local FIRE = { normal = SEARING, shift = MAGMA, alt = FT_TOTEM }
-local EARTH = { normal = STRENGTH, shift = STONESKIN, alt = EARTHBIND, altshift = TREMOR }
-local WATER = { normal = STREAM, shift = SPRING, alt = POISON_TOTEM }
-local AIR = { normal = GROUNDING, shift = WF_TOTEM }
+local CC = { normal = FROST_SHOCK, shift = EARTHBIND }
+local SHOCKS = { normal = FLAME_SHOCK, shift = SEARING }
+local DEBUFF = { normal = PURGE }
+local KICK = { normal = EARTH_SHOCK }
+local GUARD = { normal = STONECLAW, shift = GROUNDING }
+local SELF_HEALS2 = { normal = LHW, shift = HW, alt = STREAM }
+local SELF_HEALS3 = { normal = LHW, shift = HW, alt = STREAM, altshift = CHAIN_HEAL }
+local SELF = { normal = SHIELD, shift = FLAMETONGUE, alt = ROCKBITER, altshift = FROSTBRAND }
+local TOTEMS = { normal = CALL, shift = STRENGTH, alt = STONESKIN, altshift = SPRING }
+local SITUATIONAL = { normal = TREMOR, shift = POISON_TOTEM, alt = RECALL }
 local CURES = { normal = CURE_POISON, shift = CURE_DISEASE, alt = SPIRIT }
-local TOTEM_BAR = { normal = CALL, shift = RECALL }
-local SELF = { normal = SHIELD, shift = WOLF }
-local IMBUES = { normal = FLAMETONGUE, shift = ROCKBITER, alt = FROSTBRAND, altshift = WINDFURY }
+local FORM = { normal = WOLF }
+local AREA = { shift = FIRE_NOVA, alt = MAGMA }
 
 FoilKeybindsGuides.SHAMAN = {
   suggested = 11363, -- Enhancement levels best: melee with totems and shocks, little mana to drink back
   tested = false,
   -- Levels 1-19, every spec: no talent spell yet, the same core spells for all three.
   shared = {
-    ["1"] = { normal = BOLT },
-    ["2"] = { normal = EARTH_SHOCK, shift = PURGE },
-    ["3"] = { normal = FLAME_SHOCK },
-    ["4"] = { normal = SEARING, shift = FIRE_NOVA },
-    ["5"] = { normal = STRENGTH, shift = STONESKIN, alt = EARTHBIND, altshift = STONECLAW },
-    Q = { normal = HW },
-    E = { normal = ROCKBITER, shift = FLAMETONGUE },
-    R = { normal = SHIELD },
-    T = { normal = CURE_POISON, shift = SPIRIT },
+    BUTTON4 = { normal = BOLT },
+    BUTTON5 = { normal = EARTH_SHOCK },
+    E = { normal = EARTHBIND },
+    F = SHOCKS,
+    Q = DEBUFF,
+    R = { shift = FIRE_NOVA },
     V = ITEMS,
+    ["1"] = KICK,
+    ["2"] = { normal = STONECLAW },
+    ["3"] = { normal = HW },
+    ["4"] = { normal = SHIELD, shift = ROCKBITER, alt = FLAMETONGUE },
+    T = { normal = STRENGTH, shift = STONESKIN },
+    X = { normal = TREMOR },
+    Z = { normal = CURE_POISON, shift = SPIRIT },
   },
   specs = {
     [11326] = {
@@ -67,34 +81,38 @@ FoilKeybindsGuides.SHAMAN = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = BOLT, shift = CHAIN_LIGHTNING },
-          ["2"] = { normal = FLAME_SHOCK, shift = FROST_SHOCK },
-          ["3"] = { normal = EARTH_SHOCK, shift = PURGE, alt = FIRE_NOVA },
-          ["4"] = FIRE,
-          ["5"] = EARTH,
-          Q = { normal = LHW, shift = HW },
-          E = IMBUES,
-          R = SELF,
-          T = CURES,
-          F = WATER,
-          G = AIR,
-          C = TOTEM_BAR,
+          BUTTON4 = { normal = BOLT },
+          BUTTON5 = { normal = EARTH_SHOCK },
+          E = CC,
+          F = SHOCKS,
+          Q = DEBUFF,
+          R = { normal = CHAIN_LIGHTNING, shift = FIRE_NOVA, alt = MAGMA },
           V = ITEMS,
+          ["1"] = KICK,
+          ["2"] = GUARD,
+          ["3"] = SELF_HEALS2,
+          ["4"] = SELF,
+          T = TOTEMS,
+          X = SITUATIONAL,
+          Z = CURES,
+          C = FORM,
         },
         [3] = {
-          ["1"] = { normal = BOLT, shift = CHAIN_LIGHTNING },
-          ["2"] = { normal = FLAME_SHOCK, shift = FROST_SHOCK },
-          ["3"] = { normal = EARTH_SHOCK, shift = PURGE, alt = FIRE_NOVA },
-          ["4"] = FIRE,
-          ["5"] = EARTH,
-          Q = { normal = LHW, shift = HW, alt = CHAIN_HEAL },
-          E = IMBUES,
-          R = SELF,
-          T = CURES,
-          F = WATER,
-          G = AIR,
-          C = TOTEM_BAR,
+          BUTTON4 = { normal = BOLT },
+          BUTTON5 = { normal = EARTH_SHOCK },
+          E = CC,
+          F = SHOCKS,
+          Q = DEBUFF,
+          R = { normal = CHAIN_LIGHTNING, shift = FIRE_NOVA, alt = MAGMA },
           V = ITEMS,
+          ["1"] = KICK,
+          ["2"] = GUARD,
+          ["3"] = SELF_HEALS3,
+          ["4"] = SELF,
+          T = TOTEMS,
+          X = SITUATIONAL,
+          Z = CURES,
+          C = FORM,
         },
       },
     },
@@ -117,35 +135,40 @@ FoilKeybindsGuides.SHAMAN = {
           ptBR = "Dano extra em lutas longas. Coloque perto do alvo." },
       },
       templates = {
+        -- Melee: Earth Shock, later Stormstrike, as the main attack; Lightning Bolt to pull.
         [2] = {
-          ["1"] = { normal = EARTH_SHOCK, shift = BOLT },
-          ["2"] = { normal = FLAME_SHOCK, shift = FROST_SHOCK },
-          ["3"] = { normal = FIRE_NOVA, shift = PURGE },
-          ["4"] = FIRE,
-          ["5"] = EARTH,
-          Q = { normal = LHW, shift = HW },
-          E = { normal = WINDFURY, shift = ROCKBITER, alt = FLAMETONGUE, altshift = FROSTBRAND },
-          R = SELF,
-          T = CURES,
-          F = WATER,
-          G = AIR,
-          C = TOTEM_BAR,
+          BUTTON4 = { normal = EARTH_SHOCK },
+          BUTTON5 = { normal = BOLT },
+          E = CC,
+          F = SHOCKS,
+          Q = DEBUFF,
+          R = AREA,
           V = ITEMS,
+          ["1"] = KICK,
+          ["2"] = GUARD,
+          ["3"] = SELF_HEALS2,
+          ["4"] = { normal = SHIELD, shift = WINDFURY, alt = FLAMETONGUE, altshift = ROCKBITER, ctrl = FROSTBRAND },
+          T = { normal = CALL, shift = STRENGTH, alt = STONESKIN, altshift = WF_TOTEM, ctrl = FT_TOTEM },
+          X = SITUATIONAL,
+          Z = CURES,
+          C = FORM,
         },
         [3] = {
-          ["1"] = { normal = STORMSTRIKE, shift = BOLT },
-          ["2"] = { normal = EARTH_SHOCK, shift = FLAME_SHOCK, alt = FROST_SHOCK },
-          ["3"] = { normal = FIRE_NOVA, shift = PURGE },
-          ["4"] = FIRE,
-          ["5"] = EARTH,
-          Q = { normal = LHW, shift = HW },
-          E = { normal = WINDFURY, shift = ROCKBITER, alt = FLAMETONGUE, altshift = FROSTBRAND },
-          R = SELF,
-          T = CURES,
-          F = WATER,
-          G = AIR,
-          C = TOTEM_BAR,
+          BUTTON4 = { normal = STORMSTRIKE },
+          BUTTON5 = { normal = EARTH_SHOCK, shift = BOLT },
+          E = CC,
+          F = SHOCKS,
+          Q = DEBUFF,
+          R = AREA,
           V = ITEMS,
+          ["1"] = KICK,
+          ["2"] = GUARD,
+          ["3"] = SELF_HEALS2,
+          ["4"] = { normal = SHIELD, shift = WINDFURY, alt = FLAMETONGUE, altshift = ROCKBITER, ctrl = FROSTBRAND },
+          T = { normal = CALL, shift = STRENGTH, alt = STONESKIN, altshift = WF_TOTEM, ctrl = FT_TOTEM },
+          X = SITUATIONAL,
+          Z = CURES,
+          C = FORM,
         },
       },
     },
@@ -166,37 +189,39 @@ FoilKeybindsGuides.SHAMAN = {
         { spellID = 526, level = 16, en = "Removes a poison.", ptBR = "Remove um veneno." },
       },
       templates = {
+        -- Heals on the plain press, solo damage on Shift (Lightning Bolt on Mouse 4, Chain Lightning on Mouse 5).
         [2] = {
-          ["1"] = { normal = BOLT, shift = CHAIN_LIGHTNING },
-          ["2"] = { normal = FLAME_SHOCK, shift = FROST_SHOCK },
-          ["3"] = { normal = EARTH_SHOCK, shift = PURGE },
-          ["4"] = FIRE,
-          ["5"] = EARTH,
-          Q = { normal = LHW },
-          E = IMBUES,
-          R = SELF,
-          T = CURES,
-          F = { normal = SPRING, shift = STREAM, alt = POISON_TOTEM, altshift = MANA_TIDE },
-          G = AIR,
-          C = TOTEM_BAR,
-          X = { normal = HW },
+          BUTTON4 = { normal = LHW, shift = BOLT },
+          BUTTON5 = { normal = STREAM, shift = CHAIN_LIGHTNING },
+          E = CC,
+          F = SHOCKS,
+          Q = DEBUFF,
+          R = { normal = HW, shift = MANA_TIDE, alt = MAGMA },
           V = ITEMS,
+          ["1"] = KICK,
+          ["2"] = GUARD,
+          ["4"] = SELF,
+          T = { normal = CALL, shift = SPRING, alt = STRENGTH, altshift = STONESKIN },
+          X = SITUATIONAL,
+          Z = CURES,
+          C = FORM,
         },
         [3] = {
-          ["1"] = { normal = BOLT, shift = CHAIN_LIGHTNING },
-          ["2"] = { normal = FLAME_SHOCK, shift = FROST_SHOCK },
-          ["3"] = { normal = EARTH_SHOCK, shift = PURGE },
-          ["4"] = FIRE,
-          ["5"] = EARTH,
-          Q = { normal = LHW, shift = RIPTIDE },
-          E = IMBUES,
-          R = SELF,
-          T = CURES,
-          F = { normal = SPRING, shift = STREAM, alt = POISON_TOTEM, altshift = MANA_TIDE },
-          G = AIR,
-          C = TOTEM_BAR,
-          X = { normal = CHAIN_HEAL, shift = HW },
+          BUTTON4 = { normal = LHW, shift = BOLT },
+          BUTTON5 = { normal = RIPTIDE, shift = CHAIN_LIGHTNING },
+          E = CC,
+          F = SHOCKS,
+          Q = DEBUFF,
+          R = { normal = HW, shift = MANA_TIDE, alt = MAGMA },
           V = ITEMS,
+          ["1"] = KICK,
+          ["2"] = GUARD,
+          ["3"] = { normal = CHAIN_HEAL, shift = STREAM },
+          ["4"] = SELF,
+          T = { normal = CALL, shift = SPRING, alt = STRENGTH, altshift = STONESKIN },
+          X = SITUATIONAL,
+          Z = CURES,
+          C = FORM,
         },
       },
     },
