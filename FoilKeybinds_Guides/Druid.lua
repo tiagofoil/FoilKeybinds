@@ -6,7 +6,6 @@ FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
 local function T(id, name) return { spellID = id, name = name, talent = true } end
-local POT, BAND = { item = "POT" }, { item = "BAND" }
 
 local WRATH, MOONFIRE, REJUV, THORNS = S(5176, "Wrath"), S(8921, "Moonfire"), S(774, "Rejuvenation"), S(467, "Thorns")
 local HT, ROOTS, MOTW, BEAR = S(5185, "Healing Touch"), S(339, "Entangling Roots"), S(1126, "Mark of the Wild"), S(5487, "Bear Form")
@@ -22,12 +21,13 @@ local DIRE_BEAR, BARKSKIN, CHALLENGING = S(9634, "Dire Bear Form"), S(22812, "Ba
 local INSECT, MOONKIN = T(5570, "Insect Swarm"), T(24858, "Moonkin Form")
 local PRIMAL_BITE, WILD_GROWTH = T(407995, "Primal Bite"), T(408120, "Wild Growth")
 
-local ITEMS = { normal = POT, shift = BAND }
+local ITEMS = { normal = { item = "HSPOT" }, shift = { item = "HEAL" }, alt = { item = "EAT" } }
 
 FoilKeybindsGuides.DRUID = {
   suggested = 11347, -- Feral levels best: cat damage with no mana to drink back, bear for the hard pulls
   tested = false,
-  -- Levels 1-19, every spec: caster spells on plain keys, bear spells on Shift.
+  -- Levels 1-19, Balance and Restoration: caster spells on plain keys, bear spells on Shift. Feral has its own
+  -- bracket-1 template (the same spells on the keys of its cat layout), so each key keeps one meaning.
   shared = {
     ["1"] = { normal = WRATH, shift = MAUL },
     ["2"] = { normal = MOONFIRE, shift = SWIPE },
@@ -42,6 +42,7 @@ FoilKeybindsGuides.DRUID = {
   specs = {
     [11328] = {
       name = "Balance",
+      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "cc", ["4"] = "utility", ["5"] = "dot", Q = "heal", E = "heal", R = "form", T = "aoe", F = "buff", G = "utility", C = "defense", V = "items" },
       priority = {
         { spellID = 8921, level = 4, en = "Opening DoT. Put it on the target first, then cast your nukes.",
           ptBR = "DoT de abertura. Aplique primeiro no alvo e depois use seus ataques principais." },
@@ -62,9 +63,9 @@ FoilKeybindsGuides.DRUID = {
         [2] = {
           ["1"] = { normal = STARFIRE, shift = WRATH },
           ["2"] = { normal = MOONFIRE },
-          ["3"] = { normal = INSECT },
-          ["4"] = { normal = ROOTS, shift = HIBERNATE, alt = GRASP },
-          ["5"] = { normal = FF },
+          ["3"] = { normal = ROOTS, shift = HIBERNATE, alt = GRASP },
+          ["4"] = { normal = FF },
+          ["5"] = { normal = INSECT },
           Q = { normal = HT, shift = REGROWTH },
           E = { normal = REJUV, shift = REMOVE_CURSE, alt = ABOLISH },
           R = { normal = BEAR, shift = CAT, alt = TRAVEL, altshift = AQUATIC },
@@ -75,9 +76,9 @@ FoilKeybindsGuides.DRUID = {
         [3] = {
           ["1"] = { normal = STARFIRE, shift = WRATH },
           ["2"] = { normal = MOONFIRE },
-          ["3"] = { normal = INSECT },
-          ["4"] = { normal = ROOTS, shift = HIBERNATE, alt = GRASP },
-          ["5"] = { normal = FF },
+          ["3"] = { normal = ROOTS, shift = HIBERNATE, alt = GRASP },
+          ["4"] = { normal = FF },
+          ["5"] = { normal = INSECT },
           Q = { normal = HT, shift = REGROWTH },
           E = { normal = REJUV, shift = REMOVE_CURSE, alt = ABOLISH },
           R = { normal = MOONKIN, shift = DIRE_BEAR, alt = TRAVEL, altshift = CAT },
@@ -91,6 +92,7 @@ FoilKeybindsGuides.DRUID = {
     },
     [11347] = {
       name = "Feral Combat",
+      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "dot", ["4"] = "main", ["5"] = "main", Q = "heal", E = "utility", R = "form", T = "buff", F = "utility", G = "utility", C = "defense", V = "items" },
       priority = {
         { spellID = 5215, level = 20, en = "Stealth before the pull, then open from behind.",
           ptBR = "Furtividade antes do combate, para abrir pelas costas do alvo." },
@@ -110,6 +112,17 @@ FoilKeybindsGuides.DRUID = {
           ptBR = "Na forma de urso: golpe forte que segura a ameaça. Use quando estiver tanqueando." },
       },
       templates = {
+        [1] = {
+          ["1"] = { normal = WRATH, shift = MAUL },
+          ["2"] = { normal = MOONFIRE, shift = SWIPE },
+          Q = { normal = HT, shift = REGROWTH, alt = REJUV },
+          E = { normal = DEMO, shift = BASH },
+          R = { normal = BEAR, shift = ENRAGE, alt = AQUATIC },
+          F = { normal = ROOTS, shift = FF, alt = HIBERNATE },
+          T = { normal = MOTW, shift = THORNS, alt = GRASP },
+          G = { normal = CURE_POISON },
+          V = ITEMS,
+        },
         [2] = {
           ["1"] = { normal = CLAW, shift = MAUL },
           ["2"] = { normal = RAKE, shift = SWIPE },
@@ -143,6 +156,7 @@ FoilKeybindsGuides.DRUID = {
     },
     [11340] = {
       name = "Restoration",
+      meanings = { ["1"] = "main", ["2"] = "dot", ["3"] = "cc", ["4"] = "utility", Q = "heal", E = "heal", R = "form", T = "heal", F = "buff", G = "utility", C = "utility", V = "items" },
       priority = {
         { spellID = 774, level = 4, en = "Heal over time. Put it on whoever takes damage first.",
           ptBR = "Cura ao longo do tempo. Aplique primeiro em quem estiver tomando dano." },
@@ -168,11 +182,11 @@ FoilKeybindsGuides.DRUID = {
           ["4"] = { normal = FF },
           Q = { normal = REJUV },
           E = { normal = REGROWTH },
-          R = { normal = HT, shift = TRANQ },
-          F = { normal = REMOVE_CURSE, shift = ABOLISH },
-          T = { normal = MOTW, shift = THORNS, alt = GRASP },
+          R = { normal = BEAR, shift = CAT, alt = TRAVEL, altshift = AQUATIC },
+          T = { normal = HT, shift = TRANQ },
+          F = { normal = MOTW, shift = THORNS, alt = GRASP },
           G = { normal = REBIRTH },
-          C = { normal = BEAR, shift = CAT, alt = TRAVEL, altshift = AQUATIC },
+          C = { normal = REMOVE_CURSE, shift = ABOLISH },
           V = ITEMS,
         },
         [3] = {
@@ -182,11 +196,11 @@ FoilKeybindsGuides.DRUID = {
           ["4"] = { normal = FF, shift = BARKSKIN },
           Q = { normal = REJUV },
           E = { normal = REGROWTH, shift = WILD_GROWTH },
-          R = { normal = HT, shift = TRANQ },
-          F = { normal = REMOVE_CURSE, shift = ABOLISH },
-          T = { normal = MOTW, shift = THORNS, alt = GRASP },
+          R = { normal = DIRE_BEAR, shift = CAT, alt = TRAVEL, altshift = AQUATIC },
+          T = { normal = HT, shift = TRANQ },
+          F = { normal = MOTW, shift = THORNS, alt = GRASP },
           G = { normal = INNERVATE, shift = REBIRTH },
-          C = { normal = DIRE_BEAR, shift = CAT, alt = TRAVEL, altshift = AQUATIC },
+          C = { normal = REMOVE_CURSE, shift = ABOLISH },
           V = ITEMS,
         },
       },

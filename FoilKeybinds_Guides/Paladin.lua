@@ -5,7 +5,6 @@ FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
 local function T(id, name) return { spellID = id, name = name, talent = true } end
-local POT, BAND = { item = "POT" }, { item = "BAND" }
 
 local SEAL_RIGHT, HOLY_LIGHT, DEVOTION = S(20154, "Seal of Righteousness"), S(635, "Holy Light"), S(465, "Devotion Aura")
 local JUDGEMENT, MIGHT, HOLY_STRIKE = S(20271, "Judgement"), S(19740, "Blessing of Might"), S(679, "Holy Strike")
@@ -24,7 +23,7 @@ local HOLY_SHOCK, VIGIL = T(1311606, "Holy Shock"), T(1310911, "Light's Vigil")
 local DEFENSIVE = { normal = DIV_PROT, shift = LOH, alt = DIVINE_SHIELD }
 local UTILITY2 = { normal = PURIFY, shift = FREEDOM, alt = REDEMPTION }
 local UTILITY3 = { normal = CLEANSE, shift = FREEDOM, alt = REDEMPTION }
-local ITEMS = { normal = POT, shift = BAND }
+local ITEMS = { normal = { item = "HSPOT" }, shift = { item = "HEAL" }, alt = { item = "EAT" } }
 
 FoilKeybindsGuides.PALADIN = {
   suggested = 11559, -- Retribution levels best: more damage per swing, heals itself between pulls
@@ -45,6 +44,7 @@ FoilKeybindsGuides.PALADIN = {
   specs = {
     [11486] = {
       name = "Holy",
+      meanings = { ["1"] = "main", ["2"] = "main", ["3"] = "dot", ["4"] = "cc", ["5"] = "aoe", Q = "heal", E = "defense", R = "buff", T = "utility", F = "buff", V = "items" },
       priority = {
         { spellID = 19750, level = 20, en = "Main heal: fast and cheap.", ptBR = "Cura principal: rápida e barata." },
         { spellID = 635, level = 2, en = "Big heal for heavy damage. Slower and costs more.",
@@ -66,12 +66,11 @@ FoilKeybindsGuides.PALADIN = {
           ["3"] = { normal = HOLY_SHOCK, shift = HOLY_STRIKE },
           ["4"] = { normal = HOJ, shift = EXORCISM },
           ["5"] = { normal = CONSECRATION },
-          Q = { normal = FOL },
-          E = { normal = HOLY_LIGHT },
+          Q = { normal = FOL, shift = HOLY_LIGHT },
+          E = DEFENSIVE,
           R = { normal = WISDOM, shift = KINGS, alt = MIGHT, altshift = BOP },
           F = { normal = CONCENTRATION, shift = DEVOTION },
           T = UTILITY2,
-          G = DEFENSIVE,
           V = ITEMS,
         },
         [3] = {
@@ -80,18 +79,18 @@ FoilKeybindsGuides.PALADIN = {
           ["3"] = { normal = HOLY_SHOCK, shift = HOLY_STRIKE },
           ["4"] = { normal = HOJ, shift = EXORCISM, alt = HOW },
           ["5"] = { normal = CONSECRATION },
-          Q = { normal = FOL },
-          E = { normal = HOLY_LIGHT, shift = VIGIL },
+          Q = { normal = FOL, shift = HOLY_LIGHT, alt = VIGIL },
+          E = DEFENSIVE,
           R = { normal = WISDOM, shift = KINGS, alt = MIGHT, altshift = BOP },
           F = { normal = CONCENTRATION, shift = DEVOTION },
           T = UTILITY3,
-          G = DEFENSIVE,
           V = ITEMS,
         },
       },
     },
     [11541] = {
       name = "Protection",
+      meanings = { ["1"] = "main", ["2"] = "main", ["3"] = "dot", ["4"] = "cc", ["5"] = "aoe", Q = "heal", E = "defense", R = "buff", T = "utility", F = "buff", V = "items" },
       priority = {
         { spellID = 25780, level = 10, en = "More threat from Holy damage. Keep it on while you tank.",
           ptBR = "Mais ameaça com dano Sagrado. Mantenha ativo enquanto tanqueia." },
@@ -112,8 +111,8 @@ FoilKeybindsGuides.PALADIN = {
           ["1"] = { normal = SEAL_FURY, shift = SEAL_RIGHT, alt = SEAL_JUSTICE },
           ["2"] = { normal = JUDGEMENT },
           ["3"] = { normal = HOLY_SHIELD, shift = HOLY_STRIKE },
-          ["4"] = { normal = CONSECRATION },
-          ["5"] = { normal = HOJ, shift = EXORCISM },
+          ["4"] = { normal = HOJ, shift = EXORCISM },
+          ["5"] = { normal = CONSECRATION },
           Q = { normal = FOL, shift = HOLY_LIGHT },
           E = DEFENSIVE,
           R = { normal = KINGS, shift = MIGHT, alt = WISDOM, altshift = BOP },
@@ -125,8 +124,8 @@ FoilKeybindsGuides.PALADIN = {
           ["1"] = { normal = SEAL_FURY, shift = SEAL_RIGHT, alt = SEAL_JUSTICE },
           ["2"] = { normal = JUDGEMENT },
           ["3"] = { normal = HOLY_SHIELD, shift = HOLY_STRIKE },
-          ["4"] = { normal = CONSECRATION },
-          ["5"] = { normal = HOJ, shift = EXORCISM, alt = HOW },
+          ["4"] = { normal = HOJ, shift = EXORCISM, alt = HOW },
+          ["5"] = { normal = CONSECRATION },
           Q = { normal = FOL, shift = HOLY_LIGHT },
           E = DEFENSIVE,
           R = { normal = KINGS, shift = MIGHT, alt = WISDOM, altshift = BOP },
@@ -138,6 +137,7 @@ FoilKeybindsGuides.PALADIN = {
     },
     [11559] = {
       name = "Retribution",
+      meanings = { ["1"] = "main", ["2"] = "main", ["3"] = "dot", ["4"] = "cc", ["5"] = "dot", Q = "heal", E = "defense", R = "buff", T = "utility", F = "buff", V = "items" },
       priority = {
         { spellID = 20375, level = 20, talent = true, en = "Your seal while leveling: extra Holy hits on your swings. Keep it up.",
           ptBR = "Seu selo para subir de nível: golpes extras de dano Sagrado. Mantenha ativo." },
