@@ -6,7 +6,7 @@ A WoW Forever addon that puts your whole layout on the keys near WASD. Each key 
 
 ![The editor: one key per macro, five slots each](docs/screenshots/editor.png)
 
-![The editor with the spell and item panels open](docs/screenshots/editor-side-panels.png)
+![The editor with its side panels open](docs/screenshots/editor-side-panels.png)
 
 ![The cheat sheet](docs/screenshots/cheat-sheet.png) ![The cheat sheet at 0% background](docs/screenshots/cheat-sheet-no-background.png)
 
