@@ -13,9 +13,11 @@ local wt = { forClass = function(c) classes[c] = classes[c] or {}; return classe
 local function load(file) assert(loadfile(dir .. file .. ".lua"))(nil, wt) end
 for _, c in ipairs(CLASSES) do load(c) end
 load("QuestSpells")
+local copyright = assert(io.open(dir .. "../../LICENSE")):read("*a"):match("(Copyright[^%c]*)")
 
 local out = { "-- Forever trainer spells per class: spell ID -> learn level, granted spells -> highest possible level, rank groups.",
-  "-- Built by tools/make_trainer_fixture.lua from What's Training (MIT license, Classes/Camelot).",
+  "-- Built by tools/make_trainer_fixture.lua from What's Training (Classes/Camelot), MIT License,",
+  "-- " .. copyright .. " the What's Training authors. Their full license text is in WhatsTraining/LICENSE.",
   "-- Test only: never packaged. Do not edit by hand, run the tool again.", "return {" }
 for _, c in ipairs(CLASSES) do
   local CLASS = c:upper()

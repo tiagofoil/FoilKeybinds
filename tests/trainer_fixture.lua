@@ -1,5 +1,6 @@
 -- Forever trainer spells per class: spell ID -> learn level, granted spells -> highest possible level, rank groups.
--- Built by tools/make_trainer_fixture.lua from What's Training (MIT license, Classes/Camelot).
+-- Built by tools/make_trainer_fixture.lua from What's Training (Classes/Camelot), MIT License,
+-- Copyright (c) 2019 the What's Training authors. Their full license text is in WhatsTraining/LICENSE.
 -- Test only: never packaged. Do not edit by hand, run the tool again.
 return {
   DRUID = {
