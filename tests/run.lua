@@ -693,7 +693,7 @@ end)
 -- A small valid class; each bad case changes one thing and expects exactly one problem naming it.
 local function goodClass()
   local row = { spellID = 172, level = 4, en = "DoT.", ptBR = "DoT." }
-  local function spec() return { name = "Affliction", priority = { core.Copy(row) },
+  local function spec() return { name = "Affliction", priority = { core.Copy(row) }, meanings = { Q = "main", E = "utility" },
     templates = { [2] = { Q = { normal = { spellID = 172, name = "Corruption" } } }, [3] = { Q = { shift = { item = "POT" } } } } } end
   return { suggested = 1, tested = false, shared = { E = { normal = { spellID = 686, name = "Shadow Bolt" } } },
     specs = { [1] = spec(), [2] = spec() } }
@@ -702,12 +702,12 @@ test("data check: a valid class has no problems", function()
   local p = core.CheckGuide(goodClass()); eq(#p, 0)
 end)
 local BAD = {
-  { "unknown key", function(c) c.specs[1].templates[2].P = { normal = { spellID = 1, name = "X" } } end },
-  { "movement key", function(c) c.specs[1].templates[2].W = { shift = { spellID = 1, name = "X" } } end },
-  { "plain Space", function(c) c.specs[1].templates[2].SPACE = { normal = { spellID = 1, name = "X" } } end },
+  { "unknown key", function(c) c.specs[1].templates[2].P = { normal = { spellID = 1, name = "X" } }; c.specs[1].meanings.P = "main" end },
+  { "movement key", function(c) c.specs[1].templates[2].W = { shift = { spellID = 1, name = "X" } }; c.specs[1].meanings.W = "main" end },
+  { "plain Space", function(c) c.specs[1].templates[2].SPACE = { normal = { spellID = 1, name = "X" } }; c.specs[1].meanings.SPACE = "main" end },
   { "more than 16 keys", function(c)
     local t = c.specs[1].templates[3]
-    for i = 1, 17 do t[core.BOARD[i]] = { shift = { item = "HS" } } end
+    for i = 1, 17 do t[core.BOARD[i]] = { shift = { item = "HS" } }; c.specs[1].meanings[core.BOARD[i]] = "items" end
   end },
   { "unknown slot", function(c) c.specs[1].templates[2].Q.meta = { spellID = 1, name = "X" } end },
   { "unknown item", function(c) c.specs[1].templates[3].Q.shift.item = "FOOD" end },
@@ -948,13 +948,15 @@ test("saved picks merge: this run wins, older picks of other keys stay unless th
   eq(core.MergePicks(nil, { R = "E" }).R, "E")
 end)
 
-test("data check: meanings are checked only with a map, every used template key needs a known one", function()
+test("data check: every spec needs a meanings map, every used template key a known meaning", function()
   local c = goodClass()
-  eq(#core.CheckGuide(c), 0) -- no map yet: fine (ticket 04 makes it required)
-  c.specs[1].meanings = { Q = "main", E = "utility" }
   eq(#core.CheckGuide(c), 0) -- Q from brackets 2 and 3, E from the shared bracket 1 template
-  c.specs[1].meanings.E = nil
+  c.specs[2].meanings = nil
   local p = core.CheckGuide(c)
+  eq(#p, 1); assert(p[1]:find("spec 2: no meanings map", 1, true), p[1])
+  c.specs[2].meanings = { Q = "main", E = "utility" }
+  c.specs[1].meanings.E = nil
+  p = core.CheckGuide(c)
   eq(#p, 1); assert(p[1]:find("bracket 1 key E: no meaning", 1, true), p[1])
   c.specs[1].meanings.E = "stuff"
   p = core.CheckGuide(c)

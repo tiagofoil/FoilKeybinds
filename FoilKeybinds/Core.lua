@@ -787,11 +787,11 @@ function ns.CheckGuide(class)
       if not text(r.en) then bad(at, "no en text") end
       if not text(r.ptBR) then bad(at, "no ptBR text") end
     end
+    if not spec.meanings then bad(where, "no meanings map") end
     for b in ipairs(ns.BRACKETS) do
       local t = (spec.templates or {})[b]
       if t then checkTemplate(where .. " bracket " .. b, t)
       elseif not ns.TemplateFor(class, gid, b) then bad(where, "no template for bracket " .. b) end
-      -- ponytail: meanings are checked only when the spec has a map; ticket 04 makes the map required.
       local used = spec.meanings and ns.TemplateFor(class, gid, b)
       for key in pairs(used or {}) do
         local m = spec.meanings[key]
