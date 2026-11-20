@@ -2,7 +2,7 @@
 ## Title: Foil Keybinds
 ## Notes: One macro per key with Shift, Alt, Alt+Shift and Ctrl variants. /fkb
 ## Author: Foil
-## Version: 0.1.0
+## Version: @project-version@
 ## OptionalDeps: GrimorioSetup, WhatsTraining
 ## SavedVariablesPerCharacter: FoilKeybindsDB
 ## SavedVariables: FoilKeybindsAccount

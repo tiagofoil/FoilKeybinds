@@ -1,8 +1,8 @@
 # Publishing checklist
 
-Steps only Tiago can do. Nothing here has been done yet.
+Steps only Tiago can do. Step 1 and the Version line in step 5 are done (2026-11-20).
 
-1. Create the public GitHub repo, then `git remote add origin <url>` and `git push -u origin main`.
+1. (done: https://github.com/tiagofoil/FoilKeybinds) Create the public GitHub repo, then `git remote add origin <url>` and `git push -u origin main`.
 2. Create the CurseForge project "Foil Keybinds" (World of Warcraft, addon). Note its numeric Project ID.
 3. Create the Wago Addons project "Foil Keybinds". Note its Wago ID (the short id in the project URL/settings).
 4. Create API keys and add them as GitHub repo secrets (Settings, Secrets and variables, Actions):
