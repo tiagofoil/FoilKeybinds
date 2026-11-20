@@ -839,7 +839,7 @@ end
 function ns.StartPreview(keys, title, use)
   local box = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
   if box then box:ClearFocus() end -- a seconds box commits to the live keys first
-  picker:Hide()
+  picker:Hide(); preview:Hide() -- the macro panel would say "Live macro differs" about a template key
   showTab("keys")
   local was = pv and pv.was or current
   pv = { keys = keys, use = use, was = was }
