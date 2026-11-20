@@ -2,8 +2,9 @@
 -- Sinister Strike and Eviscerate are granted at level 1 on Forever (trainer data bound 6 and 8).
 -- Mutilate is 1241582, the rank the trainer sells at 50: the talent rank (1310706) has no Forever page, so
 -- the row carries the trainer level, as Druid.lua does for Claw.
--- Templates assume the main bar page (bar paging is not followed): Stealth sits on R, Sap and Pick Pocket on
--- its modifiers, and the stealth openers on 5, so they cast from the same keys in and out of stealth.
+-- Templates assume the main bar page (bar paging is not followed), so the openers cast from the same keys
+-- in and out of stealth. Energy spec: no castsequence (a step that fails for lack of energy blocks the key),
+-- so Mouse 4 holds one plain combo builder and Mouse 5 the finisher.
 FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
@@ -18,39 +19,44 @@ local DISTRACT, VANISH, SHANK, CHEAP_SHOT = S(1725, "Distract"), S(1856, "Vanish
 local KIDNEY, BLIND, MUTILATE = S(408, "Kidney Shot"), S(2094, "Blind"), S(1241582, "Mutilate")
 local PREMEDITATION, HEMORRHAGE, DEATH_MARK = T(14183, "Premeditation"), T(16511, "Hemorrhage"), T(1316709, "Death Mark")
 
--- Keys every spec shares from 20 on: interrupts on Q, defense on E, stealth on R, Blind on F.
+-- Home keys (docs/spec-v6.md): builder on Mouse 4, finisher on Mouse 5, stuns and Blind on E, Slice and Dice
+-- on F, Garrote and Expose Armor on Q, Ambush on R, Stealth on C.
+-- Keys every spec shares from 20 on: crowd control, buffs, interrupt, defense, stealth, consumables.
 local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
-local INTERRUPT = { normal = KICK, shift = GOUGE }
+local CC = { normal = GOUGE, shift = SAP, alt = CHEAP_SHOT, altshift = KIDNEY, ctrl = BLIND }
+local SND_KEY = { normal = SND }
+local BLEEDS = { normal = GARROTE, shift = EXPOSE }
+local INTERRUPT = { normal = KICK }
 local DEFENSE = { normal = EVASION, shift = SPRINT, alt = FEINT, altshift = VANISH }
-local STEALTHY = { normal = STEALTH, shift = SAP, alt = PICK_POCKET, altshift = DISTRACT }
-local UTILITY = { normal = BLIND }
-local SND_KEY = { normal = SND, shift = EXPOSE }
-local SHANK_KEY = { normal = SHANK, shift = KIDNEY }
+local STEALTHY = { normal = STEALTH }
+local UTILITY = { normal = PICK_POCKET, shift = DISTRACT }
 
 -- Combat and Subtlety get no new verified spell after 39, so one layout covers 20-60.
 local COMBAT = {
-  ["1"] = { normal = SINISTER, shift = BACKSTAB },
-  ["2"] = { normal = EVISCERATE, shift = RUPTURE },
-  ["3"] = SND_KEY,
-  ["4"] = SHANK_KEY,
-  ["5"] = { normal = CHEAP_SHOT, shift = AMBUSH, alt = GARROTE },
-  Q = INTERRUPT,
-  E = DEFENSE,
-  R = STEALTHY,
-  F = UTILITY,
+  BUTTON4 = { normal = SINISTER, shift = BACKSTAB, alt = SHANK },
+  BUTTON5 = { normal = EVISCERATE, shift = RUPTURE },
+  E = CC,
+  F = SND_KEY,
+  Q = BLEEDS,
+  R = { normal = AMBUSH },
   V = ITEMS,
+  ["1"] = INTERRUPT,
+  ["2"] = DEFENSE,
+  C = STEALTHY,
+  X = UTILITY,
 }
 local SUBTLETY = {
-  ["1"] = { normal = HEMORRHAGE, shift = SINISTER, alt = BACKSTAB },
-  ["2"] = { normal = EVISCERATE, shift = RUPTURE },
-  ["3"] = SND_KEY,
-  ["4"] = SHANK_KEY,
-  ["5"] = { normal = AMBUSH, shift = PREMEDITATION, alt = CHEAP_SHOT, altshift = GARROTE },
-  Q = INTERRUPT,
-  E = DEFENSE,
-  R = STEALTHY,
-  F = UTILITY,
+  BUTTON4 = { normal = HEMORRHAGE, shift = SINISTER, alt = BACKSTAB, altshift = SHANK },
+  BUTTON5 = { normal = EVISCERATE, shift = RUPTURE },
+  E = CC,
+  F = SND_KEY,
+  Q = BLEEDS,
+  R = { normal = AMBUSH, shift = PREMEDITATION },
   V = ITEMS,
+  ["1"] = INTERRUPT,
+  ["2"] = DEFENSE,
+  C = STEALTHY,
+  X = UTILITY,
 }
 
 FoilKeybindsGuides.ROGUE = {
@@ -58,14 +64,17 @@ FoilKeybindsGuides.ROGUE = {
   tested = false,
   -- Levels 1-19, every spec: no talent spell yet, the same core spells for all three.
   shared = {
-    ["1"] = { normal = SINISTER, shift = BACKSTAB },
-    ["2"] = { normal = EVISCERATE },
-    ["3"] = SND_KEY,
-    ["5"] = { normal = AMBUSH, shift = GARROTE },
-    Q = INTERRUPT,
-    E = { normal = EVASION, shift = SPRINT, alt = FEINT },
-    R = { normal = STEALTH, shift = SAP, alt = PICK_POCKET },
+    BUTTON4 = { normal = SINISTER, shift = BACKSTAB },
+    BUTTON5 = { normal = EVISCERATE },
+    E = { normal = GOUGE, shift = SAP },
+    F = SND_KEY,
+    Q = { normal = GARROTE },
+    R = { normal = AMBUSH },
     V = ITEMS,
+    ["1"] = INTERRUPT,
+    ["2"] = { normal = EVASION, shift = SPRINT, alt = FEINT },
+    C = STEALTHY,
+    X = { normal = PICK_POCKET },
   },
   specs = {
     [11580] = {
@@ -89,28 +98,30 @@ FoilKeybindsGuides.ROGUE = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = SINISTER, shift = BACKSTAB },
-          ["2"] = { normal = RUPTURE, shift = EVISCERATE },
-          ["3"] = SND_KEY,
-          ["4"] = SHANK_KEY,
-          ["5"] = { normal = GARROTE, shift = CHEAP_SHOT, alt = AMBUSH },
-          Q = INTERRUPT,
-          E = DEFENSE,
-          R = STEALTHY,
-          F = UTILITY,
+          BUTTON4 = { normal = SINISTER, shift = BACKSTAB, alt = SHANK },
+          BUTTON5 = { normal = RUPTURE, shift = EVISCERATE },
+          E = CC,
+          F = SND_KEY,
+          Q = BLEEDS,
+          R = { normal = AMBUSH },
           V = ITEMS,
+          ["1"] = INTERRUPT,
+          ["2"] = DEFENSE,
+          C = STEALTHY,
+          X = UTILITY,
         },
         [3] = {
-          ["1"] = { normal = SINISTER, shift = MUTILATE, alt = BACKSTAB },
-          ["2"] = { normal = RUPTURE, shift = EVISCERATE, alt = DEATH_MARK },
-          ["3"] = SND_KEY,
-          ["4"] = SHANK_KEY,
-          ["5"] = { normal = GARROTE, shift = CHEAP_SHOT, alt = AMBUSH },
-          Q = INTERRUPT,
-          E = DEFENSE,
-          R = STEALTHY,
-          F = UTILITY,
+          BUTTON4 = { normal = SINISTER, shift = MUTILATE, alt = BACKSTAB, altshift = SHANK },
+          BUTTON5 = { normal = RUPTURE, shift = EVISCERATE },
+          E = CC,
+          F = SND_KEY,
+          Q = BLEEDS,
+          R = { normal = DEATH_MARK, shift = AMBUSH },
           V = ITEMS,
+          ["1"] = INTERRUPT,
+          ["2"] = DEFENSE,
+          C = STEALTHY,
+          X = UTILITY,
         },
       },
     },

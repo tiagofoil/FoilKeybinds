@@ -750,12 +750,9 @@ end)
 -- built by tools/make_trainer_fixture.lua). A priority row: its ID is a trainer spell of the class learned
 -- at its level (a granted spell: at or below its bound). A template spell: learned by the bracket's top level.
 -- Talent spells (talent = true) are not trainer spells: their level comes from a talent row of the class.
--- GENERAL: spells every class has from level 1, not in the trainer data (Wand Shoot).
--- PENDING (v6): classes not rebuilt on the home keys yet (tickets 02 to 04). Their data check problems are
--- counted, not failed; the trainer check still runs on them. Each ticket takes its classes out.
-local GENERAL = { [5019] = 1 }
-local PENDING = { HUNTER = true, ROGUE = true, WARRIOR = true }
-local pending = 0
+-- GENERAL: spells every class has from level 1, or an innate class spell, not in the trainer data
+-- (Wand Shoot, Battle Stance).
+local GENERAL = { [5019] = 1, [2457] = 1 }
 test("guide data: TOC matches the main addon, every class passes the data check and the trainer fixture", function()
   local toc = assert(io.open("FoilKeybinds_Guides/FoilKeybinds_Guides.toc")):read("*a")
   local main = assert(io.open("FoilKeybinds/FoilKeybinds.toc")):read("*a")
@@ -767,13 +764,7 @@ test("guide data: TOC matches the main addon, every class passes the data check 
   assert(files > 0 and FoilKeybindsGuides, "no class files loaded")
   local fixture, p = dofile("tests/trainer_fixture.lua"), {}
   for CLASS, c in pairs(FoilKeybindsGuides) do
-    local found = core.CheckGuide(c, CLASS)
-    if PENDING[CLASS] then -- known misses until its v6 ticket lands; a class that passes must leave the list
-      if #found == 0 then p[#p + 1] = CLASS .. " passes the data check now: take it out of PENDING" end
-      pending = pending + #found
-    else
-      for _, s in ipairs(found) do p[#p + 1] = CLASS .. " " .. s end
-    end
+    for _, s in ipairs(core.CheckGuide(c, CLASS)) do p[#p + 1] = CLASS .. " " .. s end
     local fx, talents = assert(fixture[CLASS], "unknown class " .. CLASS), {}
     local function bad(where, what) p[#p + 1] = CLASS .. " " .. where .. ": " .. what end
     for gid, spec in pairs(c.specs) do
@@ -808,7 +799,6 @@ test("guide data: TOC matches the main addon, every class passes the data check 
   end
   table.sort(p)
   assert(#p == 0, #p .. " problem(s):\n     " .. table.concat(p, "\n     "))
-  if pending > 0 then print(("note %d data check problem(s) in the classes still pending v6"):format(pending)) end
 end)
 
 -- Guide tab rules (v4 ticket 02).

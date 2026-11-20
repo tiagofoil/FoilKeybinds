@@ -1,8 +1,8 @@
 -- Warrior guide. Shape and sources: see Warlock.lua and docs/spec-v4.md "Guide data package".
--- Heroic Strike is granted at level 1 on Forever (trainer data bound 8).
--- Templates assume the main bar page (bar paging is not followed). Defensive and Berserker Stance sit on F.
--- Battle Stance (2457) is innate, so it is not in the trainer data and no template can hold it: switch back
--- to it from the game's stance bar.
+-- Heroic Strike is granted at level 1 on Forever (trainer data bound 8). Battle Stance (2457) is innate, so it
+-- is not in the trainer data: tests/run.lua lists it in GENERAL.
+-- Templates assume the main bar page (bar paging is not followed). Rage spec: no castsequence (a step that
+-- fails for lack of rage blocks the key), so Mouse 4 holds one plain main attack.
 FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
@@ -16,36 +16,45 @@ local DEFENSIVE, SUNDER, REVENGE, SHIELD_BLOCK = S(71, "Defensive Stance"), S(73
 local DISARM, SLAM, RETALIATION, VICTORY_RUSH = S(676, "Disarm"), S(1240193, "Slam"), S(20230, "Retaliation"), S(402927, "Victory Rush")
 local CLEAVE, INTIMIDATING, EXECUTE, CHALLENGING = S(845, "Cleave"), S(5246, "Intimidating Shout"), S(5308, "Execute"), S(1161, "Challenging Shout")
 local SHIELD_WALL, BERSERKER_RAGE, INTERCEPT, BERSERKER = S(871, "Shield Wall"), S(18499, "Berserker Rage"), S(20252, "Intercept"), S(2458, "Berserker Stance")
-local WHIRLWIND, PUMMEL, RECKLESSNESS = S(1680, "Whirlwind"), S(6552, "Pummel"), S(1719, "Recklessness")
+local WHIRLWIND, PUMMEL, RECKLESSNESS, BATTLE = S(1680, "Whirlwind"), S(6552, "Pummel"), S(1719, "Recklessness"), S(2457, "Battle Stance")
 local SWEEPING, MORTAL_STRIKE = T(12292, "Sweeping Strikes"), T(12294, "Mortal Strike")
 local PIERCING_HOWL, BLOODTHIRST = T(12323, "Piercing Howl"), T(23881, "Bloodthirst")
 local CONCUSSION, SHIELD_SLAM = T(12809, "Concussion Blow"), T(23922, "Shield Slam")
 
--- Keys every spec shares from 20 on: gap closers on Q, shouts on E, rage on R, stances on F.
+-- Home keys (docs/spec-v6.md): main attack on Mouse 4, second attack on Mouse 5, crowd control on E, Rend on F,
+-- debuffs on Q, Execute and area on R, stances on C.
+-- Keys every spec shares from 20 on: interrupts, shouts, rage, stances, consumables, Victory Rush.
 local ITEMS = { normal = HSPOT, shift = HEAL, alt = EAT }
-local CLOSERS = { normal = CHARGE, shift = INTERCEPT, alt = PUMMEL }
-local SHOUTS = { normal = BATTLE_SHOUT, shift = DEMO_SHOUT, alt = INTIMIDATING, altshift = CHALLENGING }
-local RAGE2 = { normal = BLOODRAGE, shift = BERSERKER_RAGE, alt = RETALIATION }
-local RAGE3 = { normal = BLOODRAGE, shift = BERSERKER_RAGE, alt = RETALIATION, altshift = RECKLESSNESS }
-local STANCES = { normal = DEFENSIVE, shift = BERSERKER, alt = DISARM, altshift = SHIELD_BLOCK }
-local THREAT = { normal = SUNDER, shift = TAUNT, alt = SHIELD_BASH }
-local FINISH = { normal = EXECUTE, shift = VICTORY_RUSH }
+local INTERRUPT = { normal = PUMMEL, shift = SHIELD_BASH }
+local DEFENSE = { normal = RETALIATION, shift = DISARM }
+local HEALS = { normal = VICTORY_RUSH }
+local SHOUT = { normal = BATTLE_SHOUT }
+local RAGE = { normal = BLOODRAGE, shift = BERSERKER_RAGE }
+local STANCES = { normal = BATTLE, shift = DEFENSIVE, alt = BERSERKER }
+local CLOSERS = { normal = CHARGE, shift = INTERCEPT }
+local TAUNTS = { normal = TAUNT, shift = MOCKING, alt = CHALLENGING }
+local DEBUFFS = { normal = SUNDER, shift = DEMO_SHOUT, alt = THUNDER_CLAP }
+local SLOWS = { normal = HAMSTRING, shift = INTIMIDATING }
+local RENDS = { normal = REND }
 
 FoilKeybindsGuides.WARRIOR = {
   suggested = 11650, -- Arms levels best: big two-handed hits and the most healing from Victory Rush per kill
   tested = false,
   -- Levels 1-19, every spec: no talent spell yet, the same core spells for all three.
   shared = {
-    ["1"] = { normal = HS, shift = SUNDER },
-    ["2"] = { normal = REND, shift = REVENGE },
-    ["3"] = { normal = OVERPOWER, shift = SHIELD_BASH },
-    ["5"] = { normal = THUNDER_CLAP, shift = TAUNT },
-    Q = { normal = CHARGE },
-    E = { normal = BATTLE_SHOUT, shift = DEMO_SHOUT },
-    R = { normal = BLOODRAGE },
-    T = { normal = HAMSTRING, shift = MOCKING },
-    F = { normal = DEFENSIVE, shift = SHIELD_BLOCK, alt = DISARM },
+    BUTTON4 = { normal = HS },
+    BUTTON5 = { normal = OVERPOWER, shift = REVENGE },
+    E = { normal = HAMSTRING },
+    F = RENDS,
+    Q = DEBUFFS,
     V = ITEMS,
+    ["1"] = { normal = SHIELD_BASH },
+    ["2"] = { normal = SHIELD_BLOCK, shift = DISARM },
+    ["4"] = SHOUT,
+    T = { normal = BLOODRAGE },
+    C = { normal = BATTLE, shift = DEFENSIVE },
+    X = { normal = CHARGE },
+    Z = { normal = TAUNT, shift = MOCKING },
   },
   specs = {
     [11650] = {
@@ -69,30 +78,38 @@ FoilKeybindsGuides.WARRIOR = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = HS, shift = CLEAVE },
-          ["2"] = { normal = REND, shift = HAMSTRING },
-          ["3"] = { normal = OVERPOWER, shift = SLAM },
-          ["4"] = FINISH,
-          ["5"] = { normal = SWEEPING, shift = THUNDER_CLAP },
-          Q = CLOSERS,
-          E = SHOUTS,
-          R = RAGE2,
-          T = THREAT,
-          F = STANCES,
+          BUTTON4 = { normal = HS },
+          BUTTON5 = { normal = OVERPOWER, shift = SLAM },
+          E = SLOWS,
+          F = RENDS,
+          Q = DEBUFFS,
+          R = { normal = EXECUTE, shift = CLEAVE, alt = WHIRLWIND, altshift = SWEEPING },
           V = ITEMS,
+          ["1"] = INTERRUPT,
+          ["2"] = DEFENSE,
+          ["3"] = HEALS,
+          ["4"] = SHOUT,
+          T = RAGE,
+          C = STANCES,
+          X = CLOSERS,
+          Z = TAUNTS,
         },
         [3] = {
-          ["1"] = { normal = MORTAL_STRIKE, shift = SLAM },
-          ["2"] = { normal = HS, shift = CLEAVE },
-          ["3"] = { normal = OVERPOWER, shift = REND, alt = HAMSTRING },
-          ["4"] = FINISH,
-          ["5"] = { normal = SWEEPING, shift = THUNDER_CLAP, alt = WHIRLWIND },
-          Q = CLOSERS,
-          E = SHOUTS,
-          R = RAGE3,
-          T = THREAT,
-          F = STANCES,
+          BUTTON4 = { normal = MORTAL_STRIKE },
+          BUTTON5 = { normal = HS, shift = OVERPOWER, alt = SLAM },
+          E = SLOWS,
+          F = RENDS,
+          Q = DEBUFFS,
+          R = { normal = EXECUTE, shift = CLEAVE, alt = WHIRLWIND, altshift = SWEEPING, ctrl = RECKLESSNESS },
           V = ITEMS,
+          ["1"] = INTERRUPT,
+          ["2"] = DEFENSE,
+          ["3"] = HEALS,
+          ["4"] = SHOUT,
+          T = RAGE,
+          C = STANCES,
+          X = CLOSERS,
+          Z = TAUNTS,
         },
       },
     },
@@ -115,30 +132,38 @@ FoilKeybindsGuides.WARRIOR = {
       },
       templates = {
         [2] = {
-          ["1"] = { normal = HS, shift = CLEAVE },
-          ["2"] = { normal = REND, shift = HAMSTRING },
-          ["3"] = { normal = OVERPOWER, shift = SLAM },
-          ["4"] = FINISH,
-          ["5"] = { normal = WHIRLWIND, shift = THUNDER_CLAP, alt = PIERCING_HOWL },
-          Q = CLOSERS,
-          E = SHOUTS,
-          R = RAGE2,
-          T = THREAT,
-          F = STANCES,
+          BUTTON4 = { normal = HS },
+          BUTTON5 = { normal = OVERPOWER, shift = SLAM },
+          E = { normal = HAMSTRING, shift = INTIMIDATING, alt = PIERCING_HOWL },
+          F = RENDS,
+          Q = DEBUFFS,
+          R = { normal = EXECUTE, shift = WHIRLWIND, alt = CLEAVE },
           V = ITEMS,
+          ["1"] = INTERRUPT,
+          ["2"] = DEFENSE,
+          ["3"] = HEALS,
+          ["4"] = SHOUT,
+          T = RAGE,
+          C = STANCES,
+          X = CLOSERS,
+          Z = TAUNTS,
         },
         [3] = {
-          ["1"] = { normal = BLOODTHIRST, shift = SLAM },
-          ["2"] = { normal = HS, shift = CLEAVE },
-          ["3"] = { normal = WHIRLWIND, shift = OVERPOWER },
-          ["4"] = FINISH,
-          ["5"] = { normal = PIERCING_HOWL, shift = THUNDER_CLAP, alt = HAMSTRING },
-          Q = CLOSERS,
-          E = SHOUTS,
-          R = RAGE3,
-          T = THREAT,
-          F = STANCES,
+          BUTTON4 = { normal = BLOODTHIRST },
+          BUTTON5 = { normal = HS, shift = OVERPOWER, alt = SLAM },
+          E = { normal = HAMSTRING, shift = INTIMIDATING, alt = PIERCING_HOWL },
+          F = RENDS,
+          Q = DEBUFFS,
+          R = { normal = EXECUTE, shift = WHIRLWIND, alt = CLEAVE, ctrl = RECKLESSNESS },
           V = ITEMS,
+          ["1"] = INTERRUPT,
+          ["2"] = DEFENSE,
+          ["3"] = HEALS,
+          ["4"] = SHOUT,
+          T = RAGE,
+          C = STANCES,
+          X = CLOSERS,
+          Z = TAUNTS,
         },
       },
     },
@@ -160,34 +185,41 @@ FoilKeybindsGuides.WARRIOR = {
           ptBR = "Força o alvo a atacar você. Use quando um inimigo largar você e for atrás de outra pessoa." },
         { spellID = 72, level = 12, en = "Interrupts a spell cast. Needs a shield.", ptBR = "Interrompe uma conjuração. Precisa de escudo." },
       },
+      -- Tank: Sunder is the main press, taunts sit on X (the closer utility key), Charge on Z.
       templates = {
         [2] = {
-          ["1"] = { normal = SUNDER, shift = HS },
-          ["2"] = { normal = REVENGE, shift = CLEAVE },
-          ["3"] = { normal = REND, shift = SHIELD_BASH, alt = HAMSTRING },
-          ["4"] = { normal = SHIELD_BLOCK, shift = CONCUSSION },
-          ["5"] = { normal = THUNDER_CLAP, shift = DEMO_SHOUT },
-          Q = CLOSERS,
-          E = { normal = BATTLE_SHOUT, shift = INTIMIDATING, alt = CHALLENGING },
-          R = RAGE2,
-          T = { normal = TAUNT, shift = MOCKING },
-          F = { normal = DEFENSIVE, shift = BERSERKER, alt = DISARM, altshift = SHIELD_WALL },
-          G = { normal = VICTORY_RUSH, shift = EXECUTE, alt = OVERPOWER },
+          BUTTON4 = { normal = SUNDER },
+          BUTTON5 = { normal = REVENGE, shift = HS },
+          E = SLOWS,
+          F = RENDS,
+          Q = { normal = DEMO_SHOUT, shift = THUNDER_CLAP },
+          R = { normal = EXECUTE, shift = CLEAVE },
           V = ITEMS,
+          ["1"] = { normal = SHIELD_BASH, shift = PUMMEL },
+          ["2"] = { normal = SHIELD_BLOCK, shift = SHIELD_WALL, alt = DISARM, altshift = RETALIATION },
+          ["3"] = HEALS,
+          ["4"] = SHOUT,
+          T = RAGE,
+          C = STANCES,
+          X = TAUNTS,
+          Z = CLOSERS,
         },
         [3] = {
-          ["1"] = { normal = SUNDER, shift = HS },
-          ["2"] = { normal = SHIELD_SLAM, shift = CLEAVE },
-          ["3"] = { normal = REVENGE, shift = SHIELD_BASH },
-          ["4"] = { normal = SHIELD_BLOCK, shift = CONCUSSION },
-          ["5"] = { normal = THUNDER_CLAP, shift = DEMO_SHOUT },
-          Q = CLOSERS,
-          E = { normal = BATTLE_SHOUT, shift = INTIMIDATING, alt = CHALLENGING },
-          R = RAGE3,
-          T = { normal = TAUNT, shift = MOCKING },
-          F = { normal = DEFENSIVE, shift = BERSERKER, alt = DISARM, altshift = SHIELD_WALL },
-          G = { normal = VICTORY_RUSH, shift = EXECUTE, alt = OVERPOWER },
+          BUTTON4 = { normal = SUNDER },
+          BUTTON5 = { normal = REVENGE, shift = HS },
+          E = { normal = HAMSTRING, shift = INTIMIDATING, alt = CONCUSSION },
+          F = RENDS,
+          Q = { normal = DEMO_SHOUT, shift = THUNDER_CLAP },
+          R = { normal = SHIELD_SLAM, shift = CLEAVE, altshift = EXECUTE },
           V = ITEMS,
+          ["1"] = { normal = SHIELD_BASH, shift = PUMMEL },
+          ["2"] = { normal = SHIELD_BLOCK, shift = SHIELD_WALL, alt = DISARM, altshift = RETALIATION },
+          ["3"] = HEALS,
+          ["4"] = SHOUT,
+          T = RAGE,
+          C = STANCES,
+          X = TAUNTS,
+          Z = CLOSERS,
         },
       },
     },
