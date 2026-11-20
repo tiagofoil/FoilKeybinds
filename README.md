@@ -19,6 +19,8 @@ A WoW Forever addon that puts your whole layout on the keys near WASD. Each key 
 
 - One macro per key, with the Shift, Alt, Alt+Shift and Ctrl variants inside it.
 - Guide tab for all 9 classes (`/fkb guide`): the main abilities of your spec in rotation order, what each one is for and which key it is on, plus a ready-made layout for levels 1-19, 20-39 and 40-60. Preview a layout, then Use it; Undo brings your own keys back. The guides are new; report a wrong key in the GitHub issues.
+- Wizard for new players (`/fkb wizard`, or "Build my layout" on the Guide tab): it walks through the guide layout of your spec one meaning at a time (main attack, crowd control, items...) and you click the key you want for each group. It opens once by itself on the first `/fkb` with no keys, and remembers your picks for the next level range.
+- QoL item buttons: Heal button (health potion in combat, bandage out of combat), Eat and drink (best food and water in one click), Healthstone or potion. The guide layouts put them on V, Shift+V and Alt+V.
 - Layouts menu: save your keys, load or delete a saved set, or copy the keys of another character of your class. Before a layout, a copy or an Undo replaces your keys, they are saved there automatically (the last 10).
 - Canvas editor: click a key, pick a learned spell or a consumable for each slot.
 - Items: potions, Healthstone, bombs and bandages use the best one in your bags.
@@ -32,7 +34,7 @@ A WoW Forever addon that puts your whole layout on the keys near WASD. Each key 
 
 Type `/fkb` (or left click the addon compartment entry) to open the editor. Set your keys, then click Apply. Undo takes back your last edit, one step per click. Reset all puts back what the first Apply changed (bindings, bar slots and macros); your key setups stay.
 
-Commands: `/fkb`, `/fkb set Q Shadow Bolt`, `/fkb apply`, `/fkb undo` (one edit back), `/fkb reset` (Reset all), `/fkb cheat` (or `/fkb cola`) to show or hide the cheat sheet, `/fkb guide` (or `/fkb guia`) for the class guide and ready-made layouts, `/fkb config` (or `/fkb settings`, `/fkb opcoes`) for the settings.
+Commands: `/fkb`, `/fkb set Q Shadow Bolt`, `/fkb apply`, `/fkb undo` (one edit back), `/fkb reset` (Reset all), `/fkb cheat` (or `/fkb cola`) to show or hide the cheat sheet, `/fkb guide` (or `/fkb guia`) for the class guide and ready-made layouts, `/fkb wizard` (or `/fkb assistente`) for the wizard, `/fkb config` (or `/fkb settings`, `/fkb opcoes`) for the settings.
 
 Settings also open from the gear in the editor's title bar, a right click on the compartment entry, and Options > AddOns > Foil Keybinds. They are account-wide; the cheat sheet position and whether it is shown stay per character.
 
