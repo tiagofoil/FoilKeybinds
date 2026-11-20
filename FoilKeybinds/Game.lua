@@ -446,6 +446,7 @@ function ns.UndoCopy()
   autoSave(db, L.UNDO)
   if db.copyUndoGuide ~= nil then db.guide = db.copyUndoGuide or nil end -- no level-up line for an undone layout
   db.keys, db.copyUndo, db.copyUndoGuide, db.copyUndoLive = db.copyUndo, nil, nil, nil
+  if db.wizard then db.wizard.cheatOnce = nil end -- the cheat sheet is for the wizard's keys, not the old ones
   if ns.ClearHistory then ns.ClearHistory() end
   if ns.Refresh then ns.Refresh() end
   ns.Say(template and L.TEMPLATE_UNDONE or L.COPY_UNDONE)

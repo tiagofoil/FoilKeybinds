@@ -65,6 +65,7 @@ local function use()
   db.wizard.picks = db.wizard.picks or {}
   db.wizard.picks[w.used.groupID] = ns.MergePicks(db.wizard.picks[w.used.groupID], w.map)
   db.wizard.cheatOnce = true
+  ns.guide.hint = nil -- the "Step 1" or new-player line is done
 end
 
 local show, click

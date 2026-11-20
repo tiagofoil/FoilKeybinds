@@ -382,6 +382,7 @@ assert(picks["1"] == "2" and picks["2"] == false and picks.R == "R" and db.wizar
 assert(lastSaid():find(L.TEMPLATE_USED:format("Affliction", "20-39"), 1, true), "no use line")
 G.SlashCmdList.FOILKEYBINDS("undo")
 assert(sameKeys(own, db.keys), "undo after the wizard")
+assert(db.wizard.cheatOnce == nil and ns.guide.hint == nil, "undo kept the cheat sheet flag, or Use kept the step 1 hint")
 
 -- Second run, 40-60: the saved picks preselect every step. Cancel, leaving the tab and closing change nothing.
 click("40-60"); click(L.WIZARD_BUILD)

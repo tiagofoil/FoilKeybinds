@@ -82,8 +82,9 @@ function ns.BestItems(owned, usable)
   for id, n in pairs(owned) do byName[n] = id end
   local function ok(id) return id and owned[id] and (not usable or usable(id)) end
   for cat, list in pairs(ns.RANK_IDS) do
-    for _, id in ipairs(list) do
-      if ok(id) then best[cat] = { id = id, name = owned[id] ~= "" and owned[id] or ns.ITEM_DEFAULT[cat] }; break end
+    local names = #ns.RANKS[cat] == #list and ns.RANKS[cat] -- FOOD, DRINK: one name per ID, same order
+    for i, id in ipairs(list) do
+      if ok(id) then best[cat] = { id = id, name = owned[id] ~= "" and owned[id] or names and names[i] or ns.ITEM_DEFAULT[cat] }; break end
     end
     if not best[cat] then
       for _, n in ipairs(ns.RANKS[cat]) do

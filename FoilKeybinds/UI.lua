@@ -869,6 +869,7 @@ function ns.StartPreview(keys, title, use, wiz)
   end
   banner.text:SetText(title)
   previewLook(true)
+  banner.use:SetShown(not (wiz and wiz.sel ~= nil)) -- the wizard offers Use only after its last step
   card:Refresh()
 end
 -- Back to the live keys and the key selected before (no live key is created for the preview's pick).
