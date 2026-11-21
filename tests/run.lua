@@ -751,8 +751,10 @@ end)
 -- at its level (a granted spell: at or below its bound). A template spell: learned by the bracket's top level.
 -- Talent spells (talent = true) are not trainer spells: their level comes from a talent row of the class.
 -- GENERAL: spells every class has from level 1, or an innate class spell, not in the trainer data
--- (Wand Shoot, Battle Stance).
-local GENERAL = { [5019] = 1, [2457] = 1 }
+-- (Wand Shoot, Battle Stance, Auto Shot).
+local GENERAL = { [5019] = 1, [2457] = 1, [75] = 1 }
+-- FIXES: What's Training data errors, level from wowhead.com/forever (Druid Claw rank 1 is a Cat spell at 20).
+local FIXES = { DRUID = { [1082] = 20 } }
 test("guide data: TOC matches the main addon, every class passes the data check and the trainer fixture", function()
   local toc = assert(io.open("FoilKeybinds_Guides/FoilKeybinds_Guides.toc")):read("*a")
   local main = assert(io.open("FoilKeybinds/FoilKeybinds.toc")):read("*a")
@@ -766,6 +768,7 @@ test("guide data: TOC matches the main addon, every class passes the data check 
   for CLASS, c in pairs(FoilKeybindsGuides) do
     for _, s in ipairs(core.CheckGuide(c, CLASS)) do p[#p + 1] = CLASS .. " " .. s end
     local fx, talents = assert(fixture[CLASS], "unknown class " .. CLASS), {}
+    for id, lvl in pairs(FIXES[CLASS] or {}) do fx.levels[id] = lvl end
     local function bad(where, what) p[#p + 1] = CLASS .. " " .. where .. ": " .. what end
     for gid, spec in pairs(c.specs) do
       for i, r in ipairs(spec.priority) do

@@ -145,11 +145,11 @@ FoilKeybindsGuides.WARRIOR = {
         { spellID = 78, level = 1, en = "Only with spare rage: keep enough for Whirlwind and Bloodthirst.",
           ptBR = "Só com raiva sobrando: guarde o bastante para os seus dois ataques principais." },
       },
-      -- From 36 on Mouse 4 holds Whirlwind (it shows faded until then); before 36 Overpower and Rend do the work.
+      -- 20-39: Overpower on Mouse 4 (Whirlwind only comes at 36, on Mouse 5). From 40 Whirlwind takes Mouse 4.
       templates = {
         [2] = {
-          BUTTON4 = { normal = WHIRLWIND },
-          BUTTON5 = { normal = OVERPOWER, alt = HS },
+          BUTTON4 = { normal = OVERPOWER },
+          BUTTON5 = { normal = WHIRLWIND, alt = HS },
           E = SLOWS,
           F = RENDS,
           Q = DEBUFFS,

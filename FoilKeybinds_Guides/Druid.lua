@@ -3,8 +3,8 @@
 -- Talent levels from the Wowhead Forever talent grid: 10 + 5 per tier.
 -- Rip, Prowl and Maul come with Cat and Bear Form on Forever (granted in the trainer data): their rows carry the
 -- real level from wowhead.com/forever. Prowl's granted bound is 40, so it only fits the 40-60 templates.
--- Claw is 3029 (rank 2, level 28 in the trainer data): What's Training ties Claw to the Sharpened Claws talent, but
--- rank 1 (1082) is a plain Cat spell at 20 on Wowhead. Macros cast by name, so the key works from 20.
+-- Claw is rank 1 (1082), a plain Cat spell at 20 on wowhead.com/forever. What's Training lists the Sharpened Claws
+-- talent (16942) as its rank 1 instead, so tests/run.lua carries a FIXES entry for 1082.
 -- Templates assume the main bar page.
 FoilKeybindsGuides = FoilKeybindsGuides or {}
 
@@ -18,7 +18,7 @@ local ENRAGE, BASH, SWIPE, FF = S(5229, "Enrage"), S(5211, "Bash"), S(779, "Swip
 local HIBERNATE, CURE_POISON, AQUATIC, CAT = S(2637, "Hibernate"), S(8946, "Cure Poison"), S(1066, "Aquatic Form"), S(768, "Cat Form")
 local SHRED, RIP, STARFIRE, REBIRTH = S(5221, "Shred"), S(1079, "Rip"), S(2912, "Starfire"), S(20484, "Rebirth")
 local PROWL, RAKE, BITE, REMOVE_CURSE = S(5215, "Prowl"), S(1822, "Rake"), S(1328618, "Ferocious Bite"), S(2782, "Remove Curse")
-local DASH, ABOLISH, CLAW, COWER = S(1850, "Dash"), S(2893, "Abolish Poison"), S(3029, "Claw"), S(8998, "Cower")
+local DASH, ABOLISH, CLAW, COWER = S(1850, "Dash"), S(2893, "Abolish Poison"), S(1082, "Claw"), S(8998, "Cower")
 local TRANQ, TRAVEL, RAVAGE, POUNCE = S(740, "Tranquility"), S(783, "Travel Form"), S(6785, "Ravage"), S(9005, "Pounce")
 local FRENZIED, HURRICANE, INNERVATE = S(22842, "Frenzied Regeneration"), S(16914, "Hurricane"), S(29166, "Innervate")
 local DIRE_BEAR, BARKSKIN, CHALLENGING = S(9634, "Dire Bear Form"), S(22812, "Barkskin"), S(5209, "Challenging Roar")
@@ -133,7 +133,7 @@ FoilKeybindsGuides.DRUID = {
           ptBR = "Sangramento mais um ponto de combo. Aplique quando não estiver ativo e o alvo for durar mais 9 segundos." },
         { spellID = 5221, level = 20, en = "Strong builder, only from behind. Use it when someone else holds the enemy.",
           ptBR = "Gerador forte, só pelas costas. Use quando outra pessoa estiver segurando o inimigo." },
-        { spellID = 3029, level = 28, en = "Builder when you cannot get behind, so your main one when solo.",
+        { spellID = 1082, level = 20, en = "Builder when you cannot get behind, so your main one when solo.",
           ptBR = "Gerador para quando você não consegue ficar nas costas, então o principal quando está sozinho." },
         { spellID = 407995, level = 40, talent = true, en = "Bear form: your main hit and threat. Use it on cooldown.",
           ptBR = "Na forma de urso: seu golpe principal e de ameaça. Use sempre que estiver disponível." },

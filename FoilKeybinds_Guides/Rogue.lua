@@ -91,7 +91,7 @@ FoilKeybindsGuides.ROGUE = {
         { spellID = 1766, level = 12, en = "Interrupts a spell cast.", ptBR = "Interrompe uma conjuração." },
       },
       templates = {
-        [2] = layout({ normal = BACKSTAB, shift = SHANK, alt = SINISTER }, { normal = COLD_BLOOD, altshift = AMBUSH }),
+        [2] = layout({ normal = SINISTER, shift = SHANK, alt = BACKSTAB }, { normal = COLD_BLOOD, altshift = AMBUSH }),
         [3] = layout({ normal = MUTILATE, shift = SHANK, alt = SINISTER, altshift = BACKSTAB }, { normal = COLD_BLOOD, altshift = AMBUSH }),
       },
     },

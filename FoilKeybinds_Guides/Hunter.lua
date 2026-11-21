@@ -12,6 +12,7 @@ FoilKeybindsGuides = FoilKeybindsGuides or {}
 local function S(id, name) return { spellID = id, name = name } end
 local function T(id, name) return { spellID = id, name = name, talent = true } end
 
+local AUTO = S(75, "Auto Shot") -- every Hunter has it; a plain /cast toggles it, so it sits on a modifier
 local RAPTOR, ARCANE, SERPENT, MARK = S(14260, "Raptor Strike"), S(3044, "Arcane Shot"), S(1978, "Serpent Sting"), S(1130, "Hunter's Mark")
 local MONKEY, CONCUSSIVE, HAWK = S(13163, "Aspect of the Monkey"), S(5116, "Concussive Shot"), S(13165, "Aspect of the Hawk")
 local CALL_PET, REVIVE_PET, MEND_PET = S(883, "Call Pet"), S(982, "Revive Pet"), S(136, "Mend Pet")
@@ -47,7 +48,7 @@ FoilKeybindsGuides.HUNTER = {
   -- Levels 1-19, every spec: no talent spell yet. Auto Shot and Serpent Sting at range, Arcane Shot from 6,
   -- Raptor Strike once the mob is in melee. Multi-Shot (18) is for groups, so it waits on R Shift.
   shared = {
-    BUTTON4 = { normal = ARCANE },
+    BUTTON4 = { normal = ARCANE, shift = AUTO },
     BUTTON5 = { normal = RAPTOR, shift = MONGOOSE },
     E = { normal = CONCUSSIVE, shift = WING_CLIP },
     F = SERPENT_KEY,
