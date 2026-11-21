@@ -463,6 +463,23 @@ body = macros[byName[ns.MacroName("BUTTON4")]]
 assert(body:find("reset=target/combat Immolate, Corruption", 1, true) and not body:find("Agony", 1, true), "learned step not in: " .. body)
 G.GetMacroIndexByName, G.C_SpellBook.IsSpellKnown = function() return 0 end, nil
 
+-- Drag key 2 onto key 3: the two keys trade all their slots (3 was empty), Undo trades them back.
+local function keyBtn(k)
+  for _, t in ipairs(frames) do
+    local label = rawget(t, "label")
+    if label and rawget(label, "__text") == k and t.__scripts.OnDragStart then return t end
+  end
+  error("no draggable key " .. k)
+end
+db.keys = { ["2"] = { slots = { normal = { spellID = 635, name = "Holy Light", kind = "help" } } } }
+local k2, k3 = keyBtn("2"), keyBtn("3")
+k2.__scripts.OnDragStart(k2)
+k3.IsMouseOver = function() return true end
+k2.__scripts.OnDragStop(k2)
+k3.IsMouseOver = nil
+assert(db.keys["3"] and db.keys["3"].slots.normal.name == "Holy Light" and not db.keys["2"], "key drag did not swap")
+ns.UndoStep()
+assert(db.keys["2"].slots.normal.name == "Holy Light" and not db.keys["3"], "undo did not swap back")
 db.keys, db.guide, db.applied, db.wizard, db.copyUndo, db.copyUndoGuide, db.copyUndoLive, db.saved = ns.Copy(live), nil, {}, nil, nil, nil, nil, nil
 db.backup, ns.guide.hint = backup0, nil
 print("smoke ok")

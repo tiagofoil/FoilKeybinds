@@ -157,7 +157,12 @@ function ns.UndoStep()
     if not ns.UndoCopy() then ns.Say(L.NOTHING_TO_UNDO) end
     return
   end
-  FoilKeybindsDB.keys[h.key] = h.setup
+  local keys = FoilKeybindsDB.keys
+  if h.swap then -- a key drag: trade the two keys back
+    local a, b = h.swap[1], h.swap[2]
+    keys[a], keys[b] = keys[b], keys[a]
+    h.key = a
+  else keys[h.key] = h.setup end
   current = h.key; picker:Hide(); card.msg:SetText("")
   if f:IsShown() then card:Refresh() end
 end
@@ -242,6 +247,7 @@ local function keyTooltip(b, key)
       GameTooltip:AddDoubleLine(L["SLOT_" .. id], L.EMPTY, 0.84, 0.69, 0.4, 0.5, 0.5, 0.5)
     end
   end
+  if not pv then GameTooltip:AddLine(L.KEY_DRAG_TIP, 0.6, 0.6, 0.6, true) end
   GameTooltip:Show()
 end
 
@@ -460,6 +466,41 @@ local function dragStop(c)
   for id, t in pairs(cols) do
     if id ~= from and t:IsMouseOver() then return swapSlots(from, id) end
   end
+end
+-- Drag a key onto another: the two keys trade everything (all five slots). Apply writes it, like any edit.
+-- Not in a preview (read-only, the wizard owns the clicks). Undo trades them back.
+function ns.SwapKeys(a, b)
+  local keys = FoilKeybindsDB.keys
+  if pv or a == b or not (keys[a] or keys[b]) then return end
+  keys[a], keys[b] = keys[b], keys[a]
+  history[#history + 1] = { swap = { a, b } }
+  if #history > MAXHIST then table.remove(history, 1) end
+  selectKey(b) -- the content the player dragged is now on b
+end
+local keyFrom
+local function keyStop()
+  if not keyFrom then return end
+  local from = keyFrom
+  keyFrom = nil
+  ghost:Hide(); ResetCursor()
+  for k, b in pairs(keyButtons) do
+    if k ~= from and b:IsMouseOver() then return ns.SwapKeys(from, k) end
+  end
+end
+for key, b in pairs(keyButtons) do
+  b:RegisterForDrag("LeftButton")
+  b:SetScript("OnDragStart", function()
+    local setup = FoilKeybindsDB.keys[key]
+    if pv or not (setup and next(setup.slots)) then return end
+    keyFrom = key
+    GameTooltip:Hide(); SetCursor(MOVE_CURSOR)
+    local tex, label = ns.SlotView(setup.slots.normal)
+    ghost.iconF:SetShown(tex ~= nil); if tex then ghost.iconF.tex:SetTexture(tex) end
+    ghost.text:SetText(L.KEY:format(L["KEY_" .. key] or key) .. (label and ": " .. label or ""))
+    ghost:Show()
+  end)
+  b:SetScript("OnDragStop", keyStop)
+  b:SetScript("OnHide", keyStop) -- window closed mid-drag: cursor back, no swap
 end
 for i, id in ipairs(ns.COLUMNS) do
   local c = CreateFrame("Frame", nil, keysPane)
