@@ -1,7 +1,11 @@
 -- Druid guide. Shape and sources: see Warlock.lua and docs/spec-v4.md "Guide data package".
+-- Source: Icy Veins WoW Forever Balance, Feral and Restoration guides (leveling and rotation pages, read 2026-11-20).
+-- Talent levels from the Wowhead Forever talent grid: 10 + 5 per tier.
 -- Rip, Prowl and Maul come with Cat and Bear Form on Forever (granted in the trainer data): their rows carry the
--- real level from wowhead.com/forever. Claw is 3029: What's Training ties its ranks to a Feral talent.
--- Prowl's granted bound is 40, so it only fits the 40-60 templates. Templates assume the main bar page.
+-- real level from wowhead.com/forever. Prowl's granted bound is 40, so it only fits the 40-60 templates.
+-- Claw is 3029 (rank 2, level 28 in the trainer data): What's Training ties Claw to the Sharpened Claws talent, but
+-- rank 1 (1082) is a plain Cat spell at 20 on Wowhead. Macros cast by name, so the key works from 20.
+-- Templates assume the main bar page.
 FoilKeybindsGuides = FoilKeybindsGuides or {}
 
 local function S(id, name) return { spellID = id, name = name } end
@@ -20,36 +24,40 @@ local FRENZIED, HURRICANE, INNERVATE = S(22842, "Frenzied Regeneration"), S(1691
 local DIRE_BEAR, BARKSKIN, CHALLENGING = S(9634, "Dire Bear Form"), S(22812, "Barkskin"), S(5209, "Challenging Roar")
 local INSECT, MOONKIN = T(5570, "Insect Swarm"), T(24858, "Moonkin Form")
 local PRIMAL_BITE, WILD_GROWTH = T(407995, "Primal Bite"), T(408120, "Wild Growth")
+local LACERATE, SHIFTING, CHARGE = T(1328617, "Lacerate"), T(1322605, "Shifting Power"), T(1238122, "Feral Charge")
+local SWIFTMEND, SWIFTNESS = T(18562, "Swiftmend"), T(17116, "Nature's Swiftness")
 
 -- One-button rotation: a castsequence that starts over on a new target and after combat.
 local function SEQ(...) return { seq = { ... }, reset = { target = true, combat = true } } end
 local ITEMS = { normal = { item = "HSPOT" }, shift = { item = "HEAL" }, alt = { item = "EAT" } }
 
--- Home keys (docs/spec-v6.md). Balance: Moonfire then nukes as a castsequence on Mouse 4 (no step has a
--- cooldown). Feral: one plain builder on Mouse 4 (energy and rage can stall a sequence). Restoration: main heal
--- on Mouse 4, big heal on R. Every spec: Bash on 1 (the bear stun interrupts), forms on C, Mark on 4.
+-- Home keys (docs/spec-v6.md). Balance: DoTs then nukes as a castsequence on Mouse 4 (Moonfire, Insect Swarm, Wrath
+-- and Starfire have no cooldown). Feral: one plain builder on Mouse 4 (energy and rage can stall a sequence), Cat on
+-- the plain press and Bear on Shift. Restoration: main heal on Mouse 4, big heal on R. Every spec: Bash on 1 (the
+-- bear stun interrupts), forms on C, Mark on 4. Self heals: Rejuvenation before the pull, Regrowth mid fight.
 local CC = { normal = ROOTS, shift = HIBERNATE }
-local HEALS = { normal = REGROWTH, shift = HT, alt = REJUV }
+local HEALS = { normal = REJUV, shift = REGROWTH, alt = HT }
 local BUFFS = { normal = MOTW, shift = THORNS }
 local CURES2 = { normal = REMOVE_CURSE, shift = ABOLISH, alt = REBIRTH }
 local CURES3 = { normal = REMOVE_CURSE, shift = ABOLISH, alt = REBIRTH, altshift = INNERVATE }
 
 FoilKeybindsGuides.DRUID = {
-  suggested = 11347, -- Feral levels best: cat damage with no mana to drink back, bear for the hard pulls
+  suggested = 11347, -- Icy Veins: Feral is one of the best leveling specs; Restoration says level Balance or Feral
   tested = false,
-  -- Levels 1-19, every spec: no Cat Form yet, every druid casts and goes bear for the hard pulls.
-  -- Wrath (level 1) is in the sequence, so Mouse 4 casts from the first level.
+  -- Levels 1-19, every spec: no Cat Form yet. Moonfire to tag, Wrath as filler, Bear Form from 10 with Maul as its
+  -- only spender. No big hit exists before Starfire (20), so R holds only Swipe on Shift.
   shared = {
-    BUTTON4 = { normal = SEQ(MOONFIRE, WRATH, WRATH), shift = MAUL },
-    BUTTON5 = { normal = WRATH },
+    BUTTON4 = { normal = SEQ(MOONFIRE, WRATH, WRATH) },
+    BUTTON5 = { normal = WRATH, shift = MAUL },
     E = CC,
     F = { normal = MOONFIRE },
     Q = { normal = FF, shift = DEMO },
     R = { shift = SWIPE },
     V = ITEMS,
     ["1"] = { normal = BASH },
-    ["3"] = { normal = HT, shift = REJUV, alt = REGROWTH },
-    ["4"] = { normal = MOTW, shift = THORNS, alt = GRASP },
+    ["2"] = { normal = GRASP },
+    ["3"] = HEALS,
+    ["4"] = BUFFS,
     C = { normal = BEAR, shift = AQUATIC },
     X = { normal = CURE_POISON },
     Z = { normal = ENRAGE },
@@ -58,24 +66,27 @@ FoilKeybindsGuides.DRUID = {
     [11328] = {
       name = "Balance",
       priority = {
-        { spellID = 8921, level = 4, en = "Opening DoT. Put it on the target first, then cast your nukes.",
-          ptBR = "DoT de abertura. Aplique primeiro no alvo e depois use seus ataques principais." },
-        { spellID = 5570, level = 20, talent = true, en = "Nature DoT that also makes the target miss more. Keep it up on longer fights.",
-          ptBR = "DoT de Natureza que também faz o alvo errar mais. Mantenha ativo em lutas mais longas." },
-        { spellID = 2912, level = 20, en = "Slow, heavy nuke. Your main damage from 20 on.",
-          ptBR = "Ataque lento e pesado. Seu dano principal a partir do nível 20." },
-        { spellID = 5176, level = 1, en = "Fast nuke. Your main damage before 20, later a quick finisher.",
-          ptBR = "Ataque rápido. Seu dano principal antes do nível 20 e, depois, um jeito rápido de finalizar." },
-        { spellID = 24858, level = 40, talent = true, en = "Form that adds armor and crit for the group. Stay in it while you deal damage.",
-          ptBR = "Forma que dá armadura e crítico para o grupo. Fique nela enquanto causa dano." },
-        { spellID = 339, level = 8, en = "Roots a melee enemy so you can keep casting from range.",
-          ptBR = "Prende um inimigo corpo a corpo no lugar para você continuar atacando de longe." },
-        { spellID = 16914, level = 40, en = "Channeled area damage for packs of enemies.",
-          ptBR = "Dano em área canalizado para grupos de inimigos." },
+        { spellID = 8921, level = 4, en = "DoT. Open with it in crowded areas: it is instant, so you tag the enemy first.",
+          ptBR = "DoT. Abra com ele em áreas cheias: é instantâneo, então você marca o inimigo primeiro." },
+        { spellID = 5570, level = 25, talent = true, en = "Second DoT. Keep it up with Moonfire and do not refresh it early.",
+          ptBR = "Segundo DoT. Mantenha junto com o Moonfire e não renove antes da hora." },
+        { spellID = 5176, level = 1, en = "Main filler. Each cast also charges Eclipse for your Starfires.",
+          ptBR = "Ataque principal de preenchimento. Cada conjuração também carrega o Eclipse para os seus Starfires." },
+        { spellID = 2912, level = 20, en = "Heavy nuke. Use it after Wrath, while Eclipse charges make it fast.",
+          ptBR = "Ataque pesado. Use depois do Wrath, enquanto as cargas de Eclipse deixam ele rápido." },
+        { spellID = 24858, level = 40, talent = true, en = "Your main form from 40: more armor and crit for the group.",
+          ptBR = "Sua forma principal a partir do 40: mais armadura e crítico para o grupo." },
+        { spellID = 16914, level = 40, en = "Channeled area damage for 3 or more enemies. Cast Barkskin first so hits do not cut it.",
+          ptBR = "Dano em área canalizado para 3 ou mais inimigos. Use Barkskin antes para os golpes não interromperem." },
+        { spellID = 16689, level = 10, en = "Roots the next enemy that hits you. Use it when a pull goes bad.",
+          ptBR = "Prende o próximo inimigo que bater em você. Use quando o combate sair do controle." },
+        { spellID = 339, level = 8, en = "Roots one enemy so you can keep casting. Damage can break it.",
+          ptBR = "Prende um inimigo para você continuar conjurando. Dano pode quebrar o efeito." },
       },
       templates = {
+        -- 20-39: Starfire waits for Eclipse (late in the leveling build), so Wrath is the filler and Starfire sits on R.
         [2] = {
-          BUTTON4 = { normal = SEQ(MOONFIRE, INSECT, STARFIRE, STARFIRE) },
+          BUTTON4 = { normal = SEQ(MOONFIRE, INSECT, WRATH, WRATH) },
           BUTTON5 = { normal = WRATH },
           E = CC,
           F = { normal = MOONFIRE },
@@ -89,8 +100,9 @@ FoilKeybindsGuides.DRUID = {
           C = { normal = BEAR, shift = CAT, alt = TRAVEL, altshift = AQUATIC },
           X = CURES2,
         },
+        -- 40-60: the level 60 rotation, Insect Swarm, Moonfire, then Wrath and two Starfires.
         [3] = {
-          BUTTON4 = { normal = SEQ(MOONFIRE, INSECT, STARFIRE, STARFIRE) },
+          BUTTON4 = { normal = SEQ(INSECT, MOONFIRE, WRATH, STARFIRE, STARFIRE) },
           BUTTON5 = { normal = WRATH },
           E = CC,
           F = { normal = MOONFIRE },
@@ -109,34 +121,38 @@ FoilKeybindsGuides.DRUID = {
     [11347] = {
       name = "Feral Combat",
       priority = {
-        { spellID = 5215, level = 20, en = "Stealth before the pull, then open from behind.",
+        { spellID = 5215, level = 20, en = "Stealth before the pull, so you can open from behind.",
           ptBR = "Furtividade antes do combate, para abrir pelas costas do alvo." },
-        { spellID = 6785, level = 32, en = "Big opener from stealth, behind the target.",
-          ptBR = "Abertura forte saindo da furtividade, pelas costas do alvo." },
-        { spellID = 1822, level = 24, en = "Bleed plus a combo point. Put it on first.",
-          ptBR = "Sangramento mais um ponto de combo. Aplique primeiro." },
-        { spellID = 3029, level = 28, en = "Main combo builder. On Forever it needs a Feral talent.",
-          ptBR = "Principal gerador de pontos de combo. No Forever, depende de um talento Feral." },
-        { spellID = 5221, level = 20, en = "Stronger builder, only from behind the target.",
-          ptBR = "Gerador mais forte, só funciona pelas costas do alvo." },
-        { spellID = 1079, level = 20, en = "Bleed finisher. Use it at 3 to 5 combo points on targets that live a while.",
-          ptBR = "Finalizador de sangramento. Use com 3 a 5 pontos de combo em alvos que vão durar." },
-        { spellID = 1328618, level = 24, en = "Direct finisher. Use it when the target is about to die.",
-          ptBR = "Finalizador direto. Use quando o alvo estiver quase morrendo." },
-        { spellID = 407995, level = 40, talent = true, en = "Bear form: a strong hit that holds threat. Use it when you tank.",
-          ptBR = "Na forma de urso: golpe forte que segura a ameaça. Use quando estiver tanqueando." },
+        { spellID = 6785, level = 32, en = "Big opener from stealth, behind the target. Before 32, open with Shred.",
+          ptBR = "Abertura forte saindo da furtividade, pelas costas do alvo. Antes do 32, abra com Shred." },
+        { spellID = 1322605, level = 40, talent = true, en = "Turns mana into energy. Use it on cooldown when you have less than 50 energy.",
+          ptBR = "Transforma mana em energia. Use sempre que puder, com menos de 50 de energia." },
+        { spellID = 1079, level = 20, en = "Main finisher: a bleed. Use it at 4 or more combo points on a target that lives a while.",
+          ptBR = "Finalizador principal: um sangramento. Use com 4 ou mais pontos de combo em alvos que vão durar." },
+        { spellID = 1822, level = 24, en = "Bleed plus a combo point. Put it on when it is not up and the target lives 9 seconds more.",
+          ptBR = "Sangramento mais um ponto de combo. Aplique quando não estiver ativo e o alvo for durar mais 9 segundos." },
+        { spellID = 5221, level = 20, en = "Strong builder, only from behind. Use it when someone else holds the enemy.",
+          ptBR = "Gerador forte, só pelas costas. Use quando outra pessoa estiver segurando o inimigo." },
+        { spellID = 3029, level = 28, en = "Builder when you cannot get behind, so your main one when solo.",
+          ptBR = "Gerador para quando você não consegue ficar nas costas, então o principal quando está sozinho." },
+        { spellID = 407995, level = 40, talent = true, en = "Bear form: your main hit and threat. Use it on cooldown.",
+          ptBR = "Na forma de urso: seu golpe principal e de ameaça. Use sempre que estiver disponível." },
+        { spellID = 1328617, level = 25, talent = true, en = "Bear form filler on one enemy. On packs, use Swipe instead.",
+          ptBR = "Ataque de preenchimento do urso contra um inimigo. Em grupos de inimigos, use Swipe." },
+        { spellID = 1238122, level = 20, talent = true, en = "Charge an enemy. In bear form it also interrupts a spell.",
+          ptBR = "Investe contra um inimigo. Na forma de urso, também interrompe uma magia." },
       },
       templates = {
-        -- Cat on the plain press, bear on Shift: Claw and Maul on Mouse 4, Bite and Primal Bite on Mouse 5.
+        -- Cat on the plain press, bear on Shift: Claw and Lacerate on Mouse 4, Shred and Maul on Mouse 5.
         [2] = {
-          BUTTON4 = { normal = CLAW, shift = MAUL },
-          BUTTON5 = { normal = BITE },
+          BUTTON4 = { normal = CLAW, shift = LACERATE },
+          BUTTON5 = { normal = SHRED, shift = MAUL },
           E = CC,
           F = { normal = RAKE },
           Q = { normal = RIP, shift = FF, alt = DEMO },
-          R = { normal = SHRED, shift = SWIPE },
+          R = { normal = RAVAGE, shift = SWIPE, alt = BITE },
           V = ITEMS,
-          ["1"] = { normal = BASH },
+          ["1"] = { normal = CHARGE, shift = BASH },
           ["2"] = { normal = DASH, shift = COWER, alt = FRENZIED },
           ["3"] = HEALS,
           ["4"] = { normal = MOTW, shift = THORNS, alt = GRASP },
@@ -145,14 +161,14 @@ FoilKeybindsGuides.DRUID = {
           Z = { normal = ENRAGE },
         },
         [3] = {
-          BUTTON4 = { normal = CLAW, shift = MAUL },
-          BUTTON5 = { normal = BITE, shift = PRIMAL_BITE },
+          BUTTON4 = { normal = CLAW, shift = LACERATE },
+          BUTTON5 = { normal = SHRED, shift = MAUL },
           E = { normal = ROOTS, shift = HIBERNATE, alt = POUNCE },
-          F = { normal = RAKE },
+          F = { normal = RAKE, shift = PRIMAL_BITE },
           Q = { normal = RIP, shift = FF, alt = DEMO },
-          R = { normal = SHRED, shift = SWIPE, alt = RAVAGE },
+          R = { normal = RAVAGE, shift = SWIPE, alt = BITE, ctrl = SHIFTING },
           V = ITEMS,
-          ["1"] = { normal = BASH },
+          ["1"] = { normal = CHARGE, shift = BASH },
           ["2"] = { normal = BARKSKIN, shift = DASH, alt = FRENZIED, altshift = COWER },
           ["3"] = HEALS,
           ["4"] = { normal = MOTW, shift = THORNS, alt = GRASP },
@@ -165,49 +181,53 @@ FoilKeybindsGuides.DRUID = {
     [11340] = {
       name = "Restoration",
       priority = {
-        { spellID = 774, level = 4, en = "Heal over time. Put it on whoever takes damage first.",
-          ptBR = "Cura ao longo do tempo. Aplique primeiro em quem estiver tomando dano." },
-        { spellID = 8936, level = 12, en = "Quick heal plus a heal over time. Your main heal on the tank.",
-          ptBR = "Cura rápida mais uma cura ao longo do tempo. Sua cura principal no tanque." },
-        { spellID = 5185, level = 1, en = "Big, slow heal. Use it when there is time to cast.",
-          ptBR = "Cura grande e lenta. Use quando der tempo de conjurar." },
-        { spellID = 408120, level = 40, talent = true, en = "Heals the whole party over time. Use it when several people take damage.",
-          ptBR = "Cura o grupo todo ao longo do tempo. Use quando várias pessoas tomarem dano." },
-        { spellID = 740, level = 30, en = "Channeled group heal for emergencies. Stand still while it runs.",
-          ptBR = "Cura em grupo canalizada para emergências. Fique parado enquanto ela dura." },
-        { spellID = 29166, level = 40, en = "Gives a lot of mana back. Use it on yourself when you run low.",
-          ptBR = "Devolve bastante mana. Use em você quando a mana estiver acabando." },
-        { spellID = 2893, level = 26, en = "Removes poison over a few seconds.", ptBR = "Remove veneno ao longo de alguns segundos." },
-        { spellID = 8921, level = 4, en = "Solo damage: DoT first, then your nukes.",
-          ptBR = "Dano sozinho: aplique o DoT primeiro e depois ataque." },
+        { spellID = 774, level = 4, en = "Heal over time. Keep it on the tank and add it on anyone about to take damage.",
+          ptBR = "Cura ao longo do tempo. Mantenha no tanque e aplique em quem estiver para tomar dano." },
+        { spellID = 8936, level = 12, en = "Your main heal: strong and mana efficient. Use it on anyone who took real damage.",
+          ptBR = "Sua cura principal: forte e econômica. Use em quem tomou bastante dano." },
+        { spellID = 18562, level = 25, talent = true, en = "Fast big heal on a target with your HoT. Use it often, not only in emergencies.",
+          ptBR = "Cura grande e rápida em um alvo com a sua cura ao longo do tempo. Use sempre, não só em emergências." },
+        { spellID = 408120, level = 40, talent = true, en = "Heals the whole party over time. Use it when the full party is hurt.",
+          ptBR = "Cura o grupo todo ao longo do tempo. Use quando o grupo inteiro estiver ferido." },
+        { spellID = 740, level = 30, en = "Mana efficient group heal, but slow. In a real emergency, Regrowth is faster.",
+          ptBR = "Cura em grupo econômica, mas lenta. Numa emergência de verdade, o Regrowth é mais rápido." },
+        { spellID = 29166, level = 40, en = "Gives a lot of mana back. Use it on yourself on cooldown.",
+          ptBR = "Devolve bastante mana. Use em você sempre que estiver disponível." },
+        { spellID = 17116, level = 30, talent = true, en = "Emergency: your next heal is instant.",
+          ptBR = "Emergência: a sua próxima cura sai instantânea." },
+        { spellID = 5185, level = 1, en = "Slow heal. Only when the tank takes steady damage and your HoTs are already up.",
+          ptBR = "Cura lenta. Só quando o tanque tomar dano constante e as suas curas ao longo do tempo já estiverem ativas." },
+        { spellID = 8921, level = 4, en = "Solo damage: DoT first, then Wrath.",
+          ptBR = "Dano sozinho: aplique o DoT primeiro e depois use Wrath." },
       },
       templates = {
-        -- Heals on the plain press, solo damage on Shift (Wrath on Mouse 4, Starfire on Mouse 5).
+        -- Heals on the plain press, solo damage on Shift (Wrath on Mouse 4). Big heals and cooldowns on R.
         [2] = {
           BUTTON4 = { normal = REGROWTH, shift = WRATH },
-          BUTTON5 = { normal = REJUV, shift = STARFIRE },
+          BUTTON5 = { normal = REJUV },
           E = CC,
           F = { normal = MOONFIRE },
           Q = { normal = FF },
-          R = { normal = HT, shift = TRANQ },
+          R = { normal = SWIFTMEND, shift = TRANQ, altshift = SWIFTNESS },
           V = ITEMS,
           ["1"] = { normal = BASH },
           ["2"] = { normal = GRASP },
+          ["3"] = { normal = HT },
           ["4"] = BUFFS,
           C = { normal = BEAR, shift = CAT, alt = TRAVEL, altshift = AQUATIC },
           X = CURES2,
         },
         [3] = {
           BUTTON4 = { normal = REGROWTH, shift = WRATH },
-          BUTTON5 = { normal = REJUV, shift = STARFIRE },
+          BUTTON5 = { normal = REJUV },
           E = CC,
           F = { normal = MOONFIRE },
-          Q = { normal = FF },
-          R = { normal = HT, shift = TRANQ, alt = INNERVATE },
+          Q = { normal = FF, shift = INSECT },
+          R = { normal = SWIFTMEND, shift = WILD_GROWTH, alt = TRANQ, altshift = SWIFTNESS, ctrl = INNERVATE },
           V = ITEMS,
           ["1"] = { normal = BASH },
           ["2"] = { normal = BARKSKIN, shift = GRASP },
-          ["3"] = { normal = WILD_GROWTH },
+          ["3"] = { normal = HT },
           ["4"] = BUFFS,
           C = { normal = DIRE_BEAR, shift = CAT, alt = TRAVEL, altshift = AQUATIC },
           X = CURES2,
