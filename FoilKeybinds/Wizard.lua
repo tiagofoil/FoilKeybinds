@@ -110,6 +110,8 @@ local function use()
   db.wizard.picks[w.used.groupID] = ns.MergePicks(db.wizard.picks[w.used.groupID], w.map)
   db.wizard.cheatOnce = true
   ns.guide.hint = nil -- the "Step 1" or new-player line is done
+  -- Bars & keybinds OFF: Apply would only write macros and the keys would not change. Ask to turn it ON.
+  if not ns.Manages() then ns.SetManage(true) end
 end
 
 local show, click

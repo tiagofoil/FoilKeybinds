@@ -396,7 +396,12 @@ click(L.PREVIEW_USE)
 assert(ns.InPreview() and sameKeys(own, db.keys) and not db.wizard.picks and not db.wizard.cheatOnce, "a loading Use saved")
 G.C_Spell.GetSpellName = nameFn
 -- Use: the built layout is live (main attack on Mouse 5, wand out), old keys auto-saved, picks saved.
+-- Bars & keybinds is OFF here, so Use asks to turn it ON (without it the keys would not change in game).
+local popup0, asked = ns.Popup, nil
+ns.Popup = function(title, ...) asked = title; return popup0(title, ...) end
 click(L.PREVIEW_USE)
+ns.Popup = popup0
+assert(asked == L.MANAGE_ON_TITLE and not db.manage, "Use with Bars & keybinds OFF did not ask to turn it ON")
 assert(not ns.InPreview() and ns.WizardState() == nil, "Use did not end the wizard")
 assert(db.keys.BUTTON5.slots.normal.seq[1].name == "BANE OF AGONY" and db.keys.BUTTON4 == nil
   and sameKeys({}, { Z = db.keys.Z }), "built layout not used")
