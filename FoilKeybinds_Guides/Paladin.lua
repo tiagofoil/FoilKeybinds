@@ -26,7 +26,8 @@ local HOLY_SHOCK, VIGIL = T(1311606, "Holy Shock"), T(1310911, "Light's Vigil")
 -- Mouse 4, Judgement on Mouse 5 (Holy: heals there, attacks on Shift), Hammer of Justice on E, your damage seal
 -- on F, the seals you judge for a debuff on Q, auras on C, blessings on 4. No interrupt spell, so 1 stays free.
 local DEFENSIVE = { normal = DIV_PROT, shift = BOP, alt = DIVINE_SHIELD }
-local HEALS = { normal = HOLY_LIGHT, shift = FOL, alt = LOH } -- Holy Light is the self heal while leveling
+local HEALS = { normal = HOLY_LIGHT, shift = FOL, alt = LOH } -- Ret: Holy Light is the self heal while leveling
+local TANK_HEALS = { normal = FOL, shift = HOLY_LIGHT, alt = LOH } -- Prot: Flash of Light keeps you up mid pull
 local UTILITY1 = { normal = PURIFY, shift = FREEDOM, alt = REDEMPTION }
 local UTILITY2 = { normal = PURIFY, shift = FREEDOM, alt = REDEMPTION, altshift = DIV_INT }
 local UTILITY3 = { normal = CLEANSE, shift = FREEDOM, alt = REDEMPTION, altshift = DIV_INT }
@@ -86,7 +87,7 @@ FoilKeybindsGuides.PALADIN = {
           R = { normal = LOH, shift = CONSECRATION, alt = EXORCISM },
           V = ITEMS,
           ["2"] = DEFENSIVE,
-          ["4"] = BLESSINGS,
+          ["4"] = { normal = KINGS, shift = WISDOM, alt = MIGHT },
           C = { normal = DEVOTION, shift = CONCENTRATION },
           X = UTILITY2,
         },
@@ -139,7 +140,7 @@ FoilKeybindsGuides.PALADIN = {
           R = { normal = CONSECRATION, shift = EXORCISM },
           V = ITEMS,
           ["2"] = { normal = HOLY_SHIELD, shift = DIV_PROT, alt = DIVINE_SHIELD, altshift = BOP },
-          ["3"] = HEALS,
+          ["3"] = TANK_HEALS,
           ["4"] = BLESSINGS,
           T = { normal = RF },
           C = { normal = DEVOTION, shift = RET_AURA },
@@ -154,7 +155,7 @@ FoilKeybindsGuides.PALADIN = {
           R = { normal = CONSECRATION, shift = EXORCISM, alt = HOLY_WRATH, altshift = HOW },
           V = ITEMS,
           ["2"] = { normal = HOLY_SHIELD, shift = DIV_PROT, alt = DIVINE_SHIELD, altshift = BOP },
-          ["3"] = HEALS,
+          ["3"] = TANK_HEALS,
           ["4"] = BLESSINGS,
           T = { normal = RF },
           C = { normal = DEVOTION, shift = RET_AURA },
