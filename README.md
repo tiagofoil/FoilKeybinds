@@ -9,6 +9,10 @@ A WoW Forever addon that puts your whole layout on the keys near WASD. Each key 
 
 ![The editor with its side panels open](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/editor-side-panels.png)
 
+![The Guide tab: your spec's abilities in rotation order, with the key each one is on](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/guide.png)
+
+![The wizard: pick a key for each job, step by step](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/wizard.png)
+
 ![The cheat sheet](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/cheat-sheet.png) ![The cheat sheet at 0% background](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/cheat-sheet-no-background.png)
 
 ![Settings](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/settings.png)
