@@ -1,19 +1,19 @@
 # Foil Keybinds
-<img src="docs/logo-400.png" alt="Foil Keybinds logo" width="160">
+<img src="https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/logo-400.png" alt="Foil Keybinds logo" width="160">
 
 A WoW Forever addon that puts your whole layout on the keys near WASD. Each key gets one macro with five slots: normal, Shift, Alt, Alt+Shift and Ctrl. The modifiers live inside the macro, so one bar slot does it all.
 
 ## Screenshots
 
-![The editor: one key per macro, five slots each](docs/screenshots/editor.png)
+![The editor: one key per macro, five slots each](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/editor.png)
 
-![The editor with its side panels open](docs/screenshots/editor-side-panels.png)
+![The editor with its side panels open](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/editor-side-panels.png)
 
-![The cheat sheet](docs/screenshots/cheat-sheet.png) ![The cheat sheet at 0% background](docs/screenshots/cheat-sheet-no-background.png)
+![The cheat sheet](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/cheat-sheet.png) ![The cheat sheet at 0% background](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/cheat-sheet-no-background.png)
 
-![Settings](docs/screenshots/settings.png)
+![Settings](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/settings.png)
 
-![Login repair popup](docs/screenshots/login-repair.png)
+![Login repair popup](https://raw.githubusercontent.com/tiagofoil/FoilKeybinds/main/docs/screenshots/login-repair.png)
 
 ## What it does
 
