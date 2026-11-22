@@ -167,8 +167,9 @@ show = function()
     if s then
       n = n + 1
       local b = page.icons[n]
-      b.spellID, b.label = s.spellID, s.item and ns.ItemLabel(s.item)
-      b.tex:SetTexture(s.item and ns.ItemIcon(s.item) or ns.SpellIcon(s.spellID))
+      local tex, name, _, spellID, len = ns.SlotView(s) -- same view as the board: sequences, items, pets
+      b.spellID, b.label = not len and spellID or nil, name -- a sequence tooltips its whole list
+      b.tex:SetTexture(tex)
       b.mod:SetText(L["SLOT_" .. id])
       b:Show()
     end
